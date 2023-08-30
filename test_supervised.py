@@ -127,9 +127,6 @@ def apply_brush(mask, x, y, brush):
         row_end = mask.shape[0]
         row_start = row_end - brush.shape[0]
 
-    print(
-        f"Applying brush from ({row_start}, {col_start}) to ({row_end}, {col_end})")
-
     mask[row_start:row_end, col_start:col_end] += brush
     return mask
 
@@ -139,6 +136,7 @@ def apply_brush(mask, x, y, brush):
 last_point = None
 
 for file in hdf_files:
+    folder_save = "training_set"
     fig, ax = plt.subplots(figsize=(10, 10))
     filepath = os.path.join(folder, file)  # Full path to the file
     hdf = SD(filepath, SDC.READ)
@@ -176,9 +174,11 @@ for file in hdf_files:
     ax.imshow(data, cmap='gray')
     ax.imshow(mask, alpha=0.3, cmap='Reds')
     plt.show()
-    plt.imshow(mask, cmap="gray")
+    # plt.imshow(mask, cmap="gray")
     # Print coords after closing the plot
-    plt.show()
+    # plt.show()
 
-    arr = np.array(coords)
-    np.save("%s_coords" % (file[:-4]), arr)
+    # arr = np.array(coords)
+    np.save("%s/%s" % (folder_save, file[:-4]), data)
+
+    np.save("%s/%s_coords" % (folder_save, file[:-4]), mask)
