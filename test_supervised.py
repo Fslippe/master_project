@@ -11,10 +11,6 @@ from pyhdf.SD import SD, SDC
 import matplotlib as mpl
 from mpl_toolkits.basemap import Basemap, cm
 
-folder = "/home/filip/Downloads/outbreak/"
-all_files = os.listdir(folder)
-hdf_files = [f for f in all_files if f.endswith('.hdf')]
-
 
 def on_press(event):
     global drawing
@@ -127,12 +123,19 @@ def apply_brush(mask, x, y, brush):
         row_end = mask.shape[0]
         row_start = row_end - brush.shape[0]
 
-    mask[row_start:row_end, col_start:col_end] += brush
+    mask[row_start:row_end, col_start:col_end] = np.where(
+        mask[row_start:row_end, col_start:col_end] < brush, brush, mask[row_start:row_end, col_start:col_end])
     return mask
 
 
 # Assuming your image is in variable `img`
 # Initialize last_point as None
+folder = "/home/filip/Downloads/outbreak/"
+all_files = os.listdir(folder)
+hdf_files = [f for f in all_files if f.endswith(
+    '.hdf') and f[:-4] + ".npy" not in os.listdir("/home/filip/Documents/master_project/training_set/data/")]
+
+
 last_point = None
 
 for file in hdf_files:
@@ -160,7 +163,7 @@ for file in hdf_files:
     if len(coords) != 0:
         coords = interpolate_coords(coords)
 
-        brush = gaussian_brush(width=50, height=50, sigma=3.5)
+        brush = gaussian_brush(width=50, height=50, sigma=15)
 
         for coord in coords:
             mask = apply_brush(mask, int(coord[0]), int(
@@ -173,12 +176,13 @@ for file in hdf_files:
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.imshow(data, cmap='gray')
     ax.imshow(mask, alpha=0.3, cmap='Reds')
+    print(np.max(mask))
     plt.show()
     # plt.imshow(mask, cmap="gray")
     # Print coords after closing the plot
     # plt.show()
 
     # arr = np.array(coords)
-    np.save("%s/%s" % (folder_save, file[:-4]), data)
+    np.save("%s/data/%s" % (folder_save, file[:-4]), data)
 
-    np.save("%s/%s_coords" % (folder_save, file[:-4]), mask)
+    np.save("%s/mask/%s_coords" % (folder_save, file[:-4]), mask)
