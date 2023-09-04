@@ -144,7 +144,15 @@ for file in hdf_files:
     filepath = os.path.join(folder, file)  # Full path to the file
     hdf = SD(filepath, SDC.READ)
 
-    data = hdf.select("1km Surface Reflectance Band 1")[:]
+    dataset = hdf.select("1km Surface Reflectance Band 1")
+    data = dataset[:].astype(float)
+    data[data == dataset.attributes()["_FillValue"]] = np.nan
+
+    # + dataset.attributes()["add_offset"]
+    data = (data - dataset.attributes()
+            ["add_offset"])*dataset.attributes()["scale_factor"]
+    print(data.shape)
+    print(data)
     # List to store the mouse positions
     coords = []
 
