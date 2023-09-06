@@ -193,4 +193,4 @@ for file in hdf_files:
     # arr = np.array(coords)
     np.save("%s/data/%s" % (folder_save, file[:-4]), data)
 
-    np.save("%s/mask/%s_coords" % (folder_save, file[:-4]), mask)
+    # np.save("%s/mask/%s_coords" % (folder_save, file[:-4]), mask)
