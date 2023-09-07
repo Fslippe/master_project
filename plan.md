@@ -16,5 +16,5 @@
 - Measurements with cloud top above > 500 hPa needs to be eliminated (from Rebecca et al.)
 - Cloud_Multi_Layer_Flag to filter data only containing single layer clouds. (from Rebecca et al.)
 - filtering to remove bias “Cloud_Mask_SPI” >30; (Zhang and Platnick, 2011) and high solar-zenith angles (> 65∘) or high viewing angles (> 50∘) (Grosvenor and Wood, 2014).
-- Why is Rebecca et al calculating LWP and Nd by themselves and not using the already calculated values from MODIS?
-- Rebecca et al. removing ice clouds by filtering by minimum cloud top temperature
+- Remove pixels with sea ice or land 
+
