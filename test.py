@@ -13,7 +13,7 @@ from sklearn.cluster import KMeans
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.optimizers import Adam
+from keras.optimizers import Adam
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
@@ -23,7 +23,7 @@ from sklearn.feature_extraction.image import extract_patches_2d, reconstruct_fro
 
 from mpl_toolkits.basemap import Basemap, cm
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+tf.config.threading.set_inter_op_parallelism_threads(1)
 
 class SobelFilterLayer(tf.keras.layers.Layer):
     def call(self, inputs):
@@ -128,17 +128,28 @@ class SimpleAutoencoder:
         
         print("Patches shape: ", self.patches.shape)
         #self.patches = self.extract_patches(normalized_datasets)
+        print("ENCODE")
         self.encode()
+        print("DECODE")
+
         self.decode()
+        print("LOSS")
         if loss == "mse":
             loss_func = "mse"
         elif loss=="combined":
             loss_func = self.combined_loss
+        
+        print("MODEL")
+
         self.autoencoder = keras.Model(self.encoder_input, self.decoder(self.encoded))
          
+        print("COMPILE")
 
         self.autoencoder.compile(optimizer=optimizer, loss=loss_func)  # Using combined loss
+        print("FIT")
+        tf.config.threading.set_inter_op_parallelism_threads(1)
         self.autoencoder.fit(self.patches, self.patches, epochs=epochs, batch_size=batch_size)
+        print("FIT")
 
         if predict_self:
             self.predict()
@@ -227,4 +238,57 @@ class SimpleAutoencoder:
 
         cluster_map = np.reshape(labels, (reduced_height, reduced_width))
         return cluster_map
+    
+optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
 print("HEIG")
+
+folder = "/nird/projects/NS9600K/data/modis/cao/"
+file_name = "/nird/projects/NS9600K/data/modis/cao/MOD021KM.A2021080.1300.061.2021081011315.hdf"
+hdf = SD(file_name, SDC.READ)
+bands = [6]#, 7, 20]
+
+list1 = [int(num_str) for num_str in hdf.select("EV_250_Aggr1km_RefSB").attributes()["band_names"].split(",")]
+list2 = [int(num_str) for num_str in hdf.select("EV_500_Aggr1km_RefSB").attributes()["band_names"].split(",")]
+list3 = [int(num_str) for num_str in hdf.select("EV_1KM_RefSB").attributes()["band_names"].split(",") if num_str.isdigit()]
+list4 = [int(num_str) for num_str in hdf.select("EV_1KM_Emissive").attributes()["band_names"].split(",")]
+
+file_layers = np.empty(36, dtype=object)
+for i, (band) in enumerate(list1):
+    file_layers[band-1] = {"EV_250_Aggr1km_RefSB": i}
+for i, (band) in enumerate(list2):
+    file_layers[band-1] = {"EV_500_Aggr1km_RefSB": i}    
+for i, (band) in enumerate(list3):
+    file_layers[band-1] = {"EV_1KM_RefSB": i}
+for i, (band) in enumerate(list4):
+    file_layers[band-1] = {"EV_1KM_Emissive": i}
+
+
+all_files = os.listdir(folder)[0:1]
+
+X = np.empty((len(all_files), 2030, 1354, len(bands)))
+
+for i, (file) in enumerate(all_files):
+    hdf = SD(folder + file, SDC.READ)
+    for j, (band) in enumerate(bands):
+        key = list(file_layers[band-1].keys())[0]
+        idx = list(file_layers[band-1].values())[0]
+
+        attrs = hdf.select(key).attributes()
+        data = hdf.select(key)[:][idx]
+        is_nan = (np.where(data == attrs["_FillValue"]))
+        data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
+
+        if not len(is_nan[0]) == 0:
+            data = data[is_nan[0][-1]+1:, :] if is_nan[1][-1] == 1353 else data[:, is_nan[1][-1]+1:]
+
+        X[i, :, :, j] = data
+
+
+X = X[:,::4, ::4, :]
+autoencoder = SimpleAutoencoder(1, 64, 64)
+#optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+autoencoder.fit(X, epochs=1, batch_size=8, optimizer="adam", threshold=0.09,loss="combined")
+# print(X[0].shape)
+# #autoencoder = simple_autoencoder([data_01], patch_size)
+# autoencoder = simple_autoencoder(1, (2040, 1354), patch_size)    
+# autoencoder.fit(X, epochs=5, batch_size=256)
