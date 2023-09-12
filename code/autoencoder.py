@@ -112,13 +112,14 @@ class SimpleAutoencoder:
         #self.patches = self.extract_patches(normalized_datasets)
         self.encode()
         self.decode()
+        print("Auto")
         if loss == "mse":
             loss_func = "mse"
         elif loss=="combined":
             loss_func = self.combined_loss
         self.autoencoder = keras.Model(self.encoder_input, self.decoder(self.encoded))
          
-
+        
         self.autoencoder.compile(optimizer=optimizer, loss=loss_func)  # Using combined loss
         self.autoencoder.fit(self.patches, self.patches, epochs=epochs, batch_size=batch_size)
 
