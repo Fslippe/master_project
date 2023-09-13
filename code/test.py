@@ -23,62 +23,49 @@ import matplotlib as mpl
 from sklearn.feature_extraction.image import extract_patches_2d, reconstruct_from_patches_2d
 
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
-folder = "/nird/projects/NS9600K/data/modis/cao/"
-#folder = "/home/filip/Documents/master_project/data/MOD02/"
-folder = "/uio/hume/student-u37/fslippe/data/cao/"
-file_name = folder + "MOD021KM.A2021080.1300.061.2021081011315.hdf"
 
-print(file_name)
-hdf = SD(file_name, SDC.READ)
-bands = [6, 7, 20, 30, 5]
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Currently, memory growth needs to be the same across GPUs
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+    except RuntimeError as e:
+        # Memory growth must be set before GPUs have been initialized
+        print(e)
 
-list1 = [int(num_str) for num_str in hdf.select("EV_250_Aggr1km_RefSB").attributes()["band_names"].split(",")]
-list2 = [int(num_str) for num_str in hdf.select("EV_500_Aggr1km_RefSB").attributes()["band_names"].split(",")]
-list3 = [int(num_str) for num_str in hdf.select("EV_1KM_RefSB").attributes()["band_names"].split(",") if num_str.isdigit()]
-list4 = [int(num_str) for num_str in hdf.select("EV_1KM_Emissive").attributes()["band_names"].split(",")]
+bands = [6, 7, 20, 28, 28, 31]
 
-file_layers = np.empty(36, dtype=object)
-for i, (band) in enumerate(list1):
-    file_layers[band-1] = {"EV_250_Aggr1km_RefSB": i}
-for i, (band) in enumerate(list2):
-    file_layers[band-1] = {"EV_500_Aggr1km_RefSB": i}    
-for i, (band) in enumerate(list3):
-    file_layers[band-1] = {"EV_1KM_RefSB": i}
-for i, (band) in enumerate(list4):
-    file_layers[band-1] = {"EV_1KM_Emissive": i}
+loaded = np.load('/uio/hume/student-u37/fslippe/data/training_data/training_data_20210421.npz')
+X = [loaded[key] for key in loaded][:4]
+print(len(X))
 
 
-#all_files = os.listdir(folder)[16:18]
-all_files = os.listdir(folder)[4:5]
+X = [arr for arr in X if arr.shape[0] >= 64]
 
-X = np.empty((len(all_files), 2030, 1354, len(bands)))
-
-x = np.empty((2030, 1354, len(bands)))
-
-
-for i, (file) in enumerate(all_files):
-    hdf = SD(folder + file, SDC.READ)
-    for j, (band) in enumerate(bands):
-        key = list(file_layers[band-1].keys())[0]
-        idx = list(file_layers[band-1].values())[0]
-
-        attrs = hdf.select(key).attributes()
-        data = hdf.select(key)[:][idx]
-        is_nan = (np.where(data == attrs["_FillValue"]))
-        data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
-
-        if not len(is_nan[0]) == 0:
-            data = data[is_nan[0][-1]+1:, :] if is_nan[1][-1] == 1353 else data[:, is_nan[1][-1]+1:]
-
-        X[i, :, :, j] = data[:2030, :1354]
-
-
-plt.imshow(X[0,:,:,0], cmap="gray")
-
-autoencoder = SimpleAutoencoder(3, 128, 128)
+patch_size = 64
+autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
 #optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-autoencoder.fit(X, epochs=200, batch_size=32, optimizer="adam", threshold=0.09,loss="combined")
+
+
+autoencoder.fit(X, epochs=2, batch_size=64, optimizer="adam", threshold=0.09,loss="combined")
 # print(X[0].shape)
-# #autoencoder = simple_autoencoder([data_01], patch_size)
-# autoencoder = simple_autoencoder(1, (2040, 1354), patch_size)    
-# autoencoder.fit(X, epochs=5, batch_size=256)
+X_test = autoencoder.normalize(X[:4])
+print(np.max(X[0]))
+print(np.max(X_test[0]))
+
+cluster_map = autoencoder.kmeans(X_test, n_clusters=8)
+print(len(cluster_map))
+for i in range(3):
+    fix, axs= plt.subplots(1,2, figsize=[10,8])
+
+    cb = axs[0].imshow(cluster_map[i], cmap="tab10")
+    plt.colorbar(cb)
+    plt.tight_layout()
+    cb = axs[1].imshow(X[i][:,:,0])
+    plt.colorbar(cb)
+    plt.tight_layout()
+
+plt.show()

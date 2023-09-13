@@ -25,34 +25,31 @@ class SimpleAutoencoder:
             self.patch_size_2 = patch_size_2
     
     
-    def extract_patches(self, image):     
+    def extract_patches(self, image):
+        # Expand dimensions if the image is 3D
         if image.ndim == 3:
             image = np.expand_dims(image, axis=0)
-        else:
-            assert image.ndim == 4, "Image has wrong shape. Epected dimension 4, has dimension %s" %image.ndim 
+        elif image.ndim == 2:
+            # Assuming single-channel (grayscale) image, expand both batch and channel dimensions
+            image = np.expand_dims(np.expand_dims(image, axis=0), axis=-1)
+
         sizes = [1, self.patch_size, self.patch_size_2, 1]
         strides = [1, self.patch_size, self.patch_size_2, 1]
         rates = [1, 1, 1, 1]
-        padding = 'VALID'  # 'VALID' ensures no padding and might discard right/bottom parts of the image if not fitting exactly
+        padding = 'VALID'
+
         patches = tf.image.extract_patches(images=image,
                                         sizes=sizes,
                                         strides=strides,
                                         rates=rates,
                                         padding=padding)
-
-        # Reshaping the tensor for easier indexing of patches
-        # patches_reshaped =  tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
-        # Check for NaN values in patches and create a mask
-        # mask = tf.math.logical_not(tf.math.is_nan(patches_reshaped))
         
-        # Check if all values in the patch are not NaN
-        # valid_mask = tf.reduce_all(mask, axis=(1,2,3))
+        reshaped_patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
 
-        # Use boolean mask to filter patches
-        # valid_patches = tf.boolean_mask(patches_reshaped, valid_mask)
-        
-        #return valid_patches
-        return tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+        # Optionally, concatenate all patches into one large tensor
+
+        return reshaped_patches
+
     
     def encode(self):
         #encoder_input = keras.Input(shape=(patch_size, patch_size, 1))
@@ -93,7 +90,6 @@ class SimpleAutoencoder:
     def fit(self, datasets, epochs, batch_size, loss="mse", threshold = 0.1, optimizer = "adam", predict_self=False):
         normalized_datasets = self.normalize(datasets)
         #normalized_datasets = np.nan_to_num(normalized_datasets, nan=-1)
-
         all_patches = []
 
         for image in normalized_datasets:
@@ -112,7 +108,6 @@ class SimpleAutoencoder:
         #self.patches = self.extract_patches(normalized_datasets)
         self.encode()
         self.decode()
-        print("Auto")
         if loss == "mse":
             loss_func = "mse"
         elif loss=="combined":
@@ -161,14 +156,34 @@ class SimpleAutoencoder:
         sbl_loss = self.sobel_loss(y_true, y_pred)
         
         return mse + alpha * sbl_loss
+    
 
-    def kmeans(self, data, n_clusters=10, random_state=None):
-        patches = self.extract_patches(data)
-        encoded_patches = self.encoder.predict(patches)
+    def kmeans(self, datasets, n_clusters=10, encoder=None, random_state=None):
+        cluster_map = []
+        all_patches = []
+        starts = []
+        ends =[]
+        shapes = []
+        start = 0 
 
-        # Flatten the encoded patches for clustering
+        for image in datasets:
+            shapes.append(image.shape[0:2])
+            patches = self.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
+            all_patches.append(patches)
+            starts.append(start)
+            ends.append(start + len(patches))
+            start += len(patches)
+
+
+
+        # Stack filtered patches from all images
+        patches = np.concatenate(all_patches, axis=0)
+        if encoder == None:
+            encoded_patches = self.encoder.predict(patches)
+        else:
+            encoded_patches = encoder.predict(patches)
+            
         self.encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
-
         # KMeans clustering
         if random_state != None:
             kmeans = KMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
@@ -176,15 +191,46 @@ class SimpleAutoencoder:
             kmeans = KMeans(n_clusters).fit(self.encoded_patches_flat)
 
         labels = kmeans.labels_
+
         # Assuming your original data shape is (height, width)
-        height, width = data.shape[1:3]
+        for i in range(len(datasets)):
+            height, width = shapes[i]
 
-        # Calculate the dimensions of the reduced resolution array
-        reduced_height = height // self.patch_size
-        reduced_width = width // self.patch_size_2
+            # Calculate the dimensions of the reduced resolution array
+            reduced_height = height // self.patch_size
+            reduced_width = width // self.patch_size_2
+            cluster_map.append(np.reshape(labels[starts[i]:ends[i]], (reduced_height, reduced_width)))
 
-        cluster_map = np.reshape(labels, (reduced_height, reduced_width))
         return cluster_map
+    # def kmeans(self, datasets, n_clusters=10, random_state=None):
+    #     cluster_map = []
+    #     for data in datasets:
+    #         if data[0].shape[0] == self.patch_size:
+    #             patches = data 
+    #         else:
+    #             patches = self.extract_patches(data)
+
+    #         encoded_patches = self.encoder.predict(patches)
+
+    #         # Flatten the encoded patches for clustering
+    #         self.encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
+
+    #         # KMeans clustering
+    #         if random_state != None:
+    #             kmeans = KMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
+    #         else:
+    #             kmeans = KMeans(n_clusters).fit(self.encoded_patches_flat)
+
+    #         labels = kmeans.labels_
+    #         # Assuming your original data shape is (height, width)
+    #         height, width = data.shape[0:2]
+
+    #         # Calculate the dimensions of the reduced resolution array
+    #         reduced_height = height // self.patch_size
+    #         reduced_width = width // self.patch_size_2
+
+    #         cluster_map.append(np.reshape(labels, (reduced_height, reduced_width)))
+    #     return cluster_map
     
     def clustering_agglomerative(self, n_clusters=2, affinity='euclidean', linkage='ward', data_shape=(2030, 1354)):
         """
