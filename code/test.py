@@ -18,19 +18,19 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
 from pyhdf.SD import SD, SDC
 import matplotlib as mpl
-tf.config.threading.set_inter_op_parallelism_threads(128)
+#tf.config.threading.set_inter_op_parallelism_threads(128)
 
 from sklearn.feature_extraction.image import extract_patches_2d, reconstruct_from_patches_2d
 
-from mpl_toolkits.basemap import Basemap, cm
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
 folder = "/nird/projects/NS9600K/data/modis/cao/"
 #folder = "/home/filip/Documents/master_project/data/MOD02/"
+folder = "/uio/hume/student-u37/fslippe/data/cao/"
 file_name = folder + "MOD021KM.A2021080.1300.061.2021081011315.hdf"
 
-
+print(file_name)
 hdf = SD(file_name, SDC.READ)
-bands = [6, 7, 20]
+bands = [6, 7, 20, 30, 5]
 
 list1 = [int(num_str) for num_str in hdf.select("EV_250_Aggr1km_RefSB").attributes()["band_names"].split(",")]
 list2 = [int(num_str) for num_str in hdf.select("EV_500_Aggr1km_RefSB").attributes()["band_names"].split(",")]
@@ -53,6 +53,9 @@ all_files = os.listdir(folder)[4:5]
 
 X = np.empty((len(all_files), 2030, 1354, len(bands)))
 
+x = np.empty((2030, 1354, len(bands)))
+
+
 for i, (file) in enumerate(all_files):
     hdf = SD(folder + file, SDC.READ)
     for j, (band) in enumerate(bands):
@@ -72,9 +75,9 @@ for i, (file) in enumerate(all_files):
 
 plt.imshow(X[0,:,:,0], cmap="gray")
 
-autoencoder = SimpleAutoencoder(3, 64, 64)
+autoencoder = SimpleAutoencoder(3, 128, 128)
 #optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-autoencoder.fit(X, epochs=2, batch_size=32, optimizer="adam", threshold=0.09,loss="mse")
+autoencoder.fit(X, epochs=200, batch_size=32, optimizer="adam", threshold=0.09,loss="combined")
 # print(X[0].shape)
 # #autoencoder = simple_autoencoder([data_01], patch_size)
 # autoencoder = simple_autoencoder(1, (2040, 1354), patch_size)    

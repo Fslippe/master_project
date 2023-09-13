@@ -4,7 +4,7 @@ import keras
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import KMeans
 
-tf.config.threading.set_inter_op_parallelism_threads(128)
+#tf.config.threading.set_inter_op_parallelism_threads(128)
 
 
 class SobelFilterLayer(tf.keras.layers.Layer):
