@@ -3,7 +3,8 @@ import numpy as np
 import os 
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
-
+from collections import defaultdict
+import gc
 def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None):
 
     #folder = "/nird/projects/NS9600K/data/modis/cao/"
@@ -50,19 +51,28 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
 def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None, workers=1):
     print("Preprocess")
-    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')][:50]
-
-    # print(folder + all_files[0])
+    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')]
     hdf = SD(folder + all_files[0], SDC.READ)
     # datasets = hdf.datasets()
     # for idx, sds in enumerate(datasets.keys()):
     #     print(sds, hdf.select(sds).attributes())
         
     list1 = [int(num_str) for num_str in hdf.select("EV_250_RefSB").attributes()["band_names"].split(",")]
-
     file_layers = np.empty(2, dtype=object)
     for i, (band) in enumerate(list1):
         file_layers[band-1] = {"EV_250_RefSB": i}
+
+    file_groups = defaultdict(list)
+
+    # Loop through all files and group them by date
+    for file in all_files:
+        # Extract date from the filename (assuming the pattern is consistent)
+        date = file.split('.')[1][1:]  # This will give e.g., '2021120' for 'MOD02QKM.A2021120'
+        
+        file_groups[date].append(file)
+        # print(folder + all_files[0])
+
+
 
 
     #all_files = os.listdir(folder)[16:18]
@@ -73,16 +83,20 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 
     # with ProcessPoolExecutor() as executor:
     #     X = list(executor.map(append_data, [folder]*len(all_files), all_files, [file_layers]*len(all_files), [bands]*len(all_files)))
+    for key in file_groups.keys():
+        if not os.path.exists(save +"_" + key +".npz"):
+            file_group = file_groups[key]
+            print(file_group)
+            with ProcessPoolExecutor(max_workers=len(file_group)) as executor:
+                X = list(tqdm(executor.map(append_data, [folder]*len(file_group), file_group, [file_layers]*len(file_group), [bands]*len(file_group)), total=len(file_group)))
 
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        X = list(tqdm(executor.map(append_data, [folder]*len(all_files), all_files, [file_layers]*len(all_files), [bands]*len(all_files)), total=len(all_files)))
-
-
-    
-    if save != None:
-        print("Saving...")
-        #return X
-        np.savez(save, *X)
+            if save != None:
+                print("Saving...")
+                #return X
+                np.savez(save +"_" + key, *X)
+        else:
+            print("exists")
+        gc.collect()
     else:
         return X
     
@@ -121,8 +135,8 @@ import time
 start = time.time()
 print(os.cpu_count())
 #x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1,2],  save=None)
-extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1, 2],  save="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/training_set")
-#extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/training_set")
+#extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1, 2],  save="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/training_set")
+extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/converted_data/training_set")
 
 #loaded = np.load("/nird/projects/NS9600K/fslippe/test.npz")
 #X = [loaded[key] for key in loaded]
