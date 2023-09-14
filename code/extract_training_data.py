@@ -48,15 +48,15 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     else:
         return X
 
-def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None):
+def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None, workers=1):
     print("Preprocess")
     all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')][:50]
 
-    print(folder + all_files[0])
+    # print(folder + all_files[0])
     hdf = SD(folder + all_files[0], SDC.READ)
-    datasets = hdf.datasets()
-    for idx, sds in enumerate(datasets.keys()):
-        print(sds, hdf.select(sds).attributes())
+    # datasets = hdf.datasets()
+    # for idx, sds in enumerate(datasets.keys()):
+    #     print(sds, hdf.select(sds).attributes())
         
     list1 = [int(num_str) for num_str in hdf.select("EV_250_RefSB").attributes()["band_names"].split(",")]
 
@@ -74,13 +74,14 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     # with ProcessPoolExecutor() as executor:
     #     X = list(executor.map(append_data, [folder]*len(all_files), all_files, [file_layers]*len(all_files), [bands]*len(all_files)))
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=workers) as executor:
         X = list(tqdm(executor.map(append_data, [folder]*len(all_files), all_files, [file_layers]*len(all_files), [bands]*len(all_files)), total=len(all_files)))
 
 
     
     if save != None:
         print("Saving...")
+        #return X
         np.savez(save, *X)
     else:
         return X
@@ -120,7 +121,9 @@ import time
 start = time.time()
 print(os.cpu_count())
 #x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1,2],  save=None)
-extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/training_set")
+extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1, 2],  save="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/training_set")
+#extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/training_set")
+
 #loaded = np.load("/nird/projects/NS9600K/fslippe/test.npz")
 #X = [loaded[key] for key in loaded]
 #print(X)
