@@ -47,9 +47,9 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     else:
         return X
 
-def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None):
+def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None):
     print("Preprocess")
-    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')][:1]
+    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')][:2]
 
     print(folder + all_files[0])
     hdf = SD(folder + all_files[0], SDC.READ)
@@ -61,7 +61,7 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 
     file_layers = np.empty(2, dtype=object)
     for i, (band) in enumerate(list1):
-        file_layers[band-1] = {"EV_250_Aggr1km_RefSB": i}
+        file_layers[band-1] = {"EV_250_RefSB": i}
 
 
     #all_files = os.listdir(folder)[16:18]
@@ -84,13 +84,13 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 def append_data(folder, file, file_layers, bands):
     print("importing file")
     hdf = SD(folder + file, SDC.READ)
-    print(hdf.select("EV_250_Aggr1km_RefSB")[:])
     print("finished import")
 
     current_data_list = []
 
     key = list(file_layers[bands[0]-1].keys())[0]
     idx = list(file_layers[bands[0]-1].values())[0]
+    print(key, "\n\n\n\n")
     attrs = hdf.select(key).attributes()
     data = hdf.select(key)[:][idx]
     is_nan = data == attrs["_FillValue"]
@@ -116,7 +116,9 @@ def append_data(folder, file, file_layers, bands):
 import time 
 start = time.time()
 print(os.cpu_count())
-x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [6, 7, 20, 28, 28, 31],  save=None)
+#x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [6, 7, 20, 28, 28, 31],  save=None)
+x = extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save=None)
+
 print(x)
 end = time.time()
 print("time used:", end-start)
