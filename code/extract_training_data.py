@@ -49,7 +49,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
 def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None):
     print("Preprocess")
-    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')][:2]
+    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')][:10]
 
     print(folder + all_files[0])
     hdf = SD(folder + all_files[0], SDC.READ)
@@ -70,7 +70,7 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     #X = np.empty((len(all_files), 2030, 1354, len(bands)))
     print("Importing files to RAM")
 
-    with ProcessPoolExecutor(max_workers=256) as executor:
+    with ProcessPoolExecutor(max_workers=128) as executor:
         X = list(executor.map(append_data, [folder]*len(all_files), all_files, [file_layers]*len(all_files), [bands]*len(all_files)))
 
     
@@ -100,7 +100,8 @@ def append_data(folder, file, file_layers, bands):
     data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
     current_data_list.append(data)
     
-    for j, (band) in enumerate(bands[1:]):
+    for j, (band) in enumerate(bands):
+        print(band)
         key = list(file_layers[band-1].keys())[0]
         idx = list(file_layers[band-1].values())[0]
 
@@ -116,8 +117,8 @@ def append_data(folder, file, file_layers, bands):
 import time 
 start = time.time()
 print(os.cpu_count())
-#x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [6, 7, 20, 28, 28, 31],  save=None)
-x = extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save=None)
+x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1,2],  save=None)
+#x = extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save=None)
 
 print(x)
 end = time.time()
