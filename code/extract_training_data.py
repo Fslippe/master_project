@@ -92,7 +92,6 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 
             if save != None:
                 print("Saving...")
-                #return X
                 np.savez(save +"_" + key, *X)
         else:
             print("exists")
@@ -115,10 +114,13 @@ def append_data(folder, file, file_layers, bands):
     valid_rows = ~np.all(is_nan, axis=1)
     valid_cols = ~np.all(is_nan, axis=0)
     data = data[valid_rows][:, valid_cols]
+    print(data.shape[0])
+    #if data.shape[0] < 64:
+        
     data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
     current_data_list.append(data)
     
-    for j, (band) in enumerate(bands):
+    for j, (band) in enumerate(bands[1:]):
         key = list(file_layers[band-1].keys())[0]
         idx = list(file_layers[band-1].values())[0]
 
@@ -134,14 +136,17 @@ def append_data(folder, file, file_layers, bands):
 import time 
 start = time.time()
 print(os.cpu_count())
-#x = extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1,2],  save=None)
-#extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/", bands = [1, 2],  save="/uio/hume/student-u37/fslippe/data/nird_mount/MOD02QKM_202012-202104/training_set")
-extract_250m_data(folder="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/", bands = [1, 2],  save="/nird/projects/NS9600K/data/modis/cao/MOD02QKM_202012-202104/converted_data/training_set")
+folder = "/uio/hume/student-u37/fslippe/data/nird_mount/"
+#x = extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1,2],  save=None)
+#extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1, 2],  save=folder + "MOD02QKM_202012-202104/training_set")
+#extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1, 2],  save= folder + "MOD02QKM_202012-202104/converted_data/training_set")
+extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1, 2],  save= folder + "MOD02QKM_202012-202104/converted_data/training_set")
 
 #loaded = np.load("/nird/projects/NS9600K/fslippe/test.npz")
 #X = [loaded[key] for key in loaded]
 #print(X)
 end = time.time()
+
 print("time used:", end-start)
 # def append_data(folder, all_files, file_layers, bands):
 #     X = []
