@@ -5,6 +5,8 @@ from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 from collections import defaultdict
 import gc
+
+
 def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None):
 
     #folder = "/nird/projects/NS9600K/data/modis/cao/"
@@ -136,7 +138,9 @@ def append_data(folder, file, file_layers, bands):
 import time 
 start = time.time()
 print(os.cpu_count())
-folder = "/uio/hume/student-u37/fslippe/data/nird_mount/"
+#folder = "/uio/hume/student-u37/fslippe/data/nird_mount/"
+folder = "/nird/projects/NS9600K/data/modis/cao/"
+
 #x = extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1,2],  save=None)
 #extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1, 2],  save=folder + "MOD02QKM_202012-202104/training_set")
 #extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1, 2],  save= folder + "MOD02QKM_202012-202104/converted_data/training_set")
@@ -148,38 +152,3 @@ extract_250m_data(folder=folder + "MOD02QKM_202012-202104/", bands = [1, 2],  sa
 end = time.time()
 
 print("time used:", end-start)
-# def append_data(folder, all_files, file_layers, bands):
-#     X = []
-#     for i, (file) in enumerate(all_files):
-#         hdf = SD(folder + file, SDC.READ)
-#         current_data_list = []
-
-#         key = list(file_layers[bands[0]-1].keys())[0]
-#         idx = list(file_layers[bands[0]-1].values())[0]
-#         attrs = hdf.select(key).attributes()
-#         data = hdf.select(key)[:][idx]
-#         is_nan = data == attrs["_FillValue"]
-#         valid_rows = ~np.all(is_nan, axis=1)
-#         valid_cols = ~np.all(is_nan, axis=0)
-#         data = data[valid_rows][:, valid_cols]
-#         data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
-#         current_data_list.append(data)
-        
-#         for j, (band) in enumerate(bands[1:]):
-#             key = list(file_layers[band-1].keys())[0]
-#             idx = list(file_layers[band-1].values())[0]
-
-#             attrs = hdf.select(key).attributes()
-#             data = hdf.select(key)[:][idx]
-#             data = data[valid_rows][:, valid_cols]
-
-#             data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
-#             # if not len(is_nan[0]) == 0:
-#             #     data = data[is_nan[0][-1]+1:, :] if is_nan[1][-1] == 1353 else data[:, is_nan[1][-1]+1:]
-#             current_data_list.append(data)
-#         x_bands = np.stack(current_data_list, axis=-1)
-#         #    x_bands[:,:, j] = data
-        
-#         X.append(x_bands)
-#     return X
-
