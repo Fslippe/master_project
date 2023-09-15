@@ -3,6 +3,7 @@ import numpy as np
 import keras
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import KMeans
+from concurrent.futures import ProcessPoolExecutor
 
 #tf.config.threading.set_inter_op_parallelism_threads(128)
 
@@ -88,11 +89,19 @@ class SimpleAutoencoder:
 
 
     def fit(self, datasets, epochs, batch_size, loss="mse", threshold = 0.1, optimizer = "adam", predict_self=False):
-        normalized_datasets = self.normalize(datasets)
+        print("Normalizing datasets...")
+        with ProcessPoolExecutor() as executor:
+            X_lists = list(executor.map(self.normalize, datasets))
+        normalized_datasets = [item for sublist in X_lists for item in sublist]
+
+        #normalized_datasets = self.normalize(datasets)
         #normalized_datasets = np.nan_to_num(normalized_datasets, nan=-1)
         all_patches = []
 
-        for image in normalized_datasets:
+        print("Extracting patches...")
+        tot_pics = len(normalized_datasets)
+        for i, image in enumerate(normalized_datasets):
+            print("Extracting image", i, "of", tot_pics)
             patches = self.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
             
             # Filter the patches for the current image
