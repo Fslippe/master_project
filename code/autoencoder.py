@@ -87,12 +87,50 @@ class SimpleAutoencoder:
         
         self.decoder = keras.Model(decoder_input, decoded)
 
+    
+    def model(self, normalized_datasets, loss="mse", threshold = 0.1, optimizer = "adam"):
+        print("Input should already be normalized. Call self.normalize to normalize list of data")
+        # with ProcessPoolExecutor() as executor:
+        #     X_lists = list(executor.map(self.normalize, datasets))
+        # normalized_datasets = [item for sublist in X_lists for item in sublist]
 
-    def fit(self, datasets, epochs, batch_size, loss="mse", threshold = 0.1, optimizer = "adam", predict_self=False):
-        print("Normalizing datasets...")
-        with ProcessPoolExecutor() as executor:
-            X_lists = list(executor.map(self.normalize, datasets))
-        normalized_datasets = [item for sublist in X_lists for item in sublist]
+        #normalized_datasets = self.normalize(datasets)
+        #normalized_datasets = np.nan_to_num(normalized_datasets, nan=-1)
+        #all_patches = []
+
+        # print("Extracting patches...")
+        # tot_pics = len(normalized_datasets)
+        # for i, image in enumerate(normalized_datasets):
+        #     print("Extracting image", i, "of", tot_pics)
+        #     patches = self.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
+            
+        #     # Filter the patches for the current image
+        #     mask = np.mean(patches, axis=(1,2,3)) > threshold
+        #     filtered_patches = patches[mask]
+
+        #     all_patches.append(filtered_patches)
+
+        # # Stack filtered patches from all images
+        # self.patches = np.concatenate(all_patches, axis=0)
+        
+        # print("Patches shape: ", self.patches.shape)
+        #self.patches = self.extract_patches(normalized_datasets)
+        self.encode()
+        self.decode()
+        if loss == "mse":
+            loss_func = "mse"
+        elif loss=="combined":
+            loss_func = self.combined_loss
+        model = keras.Model(self.encoder_input, self.decoder(self.encoded))
+        model.compile(optimizer=optimizer, loss=loss_func)  # Using combined loss
+
+        return model
+
+    def fit(self, normalized_datasets, epochs, batch_size, loss="mse", threshold = 0.1, optimizer = "adam", predict_self=False):
+        print("Input should already be normalized. Call self.normalize to normalize list of data")
+        # with ProcessPoolExecutor() as executor:
+        #     X_lists = list(executor.map(self.normalize, datasets))
+        # normalized_datasets = [item for sublist in X_lists for item in sublist]
 
         #normalized_datasets = self.normalize(datasets)
         #normalized_datasets = np.nan_to_num(normalized_datasets, nan=-1)

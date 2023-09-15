@@ -34,3 +34,9 @@
 
 - Discovering the Importance of Mesoscale Cloud Organization Through Unsupervised Classification (https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019GL085190)
 - CLOUD CLASSIFICATION WITH UNSUPERVISED DEEP LEARNING by using autoencoder (https://www.researchgate.net/publication/364110101_Cloud_Classification_with_Unsupervised_Deep_Learning)
+
+
+++++ CAO ++++
+- Cold Air Outbreaks in Fram Strait: Climatology, Trends, and Observations During an Extreme Season in 2020 (https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2021JD035741)
+- A Lagrangian Climatology of Wintertime Cold Air Outbreaks in the Irminger and Nordic Seas and Their Role in Shaping Air–Sea Heat Fluxes (https://journals.ametsoc.org/view/journals/clim/30/8/jcli-d-16-0605.1.xml)
+- Cold-Air Outbreaks in the Marine Boundary Layer Experiment (COMBLE) Field Campaign Report (https://www.arm.gov/publications/programdocs/doe-sc-arm-21-001.pdf)
