@@ -52,43 +52,55 @@ class SimpleAutoencoder:
         return reshaped_patches
 
     
+    def residual_block(self, x, filters):
+        """
+        Build a residual block with the specified number of filters.
+        """
+        res = keras.layers.Conv2D(filters, (3, 3), strides=(2, 2), padding='same')(x)
+        res = keras.layers.LeakyReLU(alpha=0.3)(res)
+        res = keras.layers.Conv2D(filters, (3, 3), padding='same')(res)
+
+        x = keras.layers.Conv2D(filters, (3, 3), strides=(2, 2), padding='same')(x)
+        x = keras.layers.add([x, res])
+        x = keras.layers.BatchNormalization()(x)
+        return keras.layers.LeakyReLU(alpha=0.3)(x)
+
+    
     def encode(self):
-        #encoder_input = keras.Input(shape=(patch_size, patch_size, 1))
         self.encoder_input = keras.Input(shape=(self.patch_size, self.patch_size_2, self.n_vars)) 
-        x = keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same')(self.encoder_input)
-        x = keras.layers.MaxPooling2D((2, 2))(x)
 
-        x = keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
-        x = keras.layers.MaxPooling2D((2, 2))(x)
+        x = self.residual_block(self.encoder_input, 16)
+        x = self.residual_block(x, 32)
+        x = self.residual_block(x, 64)
+        self.encoded = self.residual_block(x, 128)
 
-        x = keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
-        x = keras.layers.MaxPooling2D((2, 2))(x)
-        
-        x = keras.layers.Conv2D(128, (3, 3), activation='relu', padding='same')(x)
-        self.encoded = keras.layers.MaxPooling2D((2, 2))(x)
         self.encoder = keras.Model(self.encoder_input, self.encoded)
 
     def decode(self):
         decoder_input = keras.Input(shape=(self.encoded.shape[1], self.encoded.shape[2], self.encoded.shape[3]))
-        x = keras.layers.Conv2DTranspose(128, (3, 3), activation='relu', padding='same')(decoder_input)
-        x = keras.layers.UpSampling2D((2, 2))(x)
-        #x = SobelFilterLayer()(x)
-        x = keras.layers.Conv2DTranspose(64, (3, 3), activation='relu', padding='same')(x)
+
+        x = keras.layers.Conv2DTranspose(128, (3, 3), padding='same')(decoder_input)
+        x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
         
-        x = keras.layers.Conv2DTranspose(32, (3, 3), activation='relu', padding='same')(x)
+        x = keras.layers.Conv2DTranspose(64, (3, 3), padding='same')(x)
+        x = keras.layers.LeakyReLU(alpha=0.3)(x)
+        x = keras.layers.UpSampling2D((2, 2))(x)
+        
+        x = keras.layers.Conv2DTranspose(32, (3, 3), padding='same')(x)
+        x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
 
-        x = keras.layers.Conv2DTranspose(16, (3, 3), activation='relu', padding='same')(x)
+        x = keras.layers.Conv2DTranspose(16, (3, 3), padding='same')(x)
+        x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
         
-        # Final layer to get back to original depth
         decoded = keras.layers.Conv2DTranspose(self.n_vars, (3, 3), activation='sigmoid', padding='same')(x)
         
         self.decoder = keras.Model(decoder_input, decoded)
 
     
-    def model(self, normalized_datasets, loss="mse", threshold = 0.1, optimizer = "adam"):
+    def model(self, loss="mse", threshold = 0.1, optimizer = "adam"):
         print("Input should already be normalized. Call self.normalize to normalize list of data")
         # with ProcessPoolExecutor() as executor:
         #     X_lists = list(executor.map(self.normalize, datasets))
@@ -168,14 +180,23 @@ class SimpleAutoencoder:
         if predict_self:
             self.predict()
 
-
     def normalize(self, data):
-        normalized_data = []
-        for i in range(len(data)):
-            normalized_data.append((data[i] - np.nanmin(data[i], axis=(0,1), keepdims=True)) / (np.nanmax(data[i], axis=(0,1), keepdims=True) - np.nanmin(data[i], axis=(0,1), keepdims=True)))
-        #normalized_data = (data - np.nanmin(data, axis=(1,2), keepdims=True)) / (np.nanmax(data, axis=(1,2), keepdims=True) - np.nanmin(data, axis=(1,2), keepdims=True))
+        # Calculate global min and max
+        global_min = float("inf")
+        global_max = float("-inf")
+        for item in data:
+            current_min = np.nanmin(item)
+            current_max = np.nanmax(item)
+            
+            global_min = min(global_min, current_min)
+            global_max = max(global_max, current_max)
+
+        # Normalize data
+        normalized_data = [np.float16((item - global_min) / (global_max - global_min)) for item in data]
+
         return normalized_data
-    
+
+
     def predict(self, datasets):
         if datasets.shape[1] != self.patch_size and datasets.shape[2] != self.patch_size_2:
             patches = self.extract_patches(datasets)
@@ -222,7 +243,7 @@ class SimpleAutoencoder:
             start += len(patches)
 
 
-
+        
         # Stack filtered patches from all images
         patches = np.concatenate(all_patches, axis=0)
         if encoder == None:
