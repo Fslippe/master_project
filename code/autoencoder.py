@@ -95,7 +95,9 @@ class SimpleAutoencoder:
         x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
         
-        decoded = keras.layers.Conv2DTranspose(self.n_vars, (3, 3), activation='sigmoid', padding='same')(x)
+        x = keras.layers.Conv2DTranspose(self.n_vars, (3, 3), padding='same')(x)
+        decoded = keras.layers.LeakyReLU(alpha=0.3)(x)
+
         
         self.decoder = keras.Model(decoder_input, decoded)
 
@@ -192,7 +194,7 @@ class SimpleAutoencoder:
             global_max = max(global_max, current_max)
 
         # Normalize data
-        normalized_data = [np.float16((item - global_min) / (global_max - global_min)) for item in data]
+        normalized_data = [(item - global_min) / (global_max - global_min) for item in data]
 
         return normalized_data
 

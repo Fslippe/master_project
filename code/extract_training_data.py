@@ -53,7 +53,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     else:
         return X
 
-def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0):
+def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=False):
     print("Preprocess")
     all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')]
     hdf = SD(folder + all_files[0], SDC.READ)
@@ -88,7 +88,7 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
             file_group = file_groups[key]
             print("Date:", convert_to_standard_date(key))
             with ProcessPoolExecutor(max_workers=len(file_group)) as executor:
-                X = list(tqdm(executor.map(append_data, [folder]*len(file_group), file_group, [file_layers]*len(file_group), [bands]*len(file_group), [min_mean]*len(file_group)), total=len(file_group)))
+                X = list(tqdm(executor.map(append_data, [folder]*len(file_group), file_group, [file_layers]*len(file_group), [bands]*len(file_group), [min_mean]*len(file_group), [normalize]*len(file_group)), total=len(file_group)))
 
             ds_all.extend([xi for xi in X if xi.ndim>1])
 
@@ -114,7 +114,7 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     
 
 
-def append_data(folder, file, file_layers, bands, min_mean=0):
+def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
     hdf = SD(folder + file, SDC.READ)
 
     current_data_list = []
@@ -129,7 +129,11 @@ def append_data(folder, file, file_layers, bands, min_mean=0):
     data = data[valid_rows][:, valid_cols]
 
     data = np.where(data > attrs["valid_range"][1], 0, data)
-    data = ((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+    if normalize:
+        data = ((data - attrs["radiance_offsets"][idx])/attrs["valid_range"][1]*attrs["radiance_scales"][idx])
+    else:
+        data = ((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+
     if np.mean(data) > min_mean:
         current_data_list.append(data)
         
@@ -140,7 +144,7 @@ def append_data(folder, file, file_layers, bands, min_mean=0):
             attrs = hdf.select(key).attributes()
             data = hdf.select(key)[:][idx]
             data = data[valid_rows][:, valid_cols]
-            data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
+            data = (data - attrs["radiance_offsets"][idx])/attrs["valid_range"][1]*attrs["radiance_scales"][idx]
             current_data_list.append(data)
             
         x_bands = np.stack(current_data_list, axis=-1)
