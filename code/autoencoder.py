@@ -187,8 +187,8 @@ class SimpleAutoencoder:
         global_min = float("inf")
         global_max = float("-inf")
         for item in data:
-            current_min = np.nanmin(item)
-            current_max = np.nanmax(item)
+            current_min = np.min(item)
+            current_max = np.max(item)
             
             global_min = min(global_min, current_min)
             global_max = max(global_max, current_max)

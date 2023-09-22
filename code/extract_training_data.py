@@ -9,12 +9,7 @@ from functions import *
 
 
 
-def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None):
-
-    #folder = "/nird/projects/NS9600K/data/modis/cao/"
-    #folder = "/home/filip/Documents/master_project/data/MOD02/"
-    #folder = "/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/"
-    #folder = "/uio/hume/student-u37/fslippe/data/cao/"
+def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None):
 
     all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')]
 
@@ -39,19 +34,67 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     for i, (band) in enumerate(list4):
         file_layers[band-1] = {"EV_1KM_Emissive": i}
 
+    file_groups = defaultdict(list)
 
+    # Loop through all files and group them by date
+    for file in all_files:
+        # Extract date from the filename (assuming the pattern is consistent)
+        date = file.split('.')[1][1:]  # This will give e.g., '2021120' for 'MOD02QKM.A2021120'
+        file_groups[date].append(file)
+
+    sorted_keys = sorted(file_groups.keys(), key=int)  # Convert keys to integers for sorting
+
+    # Extract the keys between start and end dates
+    if start_date == None and end_date == None:
+        selected_keys = [key for key in date_list if key in sorted_keys]
+    else:
+        selected_keys = [key for key in sorted_keys if int(start_date) <= int(key) <= int(end_date)]
     #all_files = os.listdir(folder)[16:18]
-    print(len(all_files))
 
     #X = np.empty((len(all_files), 2030, 1354, len(bands)))
-    with ProcessPoolExecutor(max_workers=4) as executor:
-        X = list(executor.map(append_data, [folder]*len(all_files), all_files, [file_layers]*len(all_files), [bands]*len(all_files)))
-
     
-    if save != None:
-        np.savez('/uio/hume/student-u37/fslippe/data/training_data/training_data_20210421.npz', *X)
-    else:
-        return X
+    ds_all = []
+    ##### FOLLOWING CODE IS USED IF PARALLELIZING OVER EACH DATE
+    # if save == None:
+    #     for key in list(selected_keys):
+    #         file_group = file_groups[key]
+    #         print("Date:", convert_to_standard_date(key))
+    #         with ProcessPoolExecutor(max_workers=len(file_group)) as executor:
+    #             X = list(tqdm(executor.map(append_data, [folder]*len(file_group), file_group, [file_layers]*len(file_group), [bands]*len(file_group), [min_mean]*len(file_group), [normalize]*len(file_group)), total=len(file_group)))
+    #         ds_all.extend([xi for xi in X if xi.ndim>1])
+    #     return ds_all
+    
+    ##### FOLLOWING CODE IS USED IF PARALLELIZING all files
+
+    if save == None:
+        with ProcessPoolExecutor() as executor:
+            ds_all = list(
+                tqdm(
+                    executor.map(
+                        process_key, 
+                        selected_keys, 
+                        [file_groups] * len(selected_keys),
+                        [folder] * len(selected_keys),
+                        [file_layers] * len(selected_keys),
+                        [bands] * len(selected_keys),
+                        [min_mean] * len(selected_keys),
+                        [normalize] * len(selected_keys)
+                    ), 
+                    total=len(selected_keys)
+                )
+            )
+        ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
+        return ds_all
+
+def process_key(key, file_groups, folder, file_layers, bands, min_mean, normalize):
+    file_group = file_groups[key]
+    X = []
+    for file in file_group:
+        result = append_data(folder, file, file_layers, bands, min_mean, normalize)
+        X.append(result)
+    return [xi for xi in X if xi.ndim > 1]
+
+
 
 def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=False):
     print("Preprocess")
@@ -116,7 +159,6 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 
 def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
     hdf = SD(folder + file, SDC.READ)
-
     current_data_list = []
 
     key = list(file_layers[bands[0]-1].keys())[0]
