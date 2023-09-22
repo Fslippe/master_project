@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np 
 import keras
 from sklearn.cluster import AgglomerativeClustering
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
 from concurrent.futures import ProcessPoolExecutor
 
 #tf.config.threading.set_inter_op_parallelism_threads(128)
@@ -228,7 +228,7 @@ class SimpleAutoencoder:
         return mse + alpha * sbl_loss
     
 
-    def kmeans(self, datasets, n_clusters=10, encoder=None, random_state=None):
+    def kmeans(self, datasets, n_clusters=10, encoder=None, random_state=None, normalize_max_val=None):
         cluster_map = []
         all_patches = []
         starts = []
@@ -248,6 +248,9 @@ class SimpleAutoencoder:
         
         # Stack filtered patches from all images
         patches = np.concatenate(all_patches, axis=0)
+        if normalize_max_val != None:
+            patches = (patches - 0) / (normalize_max_val - 0)
+
         if encoder == None:
             encoded_patches = self.encoder.predict(patches)
         else:
@@ -256,9 +259,9 @@ class SimpleAutoencoder:
         self.encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
         # KMeans clustering
         if random_state != None:
-            kmeans = KMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
+            kmeans = MiniBatchKMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
         else:
-            kmeans = KMeans(n_clusters).fit(self.encoded_patches_flat)
+            kmeans = MiniBatchKMeans(n_clusters, batch_size=100).fit(self.encoded_patches_flat)
 
         labels = kmeans.labels_
 
