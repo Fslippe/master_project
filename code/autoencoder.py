@@ -34,22 +34,25 @@ class SimpleAutoencoder:
             # Assuming single-channel (grayscale) image, expand both batch and channel dimensions
             image = np.expand_dims(np.expand_dims(image, axis=0), axis=-1)
 
-        sizes = [1, self.patch_size, self.patch_size_2, 1]
-        strides = [1, self.patch_size, self.patch_size_2, 1]
-        rates = [1, 1, 1, 1]
-        padding = 'VALID'
+        with tf.device('/CPU:0'):
+            # Expand dimensions if the image is 3D
 
-        patches = tf.image.extract_patches(images=image,
-                                        sizes=sizes,
-                                        strides=strides,
-                                        rates=rates,
-                                        padding=padding)
-        
-        reshaped_patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+            sizes = [1, self.patch_size, self.patch_size_2, 1]
+            strides = [1, self.patch_size, self.patch_size_2, 1]
+            rates = [1, 1, 1, 1]
+            padding = 'VALID'
 
-        # Optionally, concatenate all patches into one large tensor
+            patches = tf.image.extract_patches(images=image,
+                                            sizes=sizes,
+                                            strides=strides,
+                                            rates=rates,
+                                            padding=padding)
+            
+            reshaped_patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
 
-        return reshaped_patches
+            # Optionally, concatenate all patches into one large tensor
+
+            return reshaped_patches
 
     
     def residual_block(self, x, filters):
@@ -228,7 +231,7 @@ class SimpleAutoencoder:
         return mse + alpha * sbl_loss
     
 
-    def kmeans(self, datasets, n_clusters=10, encoder=None, random_state=None, normalize_max_val=None):
+    def kmeans(self, datasets, n_clusters=10, encoder=None, random_state=None, normalize_max_val=[None]):
         cluster_map = []
         all_patches = []
         starts = []
@@ -248,8 +251,9 @@ class SimpleAutoencoder:
         
         # Stack filtered patches from all images
         patches = np.concatenate(all_patches, axis=0)
-        if normalize_max_val != None:
-            patches = (patches - 0) / (normalize_max_val - 0)
+        
+        if normalize_max_val[0] != None:
+            patches = patches  / np.array(normalize_max_val)
 
         if encoder == None:
             encoded_patches = self.encoder.predict(patches)

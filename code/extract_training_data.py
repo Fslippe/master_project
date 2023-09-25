@@ -45,6 +45,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     sorted_keys = sorted(file_groups.keys(), key=int)  # Convert keys to integers for sorting
 
     # Extract the keys between start and end dates
+    
     if start_date == None and end_date == None:
         selected_keys = [key for key in date_list if key in sorted_keys]
     else:
@@ -65,9 +66,12 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     #     return ds_all
     
     ##### FOLLOWING CODE IS USED IF PARALLELIZING all files
-
+    if len(selected_keys) < 10:
+        workers = len(selected_keys)
+    else:
+        workers = 256
     if save == None:
-        with ProcessPoolExecutor() as executor:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
             ds_all = list(
                 tqdm(
                     executor.map(
@@ -169,24 +173,27 @@ def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
     valid_rows = ~np.all(is_nan, axis=1)
     valid_cols = ~np.all(is_nan, axis=0)
     data = data[valid_rows][:, valid_cols]
+    #print(idx, np.mean(data), "\n\n")
 
     data = np.where(data > attrs["valid_range"][1], 0, data)
-    if normalize:
-        data = ((data - attrs["radiance_offsets"][idx])/attrs["valid_range"][1]*attrs["radiance_scales"][idx])
-    else:
-        data = ((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+    data = ((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+    #print(np.mean(data))
 
     if np.mean(data) > min_mean:
         current_data_list.append(data)
         
         for j, (band) in enumerate(bands[1:]):
+
             key = list(file_layers[band-1].keys())[0]
             idx = list(file_layers[band-1].values())[0]
 
             attrs = hdf.select(key).attributes()
             data = hdf.select(key)[:][idx]
             data = data[valid_rows][:, valid_cols]
-            data = (data - attrs["radiance_offsets"][idx])/attrs["valid_range"][1]*attrs["radiance_scales"][idx]
+            data = np.where(data > attrs["valid_range"][1], 0, data)
+
+            data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
+                        
             current_data_list.append(data)
             
         x_bands = np.stack(current_data_list, axis=-1)

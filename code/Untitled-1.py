@@ -1,20 +1,20 @@
 # %%
+import os
 from keras.layers import Input, Dense, Flatten, Reshape
 from sklearn.feature_extraction import image as sk_image
 from concurrent.futures import ProcessPoolExecutor
 from keras.models import Model
-import os
 import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from sklearn.cluster import AgglomerativeClustering
-from scipy.signal import convolve2d 
+from scipy.signal import convolve2d
 from sklearn.cluster import KMeans
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras    
+from tensorflow import keras
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 from sklearn.cluster import DBSCAN
@@ -25,6 +25,10 @@ from extract_training_data import *
 from sklearn.feature_extraction.image import extract_patches_2d, reconstruct_from_patches_2d
 from pyhdf.error import HDF4Error
 from functions import *
+from tensorflow.keras.mixed_precision import experimental as mixed_precision
+from sklearn.model_selection import train_test_split
+
+
 
 
 # %%
@@ -40,144 +44,111 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
+# policy = mixed_precision.Policy('mixed_float16')
+# mixed_precision.set_policy(policy)
 
 #bands = [6, 7, 20, 28, 28, 31]
 
 
 # %%
-import importlib
-import extract_training_data
-importlib.reload(extract_training_data)
-from extract_training_data import *
-folder = "/scratch/fslippe/modis/MOD02/cao_test_data/"
-
-start = "20210321"
-end = "20230521"
-dates = ["20210321"]
-dates_converted = []
-for date in dates:
-    dates_converted.append(convert_to_day_of_year(date))
-
-start_converted = convert_to_day_of_year(start)
-end_converted = convert_to_day_of_year(end)
-print(start_converted)
-print(end_converted)
-x = [xi for xi in  extract_1km_data(folder, bands=[1], start_date=start_converted, end_date=end_converted) if xi.shape[0] > 64]
-
-
-
-#x = extract_250m_data(folder, bands=[1], start_date=start_converted, end_date=end_converted)
-len(x)
-
+bands = [6,20,29]
 
 
 # %%
-for i in range(len(x)):
-    print(np.mean(x[i]))
-    print(x[i].shape)
+ted, end_date=end_converted)
+
+
+# %%
+# x2 = [xi for xi in  extract_1km_data(folder, bands=[6], start_date=start_converted, end_date=end_converted) if xi.shape[0] > 64]
+# x3 = [xi for xi in  extract_1km_data(folder, bands=[1], start_date=start_converted, end_date=end_converted) if xi.shape[0] > 64]
+# x4 = [xi for xi in  extract_1km_data(folder, bands=[7], start_date=start_converted, end_date=end_converted) if xi.shape[0] > 64]
+# x5 = [xi for xi in  extract_1km_data(folder, bands=[20], start_date=start_converted, end_date=end_converted) if xi.shape[0] > 64]
+
+
+# %%
+# fig, axs = plt.subplots(1,5, dpi=300)
+# i = 15
+# cb = axs[4].imshow(x[i][:,:,0], cmap="gray")
+# plt.colorbar(cb)
+# axs[1].imshow(x2[i], cmap="gray")
+# axs[0].imshow(x3[i], cmap="gray")
+# axs[2].imshow(x4[i], cmap="gray")
+# axs[3].imshow(x5[i], cmap="gray")
+
+
 
 # %%
 import autoencoder
 import importlib
 importlib.reload(autoencoder)
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
-bands = [1]
 patch_size = 64
 
+autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
+#x = autoencoder.normalize(x)
+#optimizer = mixed_precision.LossScaleOptimizer(tf.keras.optimizers.Adam(learning_rate=1e-4), loss_scale='dynamic')
+optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
 
-#normalized_patches = np.concatenate([autoencoder.extract_patches(n_d) for n_d in normalized_data], axis=0)
+model = autoencoder.model(optimizer=optimizer, loss="combined")
 
-
-# %%
-from autoencoder import SobelFilterLayer, SimpleAutoencoder
-bands = [1]
-patch_size = 64
-from tensorflow.keras.models import load_model
-print(len(bands))
-autoencoder_predict = SimpleAutoencoder(len(bands), patch_size, patch_size)
-
-encoder = load_model("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_encoder")
 
 # %%
-# normalized_patches = np.concatenate([autoencoder.extract_patches(n_d) for n_d in normalized_data[:4]], axis=0)
 
+#val_data = np.load("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_val_patches")
+patches = np.load("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_train_patches")
+
+# %%
+# Splitting the data
+
+# %%
+print(patches.shape)
+
+# %%
+# %%
+### SAVE TRAIN TEST PATCHES 
+# patches = np.load("/scratch/fslippe/modis/MOD02/training_data/normalized_trainingpatches_bands6,20,29_winter20_21.npy")[::4]
+# val_data  = np.load("/scratch/fslippe/modis/MOD02/test_data/normalized_testpatches_bands6,20,29_winter20_21.npy")[::4]
+# patches.shape
+
+# print(np.mean(patches, axis=(0,1,2)))
+
+# %%
+### STANDARD FIT
 gc.collect()
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-
-
-start = 3
-index_list = [i for i in range(20)]#, 13, 14]
-cluster_map_encoded = autoencoder_predict.kmeans([x[i] for i in index_list], n_clusters=10, encoder=encoder)
-#cluster_map_encoded = autoencoder_predict.kmeans(x, n_clusters=10, encoder=encoder)
-
-gc.collect()
+model.fit(patches, patches, epochs=200, batch_size=32)
 
 
 # %%
-cluster_map = []
-all_patches = []
-starts = []
-ends =[]
-shapes = []
-start = 0 
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
+# #### FIT  USING TF.data API pipelining
+# patches = tf.data.Dataset.from_tensor_slices(patches)
+# patches = patches.batch(10)
+# def data_generator():
+#     """Generator to yield data from files."""
+#     #random.shuffle(file_list)  # Shuffle files at the beginning of each epoch
+#     for patches_chunk in patches:
+#         #data = np.load(file_name)
+#         for item in patches_chunk:
+#             yield item
 
-for image in [x[i] for i in index_list]:
-    shapes.append(image.shape[0:2])
-    patches = autoencoder_predict.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
-    all_patches.append(patches)
-    starts.append(start)
-    ends.append(start + len(patches))
-    start += len(patches)
+# # Define your dataset
+# dataset = tf.data.Dataset.from_generator(data_generator,
+#                                          output_signature=(tf.TensorSpec(shape=(...), dtype=tf.float32)))  # Fill in the shape and type
+# dataset = dataset.shuffle(buffer_size=10000)  # Shuffle data
+# dataset = dataset.batch(32)  # Batch data
+# dataset = dataset.repeat()  # Repeat dataset indefinitely
+# dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)  # Prefetch data
+# steps_per_epoch = len(total_data) // batch_size
+# model.fit(dataset, epochs=100, steps_per_epoch=steps_per_epoch, validation_data=(val_data, val_data))
 
-
-
-# Stack filtered patches from all images
-patches = np.concatenate(all_patches, axis=0)
-
-patches_flat = patches.reshape(patches.shape[0], -1)
-
-# KMeans clustering
-kmeans = KMeans(10).fit(patches_flat)
-
-labels = kmeans.labels_
-
-# Assuming your original data shape is (height, width)
-for i in range(len(index_list)):#(len(x)):
-    height, width = shapes[i]
-    
-    # Calculate the dimensions of the reduced resolution array
-    reduced_height = height // patch_size
-    reduced_width = width // patch_size
-    cluster_map.append(np.reshape(labels[starts[i]:ends[i]], (reduced_height, reduced_width)))
-
-gc.collect()
+# %%
+#model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_autoencoder")
+autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(6,20,29)_encoder")
+autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(6,20,29)_decoder")
 
 
 # %%
-from matplotlib.colors import Normalize
-
-# Determine global min and max labels
-global_min = np.min([np.min(cm) for cm in cluster_map])
-global_max = np.max([np.max(cm) for cm in cluster_map])
-
-norm = Normalize(vmin=global_min, vmax=global_max)
-
-for i in range(len(cluster_map)):
-    fig, axs = plt.subplots(1, 3, figsize=[15, 8])
-    print(np.mean(x[i]))
-    cb = axs[0].imshow(cluster_map_encoded[i], cmap="tab10", norm=norm)
-    plt.colorbar(cb, ax=axs[0])
-    cb = axs[1].imshow(cluster_map[i], cmap="tab10", norm=norm)
-    plt.colorbar(cb, ax=axs[1])
-    
-    cb = axs[2].imshow(x[i][::4, ::4, 0])
-    plt.colorbar(cb, ax=axs[2])
-    plt.tight_layout()
-
-plt.show()
-
-# %%
+np.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_val_patches", val_data)
+np.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_train_patches", patches)
 
 
 
