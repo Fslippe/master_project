@@ -176,7 +176,7 @@ def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
     #print(idx, np.mean(data), "\n\n")
 
     data = np.where(data > attrs["valid_range"][1], 0, data)
-    data = ((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+    data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
     #print(np.mean(data))
 
     if np.mean(data) > min_mean:

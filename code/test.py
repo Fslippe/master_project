@@ -36,36 +36,4 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-bands = [6, 7, 20, 28, 28, 31]
-
-loaded = np.load('/uio/hume/student-u37/fslippe/data/training_data/training_data_20210421.npz')
-X = [loaded[key] for key in loaded][:4]
-print(len(X))
-
-
-X = [arr for arr in X if arr.shape[0] >= 64]
-
-patch_size = 64
-autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
-#optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
-
-
-autoencoder.fit(X, epochs=2, batch_size=64, optimizer="adam", threshold=0.09,loss="combined")
-# print(X[0].shape)
-X_test = autoencoder.normalize(X[:4])
-print(np.max(X[0]))
-print(np.max(X_test[0]))
-
-cluster_map = autoencoder.kmeans(X_test, n_clusters=8)
-print(len(cluster_map))
-for i in range(3):
-    fix, axs= plt.subplots(1,2, figsize=[10,8])
-
-    cb = axs[0].imshow(cluster_map[i], cmap="tab10")
-    plt.colorbar(cb)
-    plt.tight_layout()
-    cb = axs[1].imshow(X[i][:,:,0])
-    plt.colorbar(cb)
-    plt.tight_layout()
-
-plt.show()
+print(tf.config.experimental.tensor_float_32_execution_enabled())

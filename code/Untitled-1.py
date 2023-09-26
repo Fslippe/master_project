@@ -55,7 +55,6 @@ bands = [6,20,29]
 
 
 # %%
-ted, end_date=end_converted)
 
 
 # %%
@@ -95,7 +94,7 @@ model = autoencoder.model(optimizer=optimizer, loss="combined")
 # %%
 
 #val_data = np.load("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_val_patches")
-patches = np.load("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_train_patches")
+patches = np.load("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_train_patches.npy")[::2]
 
 # %%
 # Splitting the data
@@ -147,8 +146,8 @@ autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_
 
 
 # %%
-np.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_val_patches", val_data)
-np.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_train_patches", patches)
+# np.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_val_patches", val_data)
+# np.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_train_patches", patches)
 
 
 
