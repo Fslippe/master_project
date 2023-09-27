@@ -69,7 +69,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     if len(selected_keys) < 10:
         workers = len(selected_keys)
     else:
-        workers = 256
+        workers = 1
     if save == None:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             ds_all = list(
@@ -192,7 +192,7 @@ def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
             data = data[valid_rows][:, valid_cols]
             data = np.where(data > attrs["valid_range"][1], 0, data)
 
-            data = (data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx]
+            data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
                         
             current_data_list.append(data)
             

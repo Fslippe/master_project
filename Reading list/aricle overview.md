@@ -44,4 +44,6 @@
 
 
 ++++ General on data analysis ++++
-Test of float16 against float32 (https://mxnet.apache.org/versions/1.9.1/api/faq/float16)
+- Test of float16 against float32 (https://mxnet.apache.org/versions/1.9.1/api/faq/float16)
+- Tensorfloat32 documentation (https://www.tensorflow.org/api_docs/python/tf/config/experimental/enable_tensor_float_32_execution)
+- Reciprocal Agglomerative Clustering (RAC) (https://towardsdatascience.com/scaling-agglomerative-clustering-for-big-data-an-introduction-to-rac-fb26a6b326ad) 

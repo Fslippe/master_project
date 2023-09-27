@@ -1,5 +1,8 @@
 import tensorflow as tf
 import numpy as np
+from extract_training_data import *
+from autoencoder import *
+
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -40,13 +43,4 @@ def write_tfrecord(filename, dataset):
             serialized_example = serialize_example(patch)
             writer.write(serialized_example)
 
-# Example usage:
-patches = np.float32(np.load("/scratch/fslippe/modis/MOD02/training_data/normalized_trainingpatches_band(1)_winter20_21.npy"))
-print(patches.dtype)
 
-patches_per_file = 50000  # example value, you can adjust it
-
-for i in range(0, len(patches), patches_per_file):
-    print(i)
-    chunk = patches[i: i+patches_per_file]
-    write_tfrecord(f'/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_band(1)_winter20_21_{i//patches_per_file}.tfrecord', chunk)

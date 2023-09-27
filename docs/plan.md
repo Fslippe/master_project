@@ -1,11 +1,12 @@
 # Data extraction
 
 - How to find cold air outbreaks where it is hard visually (Polar night)?
-- Function to extract only between given longitudes and latitude
 - Unsupervised learning?
   - Classifying different cloud fraction areas and closed-open-cell transition between them
   - Problems - transition being orthogonal to wind direction. Classification may not understand this.
-    - Solutions -
+    - Solutions - line up with era 5 wind direction and extract only boundaries orthogonal to the wind
+  - boundary between two clusters may not be of interest. Follow wind to find area of interest, or even how variables change following the wind backwards. 
+  
 - Supervised learning?
   - Classifying a "line" based on certain properties by definition of closed-open-cell transition
   - Already defined positions of the transitions?

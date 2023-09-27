@@ -1,8 +1,7 @@
 import tensorflow as tf
 import numpy as np 
 import keras
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans, AgglomerativeClustering
 from concurrent.futures import ProcessPoolExecutor
 
 #tf.config.threading.set_inter_op_parallelism_threads(128)
@@ -107,31 +106,6 @@ class SimpleAutoencoder:
     
     def model(self, loss="mse", threshold = 0.1, optimizer = "adam"):
         print("Input should already be normalized. Call self.normalize to normalize list of data")
-        # with ProcessPoolExecutor() as executor:
-        #     X_lists = list(executor.map(self.normalize, datasets))
-        # normalized_datasets = [item for sublist in X_lists for item in sublist]
-
-        #normalized_datasets = self.normalize(datasets)
-        #normalized_datasets = np.nan_to_num(normalized_datasets, nan=-1)
-        #all_patches = []
-
-        # print("Extracting patches...")
-        # tot_pics = len(normalized_datasets)
-        # for i, image in enumerate(normalized_datasets):
-        #     print("Extracting image", i, "of", tot_pics)
-        #     patches = self.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
-            
-        #     # Filter the patches for the current image
-        #     mask = np.mean(patches, axis=(1,2,3)) > threshold
-        #     filtered_patches = patches[mask]
-
-        #     all_patches.append(filtered_patches)
-
-        # # Stack filtered patches from all images
-        # self.patches = np.concatenate(all_patches, axis=0)
-        
-        # print("Patches shape: ", self.patches.shape)
-        #self.patches = self.extract_patches(normalized_datasets)
         self.encode()
         self.decode()
         if loss == "mse":
@@ -145,12 +119,6 @@ class SimpleAutoencoder:
 
     def fit(self, normalized_datasets, epochs, batch_size, loss="mse", threshold = 0.1, optimizer = "adam", predict_self=False):
         print("Input should already be normalized. Call self.normalize to normalize list of data")
-        # with ProcessPoolExecutor() as executor:
-        #     X_lists = list(executor.map(self.normalize, datasets))
-        # normalized_datasets = [item for sublist in X_lists for item in sublist]
-
-        #normalized_datasets = self.normalize(datasets)
-        #normalized_datasets = np.nan_to_num(normalized_datasets, nan=-1)
         all_patches = []
 
         print("Extracting patches...")
@@ -231,7 +199,7 @@ class SimpleAutoencoder:
         return mse + alpha * sbl_loss
     
 
-    def kmeans(self, datasets, n_clusters=10, encoder=None, random_state=None, normalize_max_val=[None]):
+    def clustering(self, datasets, n_clusters=10, encoder=None, random_state=None, normalize_max_val=[None], method="kmeans", batch_size=100):
         cluster_map = []
         all_patches = []
         starts = []
@@ -262,12 +230,23 @@ class SimpleAutoencoder:
             
         self.encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
         # KMeans clustering
-        if random_state != None:
-            kmeans = MiniBatchKMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
-        else:
-            kmeans = MiniBatchKMeans(n_clusters, batch_size=100).fit(self.encoded_patches_flat)
-
-        labels = kmeans.labels_
+        if method=="minibatchkmeans":
+            if random_state != None:
+                cluster = MiniBatchKMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
+            else:
+                cluster = MiniBatchKMeans(n_clusters, batch_size=batch_size).fit(self.encoded_patches_flat)
+        elif method == "kmeans":
+            if random_state != None:
+                cluster = KMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
+            else:
+                cluster = KMeans(n_clusters).fit(self.encoded_patches_flat)
+        elif method == "agglomerative":
+            if random_state != None:
+                cluster = AgglomerativeClustering(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
+            else:
+                cluster = AgglomerativeClustering(n_clusters).fit(self.encoded_patches_flat)
+    
+        labels = cluster.labels_
 
         # Assuming your original data shape is (height, width)
         for i in range(len(datasets)):
@@ -279,58 +258,3 @@ class SimpleAutoencoder:
             cluster_map.append(np.reshape(labels[starts[i]:ends[i]], (reduced_height, reduced_width)))
 
         return cluster_map
-    # def kmeans(self, datasets, n_clusters=10, random_state=None):
-    #     cluster_map = []
-    #     for data in datasets:
-    #         if data[0].shape[0] == self.patch_size:
-    #             patches = data 
-    #         else:
-    #             patches = self.extract_patches(data)
-
-    #         encoded_patches = self.encoder.predict(patches)
-
-    #         # Flatten the encoded patches for clustering
-    #         self.encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
-
-    #         # KMeans clustering
-    #         if random_state != None:
-    #             kmeans = KMeans(n_clusters, random_state=random_state).fit(self.encoded_patches_flat)
-    #         else:
-    #             kmeans = KMeans(n_clusters).fit(self.encoded_patches_flat)
-
-    #         labels = kmeans.labels_
-    #         # Assuming your original data shape is (height, width)
-    #         height, width = data.shape[0:2]
-
-    #         # Calculate the dimensions of the reduced resolution array
-    #         reduced_height = height // self.patch_size
-    #         reduced_width = width // self.patch_size_2
-
-    #         cluster_map.append(np.reshape(labels, (reduced_height, reduced_width)))
-    #     return cluster_map
-    
-    def clustering_agglomerative(self, n_clusters=2, affinity='euclidean', linkage='ward', data_shape=(2030, 1354)):
-        """
-        Clusters the encoded patches using Agglomerative Hierarchical Clustering.
-        
-        Parameters:
-        - n_clusters: The number of clusters to find.
-        - affinity: Metric used to compute linkage. Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”, or “precomputed”.
-        - linkage: Which linkage criterion to use. The linkage criterion determines which distance to use between sets of observation.
-        
-        Returns:
-        - A 2D array of cluster labels.
-        """
-        agglomerative = AgglomerativeClustering(n_clusters=n_clusters, affinity=affinity, linkage=linkage)
-        labels = agglomerative.fit_predict(self.encoded_patches_flat)
-
-        # Assuming your original data shape is (height, width)
-        height, width = data_shape
-
-        # Calculate the dimensions of the reduced resolution array
-        reduced_height = height // self.patch_size
-        reduced_width = width // self.patch_size_2
-
-        cluster_map = np.reshape(labels, (reduced_height, reduced_width))
-        return cluster_map
-
