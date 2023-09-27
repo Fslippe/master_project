@@ -6,10 +6,12 @@ from tqdm import tqdm
 from collections import defaultdict
 import gc
 from functions import *
+import multiprocessing
 
+total_cores = multiprocessing.cpu_count()
+print("total cores:", total_cores)
 
-
-def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None):
+def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None, workers=None):
 
     all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')]
 
@@ -66,10 +68,11 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     #     return ds_all
     
     ##### FOLLOWING CODE IS USED IF PARALLELIZING all files
-    if len(selected_keys) < 10:
-        workers = len(selected_keys)
-    else:
-        workers = 1
+    if workers == None:
+        if len(selected_keys) < 10:
+            workers = len(selected_keys)
+        else:
+            workers = 128
     if save == None:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             ds_all = list(
