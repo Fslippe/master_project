@@ -9,8 +9,10 @@
   - boundary between two clusters may not be of interest. Follow wind to find area of interest, or even how variables change following the wind backwards. 
   - Secondary unsupervised network:
     - Extract patches or region of interest (find a way to save longitude latitude data)
-    - Train model on outbreak data.
-    - Extract  
+    - Train model on outbreak data. Use already trained model for further optimization
+    - Train clustering on encoded data from secondary model
+    - Do predictions on pathces from region of interest with a stride (1km) to gain a transition of the same resolution. 
+
 - Supervised learning?
   - Classifying a "line" based on certain properties by definition of closed-open-cell transition
   - Already defined positions of the transitions?
@@ -23,3 +25,8 @@
 - filtering to remove bias “Cloud_Mask_SPI” >30; (Zhang and Platnick, 2011) and high solar-zenith angles (> 65∘) or high viewing angles (> 50∘) (Grosvenor and Wood, 2014).
 - Remove pixels with sea ice or land 
 
+
+
+# TO DOO
+- perform cluster training on whole season 
+- get a historgram of monthly frequency of CAOs 

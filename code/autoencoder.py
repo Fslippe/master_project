@@ -222,13 +222,14 @@ class SimpleAutoencoder:
         print(patches.shape)
         if normalize_max_val[0] != None:
             patches = patches  / np.array(normalize_max_val)
-
+            print("normalized patches")
         if encoder == None:
             encoded_patches = self.encoder.predict(patches)
         else:
             encoded_patches = encoder.predict(patches)
         print(encoded_patches.shape)
         self.encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
+        
         # KMeans clustering
         if method=="minibatchkmeans":
             if random_state != None:
