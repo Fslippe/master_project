@@ -7,6 +7,8 @@ from collections import defaultdict
 import gc
 from functions import *
 import multiprocessing
+from scipy.ndimage import zoom
+
 
 total_cores = multiprocessing.cpu_count()
 print("total cores:", total_cores)
@@ -167,42 +169,53 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
     hdf = SD(folder + file, SDC.READ)
     current_data_list = []
-
     key = list(file_layers[bands[0]-1].keys())[0]
     idx = list(file_layers[bands[0]-1].values())[0]
-    attrs = hdf.select(key).attributes()
     data = hdf.select(key)[:][idx]
+    lat = hdf.select("Latitude")[:]
+    lon = hdf.select("Longitude")[:]
+
+    # Create a mask from lat where True indicates valid data (lat >= 60)
+    mask_lowres = (lat >= 60) & (lat <= 82) & (lon > -35) & (lon < 35)
+    zoom_factor_y = data.shape[0] / lat.shape[0]
+    zoom_factor_x = data.shape[1] / lat.shape[1]
+    zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
+    mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # order=0 for nearest neighbor interpolation
+
+    valid_rows_ll = np.any(mask_highres, axis=1)
+    valid_cols_ll = np.any(mask_highres, axis=0)
+    data = data[valid_rows_ll][:, valid_cols_ll]
+
+    
+    attrs = hdf.select(key).attributes()
     is_nan = data == attrs["_FillValue"]
     valid_rows = ~np.all(is_nan, axis=1)
     valid_cols = ~np.all(is_nan, axis=0)
     data = data[valid_rows][:, valid_cols]
-    #print(idx, np.mean(data), "\n\n")
 
     data = np.where(data > attrs["valid_range"][1], 0, data)
     data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
-    #print(np.mean(data))
 
-    if np.mean(data) > min_mean:
+    current_data_list.append(data)
+    
+    for j, (band) in enumerate(bands[1:]):
+
+        key = list(file_layers[band-1].keys())[0]
+        idx = list(file_layers[band-1].values())[0]
+
+        attrs = hdf.select(key).attributes()
+        data = hdf.select(key)[:][idx]
+        data = data[valid_rows_ll][:, valid_cols_ll]
+
+        data = data[valid_rows][:, valid_cols]
+        data = np.where(data > attrs["valid_range"][1], 0, data)
+
+        data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+                    
         current_data_list.append(data)
         
-        for j, (band) in enumerate(bands[1:]):
-
-            key = list(file_layers[band-1].keys())[0]
-            idx = list(file_layers[band-1].values())[0]
-
-            attrs = hdf.select(key).attributes()
-            data = hdf.select(key)[:][idx]
-            data = data[valid_rows][:, valid_cols]
-            data = np.where(data > attrs["valid_range"][1], 0, data)
-
-            data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
-                        
-            current_data_list.append(data)
-            
-        x_bands = np.stack(current_data_list, axis=-1)
-        return x_bands
-    else:
-        return np.empty(1)
+    x_bands = np.stack(current_data_list, axis=-1)
+    return x_bands
     
 def normalize_data(data):
     normalized_data = []
