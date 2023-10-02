@@ -30,3 +30,8 @@
 # TO DOO
 - perform cluster training on whole season 
 - get a historgram of monthly frequency of CAOs 
+
+
+# Problems met underway which needed fixing
+- Using just band 29 gives same clusters for cloud streets in non-CAO cases over central europe 
+  - Solutions? Extract only certain parts of pictures 
