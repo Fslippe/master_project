@@ -97,8 +97,8 @@ cluster_predict = cluster.predict(encoded_patches_flat)
 labels = cluster_predict#.labels_
 
 
-desired_label = 2
-size_threshold = 7  # Adjust based on the minimum size of the region you are interested in
+desired_label = 6
+size_threshold = 10  # Adjust based on the minimum size of the region you are interested in
 selected_dates = []
 selected_images = []
 
@@ -124,8 +124,14 @@ for i in range(len(x)):
 
     # Check if any region exceeds the size threshold
     if any(region_sizes > size_threshold):
+
         if dates[i] not in selected_dates:
             selected_dates.append(dates[i]) 
+            # fig, axs = plt.subplots(1,2)
+            # fig.suptitle("CAO found for threshold %s" %(size_threshold))
+            # axs[0].imshow(x[i], cmap="gray")
+            # axs[1].imshow(label_map, cmap="tab10")
+            # plt.savefig("/uio/hume/student-u37/fslippe/master_project/figures/CAO_found_at_%s" %(dates[i])) 
 
 
 np.save("/uio/hume/student-u37/fslippe/data/date_hist_2020_21_%s" %(size_threshold), np.array(selected_dates))

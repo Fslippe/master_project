@@ -28,10 +28,19 @@
 
 
 # TO DOO
-- perform cluster training on whole season 
-- get a historgram of monthly frequency of CAOs 
+- #perform cluster training on whole season 
+- #get a historgram of monthly frequency of CAOs 
+- Train on nighttime data, and perform clustering on whole set. 
+- Use newly trained model and try clustering
+- Clustering results on july
+- Extract longitude latitude from clusters and gain histogram map
+
 
 
 # Problems met underway which needed fixing
 - Using just band 29 gives same clusters for cloud streets in non-CAO cases over central europe 
   - Solutions? Extract only certain parts of pictures 
+- negative Radiances. min value being -1.5W
+  - solutions: Setting all values less than 0 to 0
+- Some values being out of valid range
+  - Solutions: setting value to 0

@@ -2,6 +2,8 @@ import tensorflow as tf
 import autoencoder
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
 import numpy as np 
+from tensorflow.keras.callbacks import EarlyStopping
+
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
@@ -34,7 +36,7 @@ def parse_function(example_proto):
 def input_target_map_fn(patch):
     return (patch, patch)
 
-file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/*.tfrecord"
+file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_dnb_300k_band(29)_winter20_21_*.tfrecord"
 files = tf.data.Dataset.list_files(file_pattern)
 num_files = len(tf.io.gfile.glob(file_pattern))
 
@@ -50,7 +52,7 @@ for (x, y) in dataset.take(5):  # Change 5 to any number of batches you want to 
     print(np.mean(x))
 
 # Load your validation data (assuming it's not in TFRecord format)
-val_data = np.load("/scratch/fslippe/modis/MOD02/test_data/normalized_testpatches_band(1)_winter20_21.npy")[::2]
+val_data = np.load("/scratch/fslippe/modis/MOD02/test_data/normalized_testpatches_dnb_band(29)_winter20_21.npy")
 
 # Reload your model (if necessary)
 import importlib
@@ -67,8 +69,22 @@ model = autoencoder.model(optimizer=optimizer, loss="combined")
 
 # Train the model on your dataset
 batch_size = 32
+patches_per_file = 300000
+buffer_size = patches_per_file * num_files
+dataset = dataset.shuffle(buffer_size)
 dataset = dataset.batch(batch_size)
 dataset = dataset.repeat()
 dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-steps_per_epoch = 50000 * num_files // batch_size
-model.fit(dataset, validation_data=(val_data, val_data), epochs=100, steps_per_epoch=steps_per_epoch)
+steps_per_epoch = patches_per_file * num_files // batch_size
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, restore_best_weights=True)
+
+history = model.fit(dataset, validation_data=(val_data, val_data), epochs=100, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
+
+model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_autoencoder")
+autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_encoder")
+autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_decoder")
+
+
+import pickle
+with open('training_history.pkl', 'wb') as f:
+    pickle.dump(history.history, f)
