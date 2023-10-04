@@ -15,7 +15,7 @@ lon = hdf.select("Longitude")[:]
 var = hdf.select("EV_1KM_RefSB")[:][0]
 
 # Create a mask from lat where True indicates valid data (lat >= 60)
-mask_lowres = (lat >= 60) #& (lat <= 82) & (lon > -35) & (lon < 35)
+mask_lowres = (lat >= 60) & (lat <= 82) & (lon > -35) & (lon < 35)
 
 
 # Determine the zoom factor based on the shape of var and lat

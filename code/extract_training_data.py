@@ -14,11 +14,13 @@ total_cores = multiprocessing.cpu_count()
 print("total cores:", total_cores)
 
 def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None, workers=None):
+    all_files = []
+    folders = folder.split(" ")
+    print(folders)
+    for f in folders:
+        all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith('.hdf')])
 
-    all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')]
-
-    print(folder + all_files[0])
-    hdf = SD(folder + all_files[0], SDC.READ)
+    hdf = SD(all_files[0], SDC.READ)
     datasets = hdf.datasets()
     for idx, sds in enumerate(datasets.keys()):
         print(idx, sds)
@@ -77,13 +79,12 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             workers = 128
     if save == None:
         with ProcessPoolExecutor(max_workers=workers) as executor:
-            ds_all = list(
+            results = list(
                 tqdm(
                     executor.map(
                         process_key, 
                         selected_keys, 
                         [file_groups] * len(selected_keys),
-                        [folder] * len(selected_keys),
                         [file_layers] * len(selected_keys),
                         [bands] * len(selected_keys),
                         [min_mean] * len(selected_keys),
@@ -92,16 +93,23 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                     total=len(selected_keys)
                 )
             )
+        ds_all, dates = zip(*results)
+        dates = [item for sublist in dates for item in sublist]
         ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
-        return ds_all
+        
+        return ds_all, dates
 
-def process_key(key, file_groups, folder, file_layers, bands, min_mean, normalize):
+def process_key(key, file_groups, file_layers, bands, min_mean, normalize):
     file_group = file_groups[key]
     X = []
+    dates = []
     for file in file_group:
-        result = append_data(folder, file, file_layers, bands, min_mean, normalize)
-        X.append(result)
-    return [xi for xi in X if xi.ndim > 1]
+        result = append_data(file, file_layers, bands, min_mean, normalize)
+        if result.ndim > 1:
+            X.append(result) 
+            dates.append(key)
+    return [xi for xi in X], [d for d in dates]
+
 
 
 
@@ -166,8 +174,8 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     
 
 
-def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
-    hdf = SD(folder + file, SDC.READ)
+def append_data(file, file_layers, bands, min_mean=0, normalize=False):
+    hdf = SD(file, SDC.READ)
     current_data_list = []
     key = list(file_layers[bands[0]-1].keys())[0]
     idx = list(file_layers[bands[0]-1].values())[0]
@@ -218,7 +226,7 @@ def append_data(folder, file, file_layers, bands, min_mean=0, normalize=False):
     return x_bands
     
 def normalize_data(data):
-    normalized_data = []
+    normalized_data = []    
     normalized_data.append((data - np.nanmin(data, axis=(0,1), keepdims=True)) / (np.nanmax(data, axis=(0,1), keepdims=True) - np.nanmin(data, axis=(0,1), keepdims=True)))
     #normalized_data = (data - np.nanmin(data, axis=(1,2), keepdims=True)) / (np.nanmax(data, axis=(1,2), keepdims=True) - np.nanmin(data, axis=(1,2), keepdims=True))
     return normalized_data
