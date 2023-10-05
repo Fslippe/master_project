@@ -54,11 +54,11 @@ max_vals = np.array([15.703261])
 
 
 folder = "/scratch/fslippe/modis/MOD02/daytime_1km/ /scratch/fslippe/modis/MOD02/boundary_1km/"
-#folder = "/scratch/fslippe/modis/MOD02/cao_test_data/"
  
-start = "20201201"
-end = "20240430"
-
+# start = "20201201"
+# end = "20240430"
+start = "20210401"
+end = "20210430"
 dates_converted = []
 
 start_converted = convert_to_day_of_year(start)
@@ -66,7 +66,9 @@ end_converted = convert_to_day_of_year(end)
 print(start_converted)
 print(end_converted)
 x, dates = extract_1km_data(folder, bands=bands, start_date=start_converted, end_date=end_converted)
-x, dates = zip(*[(xi, date) for xi, date in zip(x, dates) if (xi.shape[0] > 64) and (xi.shape[1] > 64)])
+#x, dates = zip(*[(xi, date) for xi, date in zip(x, dates) if (xi.shape[0] > 64) and (xi.shape[1] > 64)])
+#x, dates = zip(*[(xi+2, date) for xi, date in zip(x, dates) if (xi.shape[0] > 64) and (xi.shape[1] > 64)])
+
 x = list(x)
 dates = list(dates)
 
@@ -91,16 +93,19 @@ patches = np.concatenate(all_patches, axis=0) / max_vals
 encoded_patches = encoder.predict(patches)
 encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
 
-cluster = joblib.load('/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(29)_filter_cluster.pkl')
+cluster = joblib.load('/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(29)_filter_cluster_daytime_lab1.pkl')
 print("loaded cluster")
 cluster_predict = cluster.predict(encoded_patches_flat)
 labels = cluster_predict#.labels_
 
 
-desired_label = 6
-size_threshold = 10  # Adjust based on the minimum size of the region you are interested in
+desired_label = 1
+size_threshold = 7  # Adjust based on the minimum size of the region you are interested in
 selected_dates = []
 selected_images = []
+global_min = np.min([np.min(cm) for cm in cluster.labels_])
+global_max = np.max([np.max(cm) for cm in cluster.labels_])
+norm = Normalize(vmin=global_min, vmax=global_max)  
 
 print("calculating labels")
 for i in range(len(x)):
@@ -127,11 +132,14 @@ for i in range(len(x)):
 
         if dates[i] not in selected_dates:
             selected_dates.append(dates[i]) 
-            # fig, axs = plt.subplots(1,2)
-            # fig.suptitle("CAO found for threshold %s" %(size_threshold))
-            # axs[0].imshow(x[i], cmap="gray")
-            # axs[1].imshow(label_map, cmap="tab10")
+            fig, axs = plt.subplots(1,2)
+            fig.suptitle("CAO found for threshold %s" %(size_threshold))
+            axs[0].imshow(x[i], cmap="gray")
+            cb =axs[1].imshow(label_map, cmap="tab10", norm=norm)
+            plt.colorbar(cb)
+            plt.show()
             # plt.savefig("/uio/hume/student-u37/fslippe/master_project/figures/CAO_found_at_%s" %(dates[i])) 
 
 
 np.save("/uio/hume/student-u37/fslippe/data/date_hist_2020_21_%s" %(size_threshold), np.array(selected_dates))
+#np.save("/uio/hume/student-u37/fslippe/data/date_hist_202104+2_%s" %(size_threshold), np.array(selected_dates))

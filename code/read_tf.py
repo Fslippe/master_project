@@ -44,7 +44,7 @@ dataset = files.interleave(
     lambda x: tf.data.TFRecordDataset(x)
               .map(parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)
               .map(input_target_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
-    cycle_length=4,  # number of files read concurrently
+    cycle_length=20,  # number of files read concurrently
     num_parallel_calls=tf.data.experimental.AUTOTUNE
 )
 for (x, y) in dataset.take(5):  # Change 5 to any number of batches you want to check
@@ -68,17 +68,19 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
 model = autoencoder.model(optimizer=optimizer, loss="combined")
 
 # Train the model on your dataset
-batch_size = 32
+batch_size = 64
 patches_per_file = 300000
-buffer_size = patches_per_file * num_files
+total_records = 878172#sum(1 for _ in dataset)
+print(total_records)
+buffer_size = total_records#patches_per_file * num_files
 dataset = dataset.shuffle(buffer_size)
 dataset = dataset.batch(batch_size)
 dataset = dataset.repeat()
 dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-steps_per_epoch = patches_per_file * num_files // batch_size
+steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
 early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, restore_best_weights=True)
 
-history = model.fit(dataset, validation_data=(val_data, val_data), epochs=100, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
+history = model.fit(dataset, validation_data=(val_data, val_data), epochs=200, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
 
 model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_autoencoder")
 autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_encoder")
