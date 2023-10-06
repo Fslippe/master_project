@@ -21,9 +21,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
         all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith('.hdf')])
 
     hdf = SD(all_files[0], SDC.READ)
-    datasets = hdf.datasets()
-    for idx, sds in enumerate(datasets.keys()):
-        print(idx, sds)
+
         
     list1 = [int(num_str) for num_str in hdf.select("EV_250_Aggr1km_RefSB").attributes()["band_names"].split(",")]
     list2 = [int(num_str) for num_str in hdf.select("EV_500_Aggr1km_RefSB").attributes()["band_names"].split(",")]

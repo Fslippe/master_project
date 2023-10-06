@@ -44,3 +44,9 @@
   - solutions: Setting all values less than 0 to 0
 - Some values being out of valid range
   - Solutions: setting value to 0
+- Land topography being labeled as CAO
+  - Solutions: masking patches with more than half including land areas.
+  - Masking using modis data - have to find lon lat corresponding to label of mask 
+
+
+  
