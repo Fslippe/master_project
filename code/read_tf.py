@@ -36,7 +36,7 @@ def parse_function(example_proto):
 def input_target_map_fn(patch):
     return (patch, patch)
 
-file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_dnb_300k_band(29)_winter20_21_*.tfrecord"
+file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_dnb_landmask_150k_band(29)_winter20_21_*.tfrecord"
 files = tf.data.Dataset.list_files(file_pattern)
 num_files = len(tf.io.gfile.glob(file_pattern))
 
@@ -52,7 +52,7 @@ for (x, y) in dataset.take(5):  # Change 5 to any number of batches you want to 
     print(np.mean(x))
 
 # Load your validation data (assuming it's not in TFRecord format)
-val_data = np.load("/scratch/fslippe/modis/MOD02/test_data/normalized_testpatches_dnb_band(29)_winter20_21.npy")
+val_data = np.load("/scratch/fslippe/modis/MOD02/test_data/normalized_testpatches_dnb_landmask_150k_band(29)_winter20_21.npy")
 
 # Reload your model (if necessary)
 import importlib
@@ -82,11 +82,11 @@ early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, resto
 
 history = model.fit(dataset, validation_data=(val_data, val_data), epochs=200, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
 
-model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_autoencoder")
-autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_encoder")
-autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_band(29)_filter_decoder")
+model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_autoencoder")
+autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_encoder")
+autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_decoder")
 
 
 import pickle
-with open('training_history.pkl', 'wb') as f:
+with open('training_history_landmask_150k.pkl', 'wb') as f:
     pickle.dump(history.history, f)

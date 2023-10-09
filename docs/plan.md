@@ -47,6 +47,7 @@
 - Land topography being labeled as CAO
   - Solutions: masking patches with more than half including land areas.
   - Masking using modis data - have to find lon lat corresponding to label of mask 
-
+- Stretching because of pixel not being of same resolution for every angle "Spatial resolution for pixels at nadir is 1 km, degrading to 4.8 km in the along-scan direction at the scan extremes." (https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/products/MOD021KM)
+  - Solutions: Use only nadir for 1km resolution in both directions.  
 
   

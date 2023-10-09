@@ -8,18 +8,21 @@ import gc
 from functions import *
 import multiprocessing
 from scipy.ndimage import zoom
+from create_water_mask import * 
+from scipy.spatial import cKDTree
 
 
 total_cores = multiprocessing.cpu_count()
 print("total cores:", total_cores)
 
-def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None, workers=None):
+def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31], ds_water_mask=xr.open_dataset("/uio/hume/student-u37/fslippe/data/land_sea_ice_mask/sea_land_mask.nc"), save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None, workers=None):
     all_files = []
     folders = folder.split(" ")
     print(folders)
+
     for f in folders:
         all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith('.hdf')])
-
+    
     hdf = SD(all_files[0], SDC.READ)
 
         
@@ -86,27 +89,33 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                         [file_layers] * len(selected_keys),
                         [bands] * len(selected_keys),
                         [min_mean] * len(selected_keys),
+                        [ds_water_mask] * len(selected_keys),
                         [normalize] * len(selected_keys)
                     ), 
                     total=len(selected_keys)
                 )
             )
-        ds_all, dates = zip(*results)
-        dates = [item for sublist in dates for item in sublist]
-        ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
-        
-        return ds_all, dates
+        ds_all, dates, masks = zip(*results)
 
-def process_key(key, file_groups, file_layers, bands, min_mean, normalize):
+        ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
+        dates = [item for sublist in dates for item in sublist]
+        masks = [item for sublist in masks for item in sublist]
+        
+        return ds_all, dates, masks
+
+def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize):
     file_group = file_groups[key]
     X = []
     dates = []
+    masks = []
     for file in file_group:
-        result = append_data(file, file_layers, bands, min_mean, normalize)
+        result, mask = append_data(file, file_layers, bands, min_mean, full_water_mask, normalize)
+
         if result.ndim > 1:
             X.append(result) 
             dates.append(key)
-    return [xi for xi in X], [d for d in dates]
+            masks.append(mask)
+    return [xi for xi in X], [d for d in dates], [m for m in masks]
 
 
 
@@ -172,7 +181,7 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     
 
 
-def append_data(file, file_layers, bands, min_mean=0, normalize=False):
+def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, normalize=False):
     hdf = SD(file, SDC.READ)
     current_data_list = []
     key = list(file_layers[bands[0]-1].keys())[0]
@@ -181,17 +190,28 @@ def append_data(file, file_layers, bands, min_mean=0, normalize=False):
     lat = hdf.select("Latitude")[:]
     lon = hdf.select("Longitude")[:]
 
-    # Create a mask from lat where True indicates valid data (lat >= 60)
-    mask_lowres = (lat >= 60) & (lat <= 82) & (lon > -35) & (lon < 35)
+    lon_min, lon_max = -35, 35
+    lat_min, lat_max = 60, 82
+
+
+    mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon > lon_min) & (lon < lon_max)
     zoom_factor_y = data.shape[0] / lat.shape[0]
     zoom_factor_x = data.shape[1] / lat.shape[1]
     zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
     mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # order=0 for nearest neighbor interpolation
-
+    lat_highres = zoom(lat, zoom_factors, order=0)  # order=1 for bilinear interpolation
+    lon_highres = zoom(lon, zoom_factors, order=0) 
     valid_rows_ll = np.any(mask_highres, axis=1)
     valid_cols_ll = np.any(mask_highres, axis=0)
     data = data[valid_rows_ll][:, valid_cols_ll]
+    lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
+    lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 
 
+    coords_lowres = np.column_stack((full_water_mask.latitude.values.ravel(), full_water_mask.longitude.values.ravel()))
+    tree = cKDTree(coords_lowres)
+    coords_highres = np.column_stack((lat_highres.ravel(), lon_highres.ravel()))
+    distances, indices = tree.query(coords_highres, k=1)
+    mask = full_water_mask["sea_ice_region_surface_mask"].values.ravel()[indices].reshape(data.shape)
     
     attrs = hdf.select(key).attributes()
     is_nan = data == attrs["_FillValue"]
@@ -220,8 +240,12 @@ def append_data(file, file_layers, bands, min_mean=0, normalize=False):
                     
         current_data_list.append(data)
         
+    
+    ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
-    return x_bands
+   
+
+    return x_bands, mask 
     
 def normalize_data(data):
     normalized_data = []    

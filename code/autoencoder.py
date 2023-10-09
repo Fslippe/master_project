@@ -25,7 +25,18 @@ class SimpleAutoencoder:
             self.patch_size_2 = patch_size_2
     
     
-    def extract_patches(self, image):
+    def valid_percentage(self, mask_patch):
+        return tf.reduce_mean(tf.cast(mask_patch, tf.float32))
+
+    def filter_patches(self, image_patches, mask_patches, threshold=0.9):
+        percentages = tf.map_fn(self.valid_percentage, mask_patches)
+        mask = percentages >= threshold 
+        
+        filtered_image_patches = tf.boolean_mask(image_patches, mask)
+        
+        return filtered_image_patches
+    
+    def extract_patches(self, image, mask=None, mask_threshold=None):
         # Expand dimensions if the image is 3D
         if image.ndim == 3:
             image = np.expand_dims(image, axis=0)
@@ -47,11 +58,27 @@ class SimpleAutoencoder:
                                             rates=rates,
                                             padding=padding)
             
-            reshaped_patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+            if mask_threshold != None:
+                if mask.ndim == 3:
+                    mask = np.expand_dims(mask, axis=0)
+                elif mask.ndim == 2:
+                    # Assuming single-channel (grayscale) mask, expand both batch and channel dimensions
+                    mask = np.expand_dims(np.expand_dims(mask, axis=0), axis=-1)
+                
+                mask_patches = tf.image.extract_patches(images=mask,
+                                sizes=sizes,
+                                strides=strides,
+                                rates=rates,
+                                padding=padding)
+            
+                
+            mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
 
-            # Optionally, concatenate all patches into one large tensor
+            patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+            
+            patches = self.filter_patches(patches, mask_patches, threshold=mask_threshold)
 
-            return reshaped_patches
+            return patches
 
     
     def residual_block(self, x, filters):
