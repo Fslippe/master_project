@@ -29,12 +29,13 @@ class SimpleAutoencoder:
         return tf.reduce_mean(tf.cast(mask_patch, tf.float32))
 
     def filter_patches(self, image_patches, mask_patches, threshold=0.9):
-        percentages = tf.map_fn(self.valid_percentage, mask_patches)
+        percentages = tf.map_fn(self.valid_percentage, np.float32(mask_patches))
         mask = percentages >= threshold 
         
         filtered_image_patches = tf.boolean_mask(image_patches, mask)
-        
-        return filtered_image_patches
+        valid_indices = tf.where(mask)
+
+        return filtered_image_patches, valid_indices
     
     def extract_patches(self, image, mask=None, mask_threshold=None):
         # Expand dimensions if the image is 3D
@@ -72,13 +73,16 @@ class SimpleAutoencoder:
                                 padding=padding)
             
                 
-            mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+                mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
 
             patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
             
-            patches = self.filter_patches(patches, mask_patches, threshold=mask_threshold)
-
-            return patches
+            if mask_threshold != None:
+                n_patches = len(patches)
+                patches, idx = self.filter_patches(patches, mask_patches, threshold=mask_threshold)
+                return patches, idx, n_patches
+            else:
+                return patches
 
     
     def residual_block(self, x, filters):

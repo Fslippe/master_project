@@ -15,7 +15,18 @@ from scipy.spatial import cKDTree
 total_cores = multiprocessing.cpu_count()
 print("total cores:", total_cores)
 
-def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [6, 7, 20, 28, 28, 31], ds_water_mask=xr.open_dataset("/uio/hume/student-u37/fslippe/data/land_sea_ice_mask/sea_land_mask.nc"), save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=None, workers=None):
+def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/",
+                     bands = [6,7,20,28,28,31],
+                     ds_water_mask=xr.open_dataset("/uio/hume/student-u37/fslippe/data/land_sea_ice_mask/sea_land_mask.nc"),
+                     save=None,
+                     start_date=None,
+                     end_date=None,
+                     date_list=None,
+                     min_mean=0,
+                     normalize=None,
+                     return_lon_lat=False,
+                     workers=None):
+    
     all_files = []
     folders = folder.split(" ")
     print(folders)
@@ -90,32 +101,55 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                         [bands] * len(selected_keys),
                         [min_mean] * len(selected_keys),
                         [ds_water_mask] * len(selected_keys),
-                        [normalize] * len(selected_keys)
+                        [normalize] * len(selected_keys),
+                        [return_lon_lat] * len(selected_keys)
                     ), 
                     total=len(selected_keys)
                 )
             )
-        ds_all, dates, masks = zip(*results)
-
-        ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
-        dates = [item for sublist in dates for item in sublist]
-        masks = [item for sublist in masks for item in sublist]
+        if return_lon_lat:
+            ds_all, dates, masks, lon_lats = zip(*results)
+            ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
+            dates = [item for sublist in dates for item in sublist]
+            masks = [item for sublist in masks for item in sublist]
+            lon_lats = [item for sublist in lon_lats for item in sublist]
+            return ds_all, dates, masks, lon_lats
         
-        return ds_all, dates, masks
+        else:
+            ds_all, dates, masks = zip(*results)
+            ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
+            dates = [item for sublist in dates for item in sublist]
+            masks = [item for sublist in masks for item in sublist]
+            return ds_all, dates, masks
 
-def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize):
+def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, return_lon_lat=False):
     file_group = file_groups[key]
     X = []
     dates = []
     masks = []
-    for file in file_group:
-        result, mask = append_data(file, file_layers, bands, min_mean, full_water_mask, normalize)
+    lon_lats = []
 
-        if result.ndim > 1:
-            X.append(result) 
-            dates.append(key)
-            masks.append(mask)
-    return [xi for xi in X], [d for d in dates], [m for m in masks]
+    if return_lon_lat:
+        for file in file_group:
+            result, mask, lon_lat = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize)
+
+            if result.ndim > 1:
+                X.append(result) 
+                dates.append(key)
+                masks.append(mask)
+                lon_lats.append(lon_lat)
+
+        return X, dates, masks, lon_lats
+
+    else:
+        for file in file_group:
+            result, mask = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize)
+
+            if result.ndim > 1:
+                X.append(result) 
+                dates.append(key)
+                masks.append(mask)
+        return X, dates, masks
 
 
 
@@ -181,7 +215,7 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     
 
 
-def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, normalize=False):
+def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, return_lon_lat=False, normalize=False):
     hdf = SD(file, SDC.READ)
     current_data_list = []
     key = list(file_layers[bands[0]-1].keys())[0]
@@ -244,9 +278,12 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, norm
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
    
-
-    return x_bands, mask 
+    if return_lon_lat:
+        return x_bands, mask, np.array([lon_highres, lat_highres]) 
+    else:
+        return x_bands, mask
     
+
 def normalize_data(data):
     normalized_data = []    
     normalized_data.append((data - np.nanmin(data, axis=(0,1), keepdims=True)) / (np.nanmax(data, axis=(0,1), keepdims=True) - np.nanmin(data, axis=(0,1), keepdims=True)))
