@@ -64,13 +64,13 @@ bands = [1]  # You might need to specify the bands here
 autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
 
 # Set up your optimizer and compile the model
-optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 model = autoencoder.model(optimizer=optimizer, loss="combined")
 
 # Train the model on your dataset
-batch_size = 64
-patches_per_file = 300000
-total_records = 878172#sum(1 for _ in dataset)
+batch_size = 32 
+patches_per_file = 150000   
+total_records = sum(1 for _ in dataset) #534460
 print(total_records)
 buffer_size = total_records#patches_per_file * num_files
 dataset = dataset.shuffle(buffer_size)
@@ -78,9 +78,9 @@ dataset = dataset.batch(batch_size)
 dataset = dataset.repeat()
 dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
-early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, restore_best_weights=True)
+early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1, restore_best_weights=True)
 
-history = model.fit(dataset, validation_data=(val_data, val_data), epochs=200, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
+history = model.fit(dataset, validation_data=(val_data, val_data), epochs=400, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
 
 model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_autoencoder")
 autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_encoder")
