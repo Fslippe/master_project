@@ -1,6 +1,7 @@
 import tensorflow as tf
 import autoencoder
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
+from keras.callbacks import LearningRateScheduler
 import numpy as np 
 from tensorflow.keras.callbacks import EarlyStopping
 
@@ -36,6 +37,13 @@ def parse_function(example_proto):
 def input_target_map_fn(patch):
     return (patch, patch)
 
+def scheduler(epoch, lr):
+    if epoch < 15:
+        return lr
+    else:
+        return lr * 0.1  # decrease the learning rate after 10 epochs
+
+# Define LearningRateScheduler callback
 file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_dnb_landmask_150k_band(29)_winter20_21_*.tfrecord"
 files = tf.data.Dataset.list_files(file_pattern)
 num_files = len(tf.io.gfile.glob(file_pattern))
@@ -78,9 +86,11 @@ dataset = dataset.batch(batch_size)
 dataset = dataset.repeat()
 dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
+lr_schedule = LearningRateScheduler(scheduler, verbose=1)
+
 early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1, restore_best_weights=True)
 
-history = model.fit(dataset, validation_data=(val_data, val_data), epochs=400, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping])
+history = model.fit(dataset, validation_data=(val_data, val_data), epochs=400, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
 
 model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_autoencoder")
 autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_encoder")

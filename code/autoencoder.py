@@ -37,7 +37,7 @@ class SimpleAutoencoder:
 
         return filtered_image_patches, valid_indices
     
-    def extract_patches(self, image, mask=None, mask_threshold=None):
+    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False):
         # Expand dimensions if the image is 3D
         if image.ndim == 3:
             image = np.expand_dims(image, axis=0)
@@ -45,43 +45,71 @@ class SimpleAutoencoder:
             # Assuming single-channel (grayscale) image, expand both batch and channel dimensions
             image = np.expand_dims(np.expand_dims(image, axis=0), axis=-1)
 
-        # Expand dimensions if the image is 3D
+        with tf.device('/CPU:0'):   
+            # Expand dimensions if the image is 3D
 
-        sizes = [1, self.patch_size, self.patch_size_2, 1]
-        strides = [1, self.patch_size, self.patch_size_2, 1]
-        rates = [1, 1, 1, 1]
-        padding = 'VALID'
+            sizes = [1, self.patch_size, self.patch_size_2, 1]
+            strides = [1, self.patch_size, self.patch_size_2, 1]
+            rates = [1, 1, 1, 1]
+            padding = 'VALID'
 
-        patches = tf.image.extract_patches(images=image,
-                                        sizes=sizes,
-                                        strides=strides,
-                                        rates=rates,
-                                        padding=padding)
-        
-        if mask_threshold != None:
-            if mask.ndim == 3:
-                mask = np.expand_dims(mask, axis=0)
-            elif mask.ndim == 2:
-                # Assuming single-channel (grayscale) mask, expand both batch and channel dimensions
-                mask = np.expand_dims(np.expand_dims(mask, axis=0), axis=-1)
+            patches = tf.image.extract_patches(images=image,
+                                            sizes=sizes,
+                                            strides=strides,
+                                            rates=rates,
+                                            padding=padding)
             
-            mask_patches = tf.image.extract_patches(images=mask,
-                            sizes=sizes,
-                            strides=strides,
-                            rates=rates,
-                            padding=padding)
-        
+            if mask_threshold != None:
+                if mask.ndim == 3:
+                    mask = np.expand_dims(mask, axis=0)
+                elif mask.ndim == 2:
+                    # Assuming single-channel (grayscale) mask, expand both batch and channel dimensions
+                    mask = np.expand_dims(np.expand_dims(mask, axis=0), axis=-1)
+                
+                mask_patches = tf.image.extract_patches(images=mask,
+                                sizes=sizes,
+                                strides=strides,
+                                rates=rates,
+                                padding=padding)
             
-            mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+                
+                mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
 
-        patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
-        
-        if mask_threshold != None:
-            n_patches = len(patches)
-            patches, idx = self.filter_patches(patches, mask_patches, threshold=mask_threshold)
-            return patches, idx, n_patches
-        else:
-            return patches
+            patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+            if extract_lon_lat:
+                if lon_lat.ndim == 3:
+                    lon_lat = np.expand_dims(lon_lat, axis=-1)
+                elif lon_lat.ndim == 2:
+                    # Assuming single-channel (grayscale) lon_lat, expand both batch and channel dimensions
+                    lon_lat = np.expand_dims(np.expand_dims(lon_lat, axis=0), axis=-1)
+                lon = tf.image.extract_patches(images=np.expand_dims(lon_lat[0], axis=0),
+                                            sizes=sizes,
+                                            strides=strides,
+                                            rates=rates,
+                                            padding=padding)
+                
+                lat = tf.image.extract_patches(images=np.expand_dims(lon_lat[1], axis=0),
+                                            sizes=sizes,
+                                            strides=strides,
+                                            rates=rates,
+                                            padding=padding)
+                
+                lon = tf.reshape(lon, (-1, self.patch_size, self.patch_size_2))
+                lat = tf.reshape(lat, (-1, self.patch_size, self.patch_size_2))
+                
+            if mask_threshold != None:
+                n_patches = len(patches)
+                patches, idx = self.filter_patches(patches, mask_patches, threshold=mask_threshold)
+                if extract_lon_lat:
+                    idx_tf = tf.convert_to_tensor(np.squeeze(idx.numpy()), dtype=tf.int32)
+                    lon = tf.gather(lon, idx_tf)
+                    lat = tf.gather(lat, idx_tf)
+
+                    return patches, idx, n_patches, lon, lat
+                else:
+                    return patches, idx, n_patches
+            else:
+                return patches
 
     
     def residual_block(self, x, filters):
