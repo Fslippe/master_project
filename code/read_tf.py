@@ -90,7 +90,7 @@ lr_schedule = LearningRateScheduler(scheduler, verbose=1)
 
 early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1, restore_best_weights=True)
 
-history = model.fit(dataset, validation_data=(val_data, val_data), epochs=400, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
+history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
 
 model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_autoencoder")
 autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_encoder")
