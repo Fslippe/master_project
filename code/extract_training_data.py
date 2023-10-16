@@ -25,7 +25,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      min_mean=0,
                      normalize=None,
                      return_lon_lat=False,
-                     workers=None):
+                     workers=None,
+                     max_zenith=50):
     
     all_files = []
     folders = folder.split(" ")
@@ -102,7 +103,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                         [min_mean] * len(selected_keys),
                         [ds_water_mask] * len(selected_keys),
                         [normalize] * len(selected_keys),
-                        [return_lon_lat] * len(selected_keys)
+                        [return_lon_lat] * len(selected_keys),
+                        [max_zenith] * len(selected_keys)
                     ), 
                     total=len(selected_keys)
                 )
@@ -122,7 +124,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             masks = [item for sublist in masks for item in sublist]
             return ds_all, dates, masks
 
-def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, return_lon_lat=False):
+def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, return_lon_lat=False, max_zenith=50):
     file_group = file_groups[key]
     X = []
     dates = []
@@ -131,7 +133,7 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
 
     if return_lon_lat:
         for file in file_group:
-            result, mask, lon_lat = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize)
+            result, mask, lon_lat = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize, max_zenith)
 
             if result.ndim > 1:
                 X.append(result) 
@@ -143,7 +145,7 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
 
     else:
         for file in file_group:
-            result, mask = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize)
+            result, mask = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize, max_zenith)
 
             if result.ndim > 1:
                 X.append(result) 
@@ -215,7 +217,9 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     
 
 
-def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, return_lon_lat=False, normalize=False):
+def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, return_lon_lat=False, normalize=False, max_zenith=50):
+    zenith = np.load("/uio/hume/student-u37/fslippe/master_project/code/data/sensor_zenith_bilinear_1km.npy")
+    zenith_mask = zenith < max_zenith
     hdf = SD(file, SDC.READ)
     current_data_list = []
     key = list(file_layers[bands[0]-1].keys())[0]
@@ -231,12 +235,14 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, retu
     mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon > lon_min) & (lon < lon_max)
     zoom_factor_y = data.shape[0] / lat.shape[0]
     zoom_factor_x = data.shape[1] / lat.shape[1]
+    
     zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
+
     mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # order=0 for nearest neighbor interpolation
-    lat_highres = zoom(lat, zoom_factors, order=0)  # order=1 for bilinear interpolation
-    lon_highres = zoom(lon, zoom_factors, order=0) 
-    valid_rows_ll = np.any(mask_highres, axis=1)
-    valid_cols_ll = np.any(mask_highres, axis=0)
+    lat_highres = zoom(lat, zoom_factors, order=1)  # order=1 for bilinear interpolation
+    lon_highres = zoom(lon, zoom_factors, order=1) 
+    valid_rows_ll = np.any(mask_highres , axis=1)
+    valid_cols_ll = np.any(mask_highres , axis=0) & zenith_mask
     data = data[valid_rows_ll][:, valid_cols_ll]
     lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
     lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 

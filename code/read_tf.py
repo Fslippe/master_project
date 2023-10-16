@@ -39,9 +39,10 @@ def input_target_map_fn(patch):
 
 def scheduler(epoch, lr):
     if epoch < 15:
-        return lr
+        return 1e-3
     else:
-        return lr * 0.1  # decrease the learning rate after 10 epochs
+        return 1e-4
+
 
 # Define LearningRateScheduler callback
 file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_dnb_landmask_150k_band(29)_winter20_21_*.tfrecord"
@@ -88,13 +89,13 @@ dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
 lr_schedule = LearningRateScheduler(scheduler, verbose=1)
 
-early_stopping = EarlyStopping(monitor='val_loss', patience=15, verbose=1, restore_best_weights=True)
+early_stopping = EarlyStopping(monitor='val_loss', patience=20, verbose=1, restore_best_weights=True)
 
 history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
 
-model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_autoencoder")
-autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_encoder")
-autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_band(29)_filter_decoder")
+model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_scheduler_band(29)_filter_autoencoder")
+autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_scheduler_band(29)_filter_encoder")
+autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_scheduler_band(29)_filter_decoder")
 
 
 import pickle

@@ -61,9 +61,9 @@
 - #Clustering results on july 
   - not able to understand the higher values when normalized using training max and only trained on winter/spring
   - Problem fixed by removing land areas which confused the model 
-- Extract longitude latitude from clusters and gain histogram map
-- Learning rate scheduler - 1e-3 towards 1e-4
-
+- #Extract longitude latitude from clusters and gain histogram map
+- #Learning rate scheduler - 1e-3 towards 1e-4
+- Remove overlapping patches with high viewing angles 
 
 wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.modaps.eosdis.nasa.gov/archive/orders/502032976/" --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBUFMgT0F1dGgyIEF1dGhlbnRpY2F0b3IiLCJpYXQiOjE2OTcwNDMxMDgsIm5iZiI6MTY5NzA0MzEwOCwiZXhwIjoxODU0NzIzMTA4LCJ1aWQiOiJmaWxpcHNldmVyaW4iLCJlbWFpbF9hZGRyZXNzIjoiZnZvbmRlcmxpcHBlQGdtYWlsLmNvbSIsInRva2VuQ3JlYXRvciI6ImZpbGlwc2V2ZXJpbiJ9.T7HBGvyhM7HpsPTvAjqz-c899L7CBZENodzsw9tBOXA" -P . & wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.modaps.eosdis.nasa.gov/archive/orders/502032977/" --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJBUFMgT0F1dGgyIEF1dGhlbnRpY2F0b3IiLCJpYXQiOjE2OTcwNDMxMjQsIm5iZiI6MTY5NzA0MzEyNCwiZXhwIjoxODU0NzIzMTI0LCJ1aWQiOiJmaWxpcHNldmVyaW4iLCJlbWFpbF9hZGRyZXNzIjoiZnZvbmRlcmxpcHBlQGdtYWlsLmNvbSIsInRva2VuQ3JlYXRvciI6ImZpbGlwc2V2ZXJpbiJ9.5IT7WXThMDrEVFTrZUbPZEo8eTJQCXGwdl8O7barddw" -P . &
 
