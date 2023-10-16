@@ -10,6 +10,7 @@ import multiprocessing
 from scipy.ndimage import zoom
 from create_water_mask import * 
 from scipy.spatial import cKDTree
+from scipy.ndimage import distance_transform_edt, generic_filter
 
 
 total_cores = multiprocessing.cpu_count()
@@ -216,6 +217,18 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
 
     
 
+def replace_out_of_bounds_with_nearest(data, low_bound, high_bound):
+    out_of_bounds = ~((data >= low_bound) & (data <= high_bound))
+
+    if np.any(out_of_bounds):
+
+        # Compute the distances to the nearest valid value
+        distances, (i, j) = distance_transform_edt(out_of_bounds, return_indices=True)
+        
+        # Use the indices to get the values from the nearest valid value
+        data[out_of_bounds] = data[i[out_of_bounds], j[out_of_bounds]]
+
+    return data
 
 def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, return_lon_lat=False, normalize=False, max_zenith=50):
     zenith = np.load("/uio/hume/student-u37/fslippe/master_project/code/data/sensor_zenith_bilinear_1km.npy")
@@ -227,11 +240,12 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, retu
     data = hdf.select(key)[:][idx]
     lat = hdf.select("Latitude")[:]
     lon = hdf.select("Longitude")[:]
-
+    lat = replace_out_of_bounds_with_nearest(lat, -90, 90)
+    lon = replace_out_of_bounds_with_nearest(lon, -180, 180)
     lon_min, lon_max = -35, 35
     lat_min, lat_max = 60, 82
-
-
+    
+    print(lat.min())
     mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon > lon_min) & (lon < lon_max)
     zoom_factor_y = data.shape[0] / lat.shape[0]
     zoom_factor_x = data.shape[1] / lat.shape[1]
@@ -242,6 +256,7 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, retu
     lat_highres = zoom(lat, zoom_factors, order=1)  # order=1 for bilinear interpolation
     lon_highres = zoom(lon, zoom_factors, order=1) 
     valid_rows_ll = np.any(mask_highres , axis=1)
+
     valid_cols_ll = np.any(mask_highres , axis=0) & zenith_mask
     data = data[valid_rows_ll][:, valid_cols_ll]
     lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
