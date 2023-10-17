@@ -66,6 +66,8 @@
 - Remove overlapping patches with high viewing angles 
   - Solution use less than 50deg zenith
   - Problem - still double distance in outer regions than in inner ones
+- Train model where high viewing angles are removed
+
 - Extract patches of interest and use for further analysis and training. 
   - Use whole pictures or just parts of them for training. - Understand difference or just region of interest. 
 

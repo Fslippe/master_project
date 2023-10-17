@@ -82,6 +82,7 @@ class SimpleAutoencoder:
                 elif lon_lat.ndim == 2:
                     # Assuming single-channel (grayscale) lon_lat, expand both batch and channel dimensions
                     lon_lat = np.expand_dims(np.expand_dims(lon_lat, axis=0), axis=-1)
+                    
                 lon = tf.image.extract_patches(images=np.expand_dims(lon_lat[0], axis=0),
                                             sizes=sizes,
                                             strides=strides,
@@ -133,7 +134,6 @@ class SimpleAutoencoder:
         x = self.residual_block(x, 32)
         x = self.residual_block(x, 64)
         self.encoded = self.residual_block(x, 128)
-
         self.encoder = keras.Model(self.encoder_input, self.encoded)
 
     def decode(self):
