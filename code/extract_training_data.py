@@ -245,7 +245,6 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, retu
     lon_min, lon_max = -35, 35
     lat_min, lat_max = 60, 82
     
-    print(lat.min())
     mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon > lon_min) & (lon < lon_max)
     zoom_factor_y = data.shape[0] / lat.shape[0]
     zoom_factor_x = data.shape[1] / lat.shape[1]
