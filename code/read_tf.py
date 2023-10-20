@@ -44,60 +44,65 @@ def scheduler(epoch, lr):
         return 1e-4
 
 
-# Define LearningRateScheduler callback
-file_pattern = "/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_dnb_landmask_150k_band(29)_winter20_21_*.tfrecord"
-files = tf.data.Dataset.list_files(file_pattern)
-num_files = len(tf.io.gfile.glob(file_pattern))
+def main():
+    # Define LearningRateScheduler callback
+    model_run_name = "dnb_l90_z50_(29)_%s-%s" %("cao_months_202012", "202111")
+    print(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{model_run_name}*.tfrecord")
+    file_pattern = f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{model_run_name}*.tfrecord"
+    files = tf.data.Dataset.list_files(file_pattern)
+    num_files = len(tf.io.gfile.glob(file_pattern))
 
-dataset = files.interleave(
-    lambda x: tf.data.TFRecordDataset(x)
-              .map(parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-              .map(input_target_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
-    cycle_length=20,  # number of files read concurrently
-    num_parallel_calls=tf.data.experimental.AUTOTUNE
-)
-for (x, y) in dataset.take(5):  # Change 5 to any number of batches you want to check
-    print(x.shape, x.dtype, y.shape, y.dtype)
-    print(np.mean(x))
+    dataset = files.interleave(
+        lambda x: tf.data.TFRecordDataset(x)
+                .map(parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+                .map(input_target_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
+        cycle_length=20,  # number of files read concurrently
+        num_parallel_calls=tf.data.experimental.AUTOTUNE
+    )
+    for (x, y) in dataset.take(5):  # Change 5 to any number of batches you want to check
+        print(x.shape, x.dtype, y.shape, y.dtype)
+        print(np.mean(x))
 
-# Load your validation data (assuming it's not in TFRecord format)
-val_data = np.load("/scratch/fslippe/modis/MOD02/test_data/normalized_testpatches_dnb_landmask_150k_band(29)_winter20_21.npy")
+    # Load your validation data (assuming it's not in TFRecord format)
+    val_data = np.load(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_valpatches_{model_run_name}.npy")
 
-# Reload your model (if necessary)
-import importlib
-importlib.reload(autoencoder)
+    # Reload your model (if necessary)
 
-# Initialize your autoencoder
-patch_size = 64
-bands = [1]  # You might need to specify the bands here
-autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
+    # Initialize your autoencoder
+    patch_size = 64
+    bands = [1]  # You might need to specify the bands here
+    autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
 
-# Set up your optimizer and compile the model
-optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-model = autoencoder.model(optimizer=optimizer, loss="combined")
+    # Set up your optimizer and compile the model
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    model = autoencoder.model(optimizer=optimizer, loss="combined")
 
-# Train the model on your dataset
-batch_size = 32 
-patches_per_file = 150000   
-total_records = sum(1 for _ in dataset) #534460
-print(total_records)
-buffer_size = total_records#patches_per_file * num_files
-dataset = dataset.shuffle(buffer_size)
-dataset = dataset.batch(batch_size)
-dataset = dataset.repeat()
-dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
-lr_schedule = LearningRateScheduler(scheduler, verbose=1)
+    # Train the model on your dataset
+    batch_size = 32 
+    total_records = sum(1 for _ in dataset) #534460
+    print(total_records)
+    buffer_size = total_records#patches_per_file * num_files
+    dataset = dataset.shuffle(buffer_size)
+    dataset = dataset.batch(batch_size)
+    dataset = dataset.repeat()
+    dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
+    lr_schedule = LearningRateScheduler(scheduler, verbose=1)
 
-early_stopping = EarlyStopping(monitor='val_loss', patience=20, verbose=1, restore_best_weights=True)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=20, verbose=1, restore_best_weights=True)
 
-history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
+    history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
 
-model.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_scheduler_band(29)_filter_autoencoder")
-autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_scheduler_band(29)_filter_encoder")
-autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_dnb_landmask_150k_scheduler_band(29)_filter_decoder")
+    model_run_name = "scheduler_250k_dnb_l90_z50_(29)_%s-%s" %("cao_months_202012", "202111")
+
+    model.save("/uio/hume/student-u37/fslippe/data/models/autoencoder_%s" %(model_run_name))
+    autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/encoder_%s" %(model_run_name))
+    autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/decoder_%s" %(model_run_name))
 
 
-import pickle
-with open('training_history_landmask_150k.pkl', 'wb') as f:
-    pickle.dump(history.history, f)
+    import pickle
+    with open('training_history%s.pkl' %(model_run_name), 'wb') as f:
+        pickle.dump(history.history, f)
+
+if __name__ == "__main__":
+    main()

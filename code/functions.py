@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta 
 import numpy as np 
 from scipy import ndimage
+from autoencoder import * 
 
 def convert_to_day_of_year(date_str):
     # Parse the date
@@ -38,13 +39,12 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
 
     # Generate map with empty land clusters 
     current_labels = np.ones((n_patches))*(global_max+1)
-    print(np.squeeze(idx.numpy()))
     current_labels[np.squeeze(idx.numpy())] = labels[start:end]
     cluster_map =  np.reshape(current_labels, (reduced_height, reduced_width))
 
     return cluster_map
 
-def generate_patches(x, masks, lon_lats, max_vals, autoencoder):
+def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None]):
     all_patches = []
     all_lon_patches = []
     all_lat_patches = []
@@ -69,7 +69,8 @@ def generate_patches(x, masks, lon_lats, max_vals, autoencoder):
                                                                             mask,
                                                                             mask_threshold=0.9,
                                                                             lon_lat=lon_lat,
-                                                                            extract_lon_lat=True)  # Assuming this function extracts and reshapes patches for a single image
+                                                                            extract_lon_lat=True,
+                                                                            strides=strides)  # Assuming this function extracts and reshapes patches for a single image
         #patches = autoencoder_predict.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
         #n_patches = len(patches)
         
@@ -98,8 +99,6 @@ def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, globa
     patches_w = []
 
     for i in range(n):
-        print(i)
-        print(starts[i], ends[i], n_patches_tot[i], shapes[i])
         label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
         
         binary_map = (label_map == desired_label)

@@ -37,7 +37,7 @@ class SimpleAutoencoder:
 
         return filtered_image_patches, valid_indices
     
-    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False):
+    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False, strides=[None, None, None, None]):
         # Expand dimensions if the image is 3D
         if image.ndim == 3:
             image = np.expand_dims(image, axis=0)
@@ -49,7 +49,9 @@ class SimpleAutoencoder:
             # Expand dimensions if the image is 3D
 
             sizes = [1, self.patch_size, self.patch_size_2, 1]
-            strides = [1, self.patch_size, self.patch_size_2, 1]
+            if strides[0] == None:
+                strides = [1, self.patch_size, self.patch_size_2, 1]
+            
             rates = [1, 1, 1, 1]
             padding = 'VALID'
 
