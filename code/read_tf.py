@@ -63,6 +63,13 @@ def main():
         print(x.shape, x.dtype, y.shape, y.dtype)
         print(np.mean(x))
 
+    max_value = float('-inf')
+    for (x, y) in dataset:
+        current_max = np.max(x.numpy())
+        if current_max > max_value:
+            max_value = current_max
+
+    print("Max Value in the dataset:", max_value)
     # Load your validation data (assuming it's not in TFRecord format)
     val_data = np.load(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_valpatches_{model_run_name}.npy")
 
@@ -71,7 +78,8 @@ def main():
     # Initialize your autoencoder
     patch_size = 64
     bands = [1]  # You might need to specify the bands here
-    autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size)
+    filters = [8, 16, 32, 64]
+    autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
 
     # Set up your optimizer and compile the model
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
@@ -86,19 +94,18 @@ def main():
     dataset = dataset.batch(batch_size)
     dataset = dataset.repeat()
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    steps_per_epoch = total_records // batch_size#patches_per_file * num_files // batch_size
+    steps_per_epoch = total_records // batch_size #patches_per_file * num_files // batch_size
     lr_schedule = LearningRateScheduler(scheduler, verbose=1)
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=20, verbose=1, restore_best_weights=True)
 
     history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
 
-    model_run_name = "scheduler_250k_dnb_l90_z50_(29)_%s-%s" %("cao_months_202012", "202111")
+    model_run_name = "scheduler_250k_dnb_l90_z50_f%s_(29)_%s-%s" %("cao_months_202012", "202111", filters[-1])
 
     model.save("/uio/hume/student-u37/fslippe/data/models/autoencoder_%s" %(model_run_name))
     autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/encoder_%s" %(model_run_name))
     autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/decoder_%s" %(model_run_name))
-
 
     import pickle
     with open('training_history%s.pkl' %(model_run_name), 'wb') as f:

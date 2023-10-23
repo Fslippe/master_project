@@ -99,29 +99,35 @@ def generate_hist_map(n_patches_tot,
 
 
 
-def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, save=None):
+def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, chosen_label=2, save=None):
     # Add black to the end of cmap
     norm = Normalize(vmin=global_min, vmax=global_max)  
     norm_mask = Normalize(vmin=0, vmax=1)  
-    cmap_tab10 = plt.cm.tab10
+    cmap_tab10 = plt.cm.tab20
     colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
     black = np.array([0, 0, 0, 1])
     colors_new = np.vstack((colors_tab10, black))
     new_cmap = mcolors.ListedColormap(colors_new)
-
+    print(x[0].shape)
+    
+    n_bands = x[0].shape[2]
+    max_bands = np.max(np.array([np.max(xi, axis=(0,1)) for xi in x]), axis=0)
+    max_bands[3] = 0.3
+    print(max_bands.shape)
     # Run through index_list corresponding to picture i
     for i in index_list:
         # Get cluster map i
         map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
 
         # Plot each map        
-        fig, axs = plt.subplots(1,3, figsize=(25, 6))
-        fig.suptitle("idx:%s,  dates:%s,  max:%s,  min:%s,  mean:%s,  n_lab:%s" %(i, dates[i], np.max(map), np.min(map), np.mean(map), np.sum((map.ravel()==2))))
-        cb = axs[0].imshow(x[i], cmap="gray")
+        fig, axs = plt.subplots(1,2+ n_bands, figsize=(20+ 5*n_bands , 6))
+        fig.suptitle("idx:%s,  dates:%s,  max:%s,  min:%s,  mean:%s,  n_lab:%s" %(i, dates[i], np.max(map), np.min(map), np.mean(map), np.sum((map.ravel()==chosen_label))))
+        for j in range(n_bands):
+            cb = axs[j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
+            plt.colorbar(cb)
+        cb = axs[-2].imshow(map, cmap=new_cmap, norm=norm)
         plt.colorbar(cb)
-        cb = axs[1].imshow(map, cmap=new_cmap, norm=norm)
-        plt.colorbar(cb)
-        axs[2].imshow(masks[i], norm=norm_mask)
+        axs[-1].imshow(masks[i], norm=norm_mask)
         plt.tight_layout()
     
     if save != None:

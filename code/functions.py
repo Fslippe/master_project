@@ -44,6 +44,34 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
 
     return cluster_map
 
+def generate_map_from_patches(patches, start, end, shape, patch_size):
+    # Compute the number of patches in each dimension
+    num_patches_y = shape[0] // patch_size
+    num_patches_x = shape[1] // patch_size
+    
+    # Calculate the reduced resolution based on number of patches and patch size
+    reduced_height = num_patches_y * patch_size
+    reduced_width = num_patches_x * patch_size
+
+    # Create an empty map of the reduced resolution
+    reconstructed_image = np.zeros((reduced_height, reduced_width))
+
+    # Extract the patches corresponding to this image
+    image_patches = patches[start:end]
+
+    # Place each patch into the empty image
+    patch_idx = 0
+    for y in range(0, reduced_height, patch_size):
+        for x in range(0, reduced_width, patch_size):
+            # Check if we've used all our patches
+            if patch_idx >= len(image_patches):
+                break
+            # Place the patch in the correct position
+            reconstructed_image[y:y+patch_size, x:x+patch_size] = image_patches[patch_idx]
+            patch_idx += 1
+
+    return reconstructed_image
+
 def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None]):
     all_patches = []
     all_lon_patches = []

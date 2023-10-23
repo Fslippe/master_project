@@ -66,11 +66,16 @@
 - #Remove overlapping patches with high viewing angles 
   - Solution use less than 50deg zenith
   - Problem - still double distance in outer regions than in inner ones
-- Train model where high viewing angles are removed
+- #Train model where high viewing angles are removed
 - Extract patches of interest and use for further analysis and training. 
+  - Approaches:
+    - Train Secondary Autoencoder on the Encoded Representations of the Primary Autoencoder
+    - Train Secondary Autoencoder Directly on the Areas of Interest
   - Use whole pictures or just parts of them for training. - Understand difference or just region of interest. 
   - Optimize to see the difference between open/closed cell - may need to change the patch size  
 - Perform clustering and change stride for more accurate pinpointing of tranition position
   - Make manual function to get indexes of those regions. Extract pixels in region and perform secondary patch extraction 
-  
+- Run model with different number of filters. Perfect representation may be overfitting.
+  - Starting out with 8-16-32-64 for test instead of 16-32-64-128
+
 nohup python3 read_tf.py > output_l90_z50.log 2>&1 &

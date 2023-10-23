@@ -16,13 +16,15 @@ class SobelFilterLayer(tf.keras.layers.Layer):
 
 
 class SimpleAutoencoder:
-    def __init__(self, n_vars, patch_size, patch_size_2=None):
+    def __init__(self, n_vars, patch_size, patch_size_2=None, filters = [16, 32, 64, 128]):
         self.n_vars = n_vars
         self.patch_size = patch_size
         if patch_size_2 == None:
             self.patch_size_2 = self.patch_size
         else:
             self.patch_size_2 = patch_size_2
+        self.filters = filters
+        
     
     
     def valid_percentage(self, mask_patch):
@@ -74,8 +76,7 @@ class SimpleAutoencoder:
                                 rates=rates,
                                 padding=padding)
             
-                
-                mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
+                mask_patches = tf.reshape(mask_patches, (-1, self.patch_size, self.patch_size_2, 1))
 
             patches = tf.reshape(patches, (-1, self.patch_size, self.patch_size_2, image.shape[-1]))
             if extract_lon_lat:
@@ -132,28 +133,28 @@ class SimpleAutoencoder:
     def encode(self):
         self.encoder_input = keras.Input(shape=(self.patch_size, self.patch_size_2, self.n_vars)) 
 
-        x = self.residual_block(self.encoder_input, 16)
-        x = self.residual_block(x, 32)
-        x = self.residual_block(x, 64)
-        self.encoded = self.residual_block(x, 128)
+        x = self.residual_block(self.encoder_input, self.filters[0])
+        x = self.residual_block(x, self.filters[1])
+        x = self.residual_block(x, self.filters[2])
+        self.encoded = self.residual_block(x, self.filters[3])
         self.encoder = keras.Model(self.encoder_input, self.encoded)
 
     def decode(self):
         decoder_input = keras.Input(shape=(self.encoded.shape[1], self.encoded.shape[2], self.encoded.shape[3]))
 
-        x = keras.layers.Conv2DTranspose(128, (3, 3), padding='same')(decoder_input)
+        x = keras.layers.Conv2DTranspose(self.filters[3], (3, 3), padding='same')(decoder_input)
         x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
         
-        x = keras.layers.Conv2DTranspose(64, (3, 3), padding='same')(x)
+        x = keras.layers.Conv2DTranspose(self.filters[2], (3, 3), padding='same')(x)
         x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
         
-        x = keras.layers.Conv2DTranspose(32, (3, 3), padding='same')(x)
+        x = keras.layers.Conv2DTranspose(self.filters[1], (3, 3), padding='same')(x)
         x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
 
-        x = keras.layers.Conv2DTranspose(16, (3, 3), padding='same')(x)
+        x = keras.layers.Conv2DTranspose(self.filters[0], (3, 3), padding='same')(x)
         x = keras.layers.LeakyReLU(alpha=0.3)(x)
         x = keras.layers.UpSampling2D((2, 2))(x)
         
