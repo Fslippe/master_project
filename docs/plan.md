@@ -73,6 +73,7 @@
     - Train Secondary Autoencoder Directly on the Areas of Interest
   - Use whole pictures or just parts of them for training. - Understand difference or just region of interest. 
   - Optimize to see the difference between open/closed cell - may need to change the patch size  
+  - Try HAC
 - Perform clustering and change stride for more accurate pinpointing of tranition position
   - Make manual function to get indexes of those regions. Extract pixels in region and perform secondary patch extraction 
 - Run model with different number of filters. Perfect representation may be overfitting.
