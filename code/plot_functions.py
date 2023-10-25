@@ -112,7 +112,9 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
     
     n_bands = x[0].shape[2]
     max_bands = np.max(np.array([np.max(xi, axis=(0,1)) for xi in x]), axis=0)
-    max_bands[3] = 0.3
+    if len(max_bands) >= 3:
+        max_bands[3] = 0.3
+        
     print(max_bands.shape)
     # Run through index_list corresponding to picture i
     for i in index_list:

@@ -30,12 +30,19 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      max_zenith=50):
     
     all_files = []
+    mod_date = []
+    mod_min = []
+
+    
     folders = folder.split(" ")
     print(folders)
 
     for f in folders:
         all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith('.hdf')])
-    
+    for name in all_files:
+        mod_date.append(name.split("/")[-1][1])
+        mod_min.append(name.split("/")[-1][2])
+
     hdf = SD(all_files[0], SDC.READ)
 
         
@@ -105,7 +112,10 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                         [ds_water_mask] * len(selected_keys),
                         [normalize] * len(selected_keys),
                         [return_lon_lat] * len(selected_keys),
-                        [max_zenith] * len(selected_keys)
+                        [max_zenith] * len(selected_keys),
+                        [mod_date] * len(selected_keys),
+                        [mod_min] * len(selected_keys)
+
                     ), 
                     total=len(selected_keys)
                 )
@@ -125,7 +135,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             masks = [item for sublist in masks for item in sublist]
             return ds_all, dates, masks
 
-def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, return_lon_lat=False, max_zenith=50):
+def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, return_lon_lat=False, max_zenith=50, mod_date, mod_name):
     file_group = file_groups[key]
     X = []
     dates = []

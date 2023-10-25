@@ -17,7 +17,7 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-def parse_function(example_proto):
+def parse_function(example_proto, patch_size=64):
     # Define the feature description needed to decode the TFRecord
     feature_description = {
         'depth': tf.io.FixedLenFeature([], tf.int64),
@@ -30,9 +30,8 @@ def parse_function(example_proto):
     # Decode the patch
     depth = parsed_example['depth']
     decoded_patch = tf.io.decode_raw(parsed_example['patch'], tf.float32)
-    decoded_patch = tf.reshape(decoded_patch, (64, 64, depth))
+    decoded_patch = tf.reshape(decoded_patch, (patch_size, patch_size, depth))
     return decoded_patch
-
 
 def input_target_map_fn(patch):
     return (patch, patch)
@@ -46,37 +45,29 @@ def scheduler(epoch, lr):
 
 def main():
     # Define LearningRateScheduler callback
-    model_run_name = "dnb_l90_z50_(29)_%s-%s" %("cao_months_202012", "202111")
+    model_run_name = "dnb_l95_z50_ps128_(29)_%s-%s" %("cao_months_202012", "202111")
+    patch_size = 128
+
     print(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{model_run_name}*.tfrecord")
     file_pattern = f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{model_run_name}*.tfrecord"
     files = tf.data.Dataset.list_files(file_pattern)
     num_files = len(tf.io.gfile.glob(file_pattern))
+    print(num_files)
 
     dataset = files.interleave(
-        lambda x: tf.data.TFRecordDataset(x)
-                .map(parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-                .map(input_target_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
-        cycle_length=20,  # number of files read concurrently
-        num_parallel_calls=tf.data.experimental.AUTOTUNE
-    )
-    for (x, y) in dataset.take(5):  # Change 5 to any number of batches you want to check
-        print(x.shape, x.dtype, y.shape, y.dtype)
-        print(np.mean(x))
+    lambda x: tf.data.TFRecordDataset(x)
+            .map(lambda item: parse_function(item, patch_size), num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            .map(input_target_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
+    cycle_length=20,  # number of files read concurrently
+    num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-    max_value = float('-inf')
-    for (x, y) in dataset:
-        current_max = np.max(x.numpy())
-        if current_max > max_value:
-            max_value = current_max
 
-    print("Max Value in the dataset:", max_value)
     # Load your validation data (assuming it's not in TFRecord format)
     val_data = np.load(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_valpatches_{model_run_name}.npy")
 
     # Reload your model (if necessary)
 
     # Initialize your autoencoder
-    patch_size = 64
     bands = [1]  # You might need to specify the bands here
     filters = [8, 16, 32, 64]
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)

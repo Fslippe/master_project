@@ -79,4 +79,22 @@
 - Run model with different number of filters. Perfect representation may be overfitting.
   - Starting out with 8-16-32-64 for test instead of 16-32-64-128
 
+
+- Combine pictures of same swath path to make it easier to undestand transitions  
+
+- Perform sensitivity tests on encoder setup 
+  - Parameters to test
+    - Patch size - Capture larger areas closer to sizes of CAO - problem in transition as these will not see differences. 
+    - filter sizes - Interesting to make it easier for clustering
+    - kernel sizes - may be too much
+  - Test metric
+    - High resolution mask ie 64
+    - Larger sizes assign one value 
+      - Problem - non overlapping patches from patch extraction 
+    - Accuracy metric on binary mask. Right or wrong
+    - 
+  - Get test set
+    - CAO cases - 100 pics
+    - non-CAO cases - 20 pics 
+
 nohup python3 read_tf.py > output_l90_z50.log 2>&1 &
