@@ -68,8 +68,8 @@ def main():
     # Reload your model (if necessary)
 
     # Initialize your autoencoder
-    bands = [1]  # You might need to specify the bands here
-    filters = [8, 16, 32, 64]
+    bands = [29]  # You might need to specify the bands here
+    filters = [4, 8, 16, 32]
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
 
     # Set up your optimizer and compile the model
@@ -92,7 +92,7 @@ def main():
 
     history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
 
-    model_run_name = "scheduler_250k_dnb_l90_z50_f%s_(29)_%s-%s" %("cao_months_202012", "202111", filters[-1])
+    model_run_name = "scheduler_250k_dnb_l90_z50_f%s_(29)_%s-%s" %(filters[-1], "cao_months_202012", "202111")
 
     model.save("/uio/hume/student-u37/fslippe/data/models/autoencoder_%s" %(model_run_name))
     autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/encoder_%s" %(model_run_name))

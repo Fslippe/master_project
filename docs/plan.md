@@ -86,6 +86,8 @@
   - Parameters to test
     - Patch size - Capture larger areas closer to sizes of CAO - problem in transition as these will not see differences. 
     - filter sizes - Interesting to make it easier for clustering
+      - Last filter of 32 is performing worse
+      - Using 64 or 128???
     - kernel sizes - may be too much
   - Test metric
     - High resolution mask ie 64

@@ -27,11 +27,10 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      normalize=None,
                      return_lon_lat=False,
                      workers=None,
-                     max_zenith=50):
+                     max_zenith=50,
+                     combine_pics=True):
     
     all_files = []
-    mod_date = []
-    mod_min = []
 
     
     folders = folder.split(" ")
@@ -39,9 +38,6 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
     for f in folders:
         all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith('.hdf')])
-    for name in all_files:
-        mod_date.append(name.split("/")[-1][1])
-        mod_min.append(name.split("/")[-1][2])
 
     hdf = SD(all_files[0], SDC.READ)
 
@@ -62,12 +58,16 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
         file_layers[band-1] = {"EV_1KM_Emissive": i}
 
     file_groups = defaultdict(list)
+    mod_mins = defaultdict(list)
+
 
     # Loop through all files and group them by date
     for file in all_files:
         # Extract date from the filename (assuming the pattern is consistent)
         date = file.split('.')[1][1:]  # This will give e.g., '2021120' for 'MOD02QKM.A2021120'
         file_groups[date].append(file)
+        mod_mins[date].append(int(file.split(".")[2]))
+
 
     sorted_keys = sorted(file_groups.keys(), key=int)  # Convert keys to integers for sorting
 
@@ -98,6 +98,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             workers = len(selected_keys)
         else:
             workers = 128
+
     if save == None:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             results = list(
@@ -111,22 +112,26 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                         [min_mean] * len(selected_keys),
                         [ds_water_mask] * len(selected_keys),
                         [normalize] * len(selected_keys),
+                        [mod_mins] * len(selected_keys),
                         [return_lon_lat] * len(selected_keys),
                         [max_zenith] * len(selected_keys),
-                        [mod_date] * len(selected_keys),
-                        [mod_min] * len(selected_keys)
-
+                        [combine_pics] *len(selected_keys)
                     ), 
                     total=len(selected_keys)
                 )
             )
         if return_lon_lat:
-            ds_all, dates, masks, lon_lats = zip(*results)
+            ds_all, dates, masks, lon_lats, mod_min = zip(*results)
             ds_all = [item for sublist in ds_all for item in sublist]  # Flatten the list
             dates = [item for sublist in dates for item in sublist]
             masks = [item for sublist in masks for item in sublist]
             lon_lats = [item for sublist in lon_lats for item in sublist]
-            return ds_all, dates, masks, lon_lats
+            mod_min = [item for sublist in mod_min for item in sublist]
+
+            if combine_pics:
+                ds_all, dates, masks, lon_lats = combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min)
+            
+            return ds_all, dates, masks, lon_lats, mod_min
         
         else:
             ds_all, dates, masks = zip(*results)
@@ -135,15 +140,16 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             masks = [item for sublist in masks for item in sublist]
             return ds_all, dates, masks
 
-def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, return_lon_lat=False, max_zenith=50, mod_date, mod_name):
+def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, normalize, mod_mins, return_lon_lat=False, max_zenith=50, combine_pics=True):
     file_group = file_groups[key]
+    mod_mins  = mod_mins[key]
     X = []
     dates = []
     masks = []
     lon_lats = []
-
+    mod_min_list = []
     if return_lon_lat:
-        for file in file_group:
+        for (file, mod_min) in zip(file_group, mod_mins):
             result, mask, lon_lat = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize, max_zenith)
 
             if result.ndim > 1:
@@ -151,8 +157,9 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
                 dates.append(key)
                 masks.append(mask)
                 lon_lats.append(lon_lat)
-
-        return X, dates, masks, lon_lats
+                mod_min_list.append(mod_min)
+        
+        return X, dates, masks, lon_lats, mod_min_list
 
     else:
         for file in file_group:
@@ -164,10 +171,60 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
                 masks.append(mask)
         return X, dates, masks
 
+    
+def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min):
+    combined_ds = []
+    combined_dates = []
+    combined_masks = []
+    combined_lon_lats = []
+    
+
+    # Sort everything based on dates and mod_min
+    sorted_indices = sorted(range(len(dates)), key=lambda x: (dates[x], mod_min[x]))
+    ds_all = [ds_all[i] for i in sorted_indices]
+    dates = [dates[i] for i in sorted_indices]
+    masks = [masks[i] for i in sorted_indices]
+    lon_lats = [lon_lats[i] for i in sorted_indices]
+    mod_min = [mod_min[i] for i in sorted_indices]
+
+    i=0
+    while i < len(dates) - 1:
+
+        imgs_to_combine = [ds_all[i]]
+        masks_to_combine = [masks[i]]
+        lon_lats_to_combine = [lon_lats[i]]
+        date = dates[i]
+        min_time = mod_min[i]
+
+        while i < len(dates) - 1 and (mod_min[i+1] - min_time == 5 or (min_time == 2355 and mod_min[i+1] == 0)):
+            
+            imgs_to_combine.append(ds_all[i+1])
+            masks_to_combine.append(masks[i+1])
+            lon_lats_to_combine.append(lon_lats[i+1])
+            i += 1
+            min_time = mod_min[i]
+        
+        combined_ds.append(np.vstack(imgs_to_combine))
+        combined_dates.append(date)  # Taking the first date
+        combined_masks.append(np.vstack(masks_to_combine))
+        combined_lon_lats.append(np.concatenate(lon_lats_to_combine, axis=1))
+        
+        i += 1
+
+    # For the last image if it's standalone
+    if len(imgs_to_combine) == 1:
+        combined_ds.append(ds_all[-1])
+        combined_dates.append(dates[-1])
+        combined_masks.append(masks[-1])
+        combined_lon_lats.append(lon_lats[-1])
+
+    return combined_ds, combined_dates, combined_masks, combined_lon_lats
+
 
 
 
 def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/", bands = [1,2],  save=None, start_date=None, end_date=None, date_list=None, min_mean=0, normalize=False):
+    
     print("Preprocess")
     all_files = [f for f in os.listdir(folder) if f.endswith('.hdf')]
     hdf = SD(folder + all_files[0], SDC.READ)
