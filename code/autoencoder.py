@@ -26,18 +26,35 @@ class SimpleAutoencoder:
         self.filters = filters
         
     
-    
     def valid_percentage(self, mask_patch):
         return tf.reduce_mean(tf.cast(mask_patch, tf.float32))
 
-    def filter_patches(self, image_patches, mask_patches, threshold=0.9):
+    def within_roi(self, lon_patch, lat_patch, lon_min, lon_max, lat_min, lat_max):
+        # Get the mean latitude and longitude for the patch
+        mean_lon = tf.reduce_mean(lon_patch)
+        mean_lat = tf.reduce_mean(lat_patch)
+        
+        lon_valid = tf.logical_and(mean_lon <= lon_max, mean_lon >= lon_min)
+        lat_valid = tf.logical_and(mean_lat <= lat_max, mean_lat >= lat_min)
+        
+        return tf.logical_and(lon_valid, lat_valid)
+
+    def filter_patches(self, image_patches, mask_patches, lon_patches, lat_patches, threshold=0.9, 
+                    lon_min=-35, lon_max=35, lat_min=60, lat_max=82):
+        """ FILTERING BASED ON BOTH LAND PERCENTAGE AND MEAN LON LAT OF EACH PATCH INSIDE THRESHOLD"""
+        
         percentages = tf.map_fn(self.valid_percentage, np.float32(mask_patches))
-        mask = percentages >= threshold 
+        roi_mask = tf.map_fn(lambda x: self.within_roi(x[0], x[1], lon_min, lon_max, lat_min, lat_max), 
+                            (lon_patches, lat_patches), dtype=tf.bool)
+
+        mask = tf.logical_and(percentages >= threshold, roi_mask)
         
         filtered_image_patches = tf.boolean_mask(image_patches, mask)
         valid_indices = tf.where(mask)
 
         return filtered_image_patches, valid_indices
+
+
     
     def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False, strides=[None, None, None, None]):
         # Expand dimensions if the image is 3D
@@ -101,9 +118,9 @@ class SimpleAutoencoder:
                 lon = tf.reshape(lon, (-1, self.patch_size, self.patch_size_2))
                 lat = tf.reshape(lat, (-1, self.patch_size, self.patch_size_2))
                 
-            if mask_threshold != None:
+            if mask_threshold != None and extract_lon_lat:
                 n_patches = len(patches)
-                patches, idx = self.filter_patches(patches, mask_patches, threshold=mask_threshold)
+                patches, idx = self.filter_patches(patches, mask_patches, lon, lat, threshold=mask_threshold)
                 if extract_lon_lat:
                     idx_tf = tf.convert_to_tensor(np.squeeze(idx.numpy()), dtype=tf.int32)
                     lon = tf.gather(lon, idx_tf)

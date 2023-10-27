@@ -94,7 +94,6 @@
     - Larger sizes assign one value 
       - Problem - non overlapping patches from patch extraction 
     - Accuracy metric on binary mask. Right or wrong
-    - 
   - Get test set
     - CAO cases - 100 pics
     - non-CAO cases - 20 pics 
