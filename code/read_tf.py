@@ -69,7 +69,7 @@ def main():
 
     # Initialize your autoencoder
     bands = [29]  # You might need to specify the bands here
-    filters = [4, 8, 16, 32]
+    filters = [16, 32, 64, 128]
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
 
     # Set up your optimizer and compile the model

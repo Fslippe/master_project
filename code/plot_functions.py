@@ -10,6 +10,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import matplotlib as mpl
 from functions import *
+import importlib
+import functions 
+from scipy.spatial import distance_matrix
+importlib.reload(functions)
+from functions import * 
+
 
 # Define the grid in projected coordinates
 def generate_hist_map(n_patches_tot,
@@ -134,5 +140,29 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
     
     if save != None:
         plt.savefig(save, dpi=200)
+
+    plt.show()
+
+
+def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):
+    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10,10), dpi=200)
+    ax.set_extent([-60, 60, 50, 90], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+    
+    # Displaying the map
+    ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray')
+    
+    distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))
+    
+    # Replace diagonal (distance to self) with a high value
+    np.fill_diagonal(distances, np.inf)
+    
+    # For each point, find the index of the nearest point (or two nearest points)
+    for i in range(len(lons)):
+        nearest_indices = np.argsort(distances[i])[:2]
+        for ni in nearest_indices:
+            ax.plot([lons[i], lons[ni]], [lats[i], lats[ni]], color='red', linewidth=0.5, transform=ccrs.PlateCarree())
+    
+    ax.coastlines()
+    ax.gridlines()
 
     plt.show()

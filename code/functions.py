@@ -39,6 +39,8 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
 
     # Generate map with empty land clusters 
     current_labels = np.ones((n_patches))*(global_max+1)
+
+    
     current_labels[np.squeeze(idx.numpy())] = labels[start:end]
     cluster_map =  np.reshape(current_labels, (reduced_height, reduced_width))
 
@@ -72,6 +74,27 @@ def generate_map_from_patches(patches, start, end, shape, patch_size):
 
     return reconstructed_image
 
+def reconstruct_from_patches(patches, shapes, starts, ends, patch_size):
+    reconstructed_images = []
+    
+    for i, shape in enumerate(shapes):
+        # Create an empty image of the shape
+        reconstructed_image = np.zeros((shape[0], shape[1], patches[0].shape[2]))
+        
+        # Extract the patches corresponding to this image
+        image_patches = patches[starts[i]:ends[i]]
+        
+        # Place each patch into the empty image
+        patch_idx = 0
+        for y in range(0, shape[0], patch_size):
+            for x in range(0, shape[1], patch_size):
+                reconstructed_image[y:y+patch_size, x:x+patch_size, :] = image_patches[patch_idx]
+                patch_idx += 1
+        
+        # Append the reconstructed image to the list
+        reconstructed_images.append(reconstructed_image)
+    
+    return reconstructed_images
 def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None]):
     all_patches = []
     all_lon_patches = []
@@ -143,3 +166,27 @@ def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, globa
                 patches_w.append(patches[starts[i]:ends[i]])
     patches_w = np.concatenate(patches_w)
     return patches_w
+
+
+
+
+def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2):
+    lons = []
+    lats = []
+
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            if m[i, j] == label1:
+                neighbors = [
+                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
+                ]
+
+                for ni, nj in neighbors:
+                    if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
+                        if m[ni, nj] == label2:
+                            # Interpolate lon/lat values for the boundary
+                            interp_lon = (lon_map[i, j] + lon_map[ni, nj]) / 2
+                            interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
+                            lons.append(interp_lon)
+                            lats.append(interp_lat)
+    return lons, lats
