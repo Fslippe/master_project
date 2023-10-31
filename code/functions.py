@@ -19,6 +19,16 @@ def convert_to_day_of_year(date_str):
     return f"{year}{day_of_year:03d}"  # Using :03d to ensure it's a 3-digit number
 
 
+def generate_date_list(start, end):
+    start_date = datetime.strptime(start, '%Y%m%d')
+    end_date = datetime.strptime(end, '%Y%m%d')
+    
+    date_list = []
+    current_date = start_date
+    while current_date <= end_date:
+        date_list.append(convert_to_day_of_year(current_date.strftime('%Y%m%d')))
+        current_date += timedelta(days=1)
+    return date_list
 
 def convert_to_standard_date(date_str):
     # Parse the date
@@ -45,15 +55,11 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
     cluster_map =  np.reshape(current_labels, (reduced_height, reduced_width))
 
     return cluster_map
+import numpy as np
 
-def generate_map_from_patches(patches, start, end, shape, patch_size):
-    # Compute the number of patches in each dimension
-    num_patches_y = shape[0] // patch_size
-    num_patches_x = shape[1] // patch_size
-    
-    # Calculate the reduced resolution based on number of patches and patch size
-    reduced_height = num_patches_y * patch_size
-    reduced_width = num_patches_x * patch_size
+def generate_map_from_patches(patches, start, end, shape, patch_size, idx):
+    num_patches_y, num_patches_x = shape[0] // patch_size, shape[1] // patch_size
+    reduced_height, reduced_width = num_patches_y * patch_size, num_patches_x * patch_size
 
     # Create an empty map of the reduced resolution
     reconstructed_image = np.zeros((reduced_height, reduced_width))
@@ -61,18 +67,20 @@ def generate_map_from_patches(patches, start, end, shape, patch_size):
     # Extract the patches corresponding to this image
     image_patches = patches[start:end]
 
-    # Place each patch into the empty image
-    patch_idx = 0
-    for y in range(0, reduced_height, patch_size):
-        for x in range(0, reduced_width, patch_size):
-            # Check if we've used all our patches
-            if patch_idx >= len(image_patches):
-                break
-            # Place the patch in the correct position
-            reconstructed_image[y:y+patch_size, x:x+patch_size] = image_patches[patch_idx]
-            patch_idx += 1
+    for i in range(len(image_patches)):
+        if i >= len(idx):
+            break
+
+        y = int(idx[i][0] // num_patches_x) * patch_size
+        x = int(idx[i][0] % num_patches_x) * patch_size
+
+        # Place the patch in the correct position
+        reconstructed_image[y:y+patch_size, x:x+patch_size] = image_patches[i]
 
     return reconstructed_image
+
+
+
 
 def reconstruct_from_patches(patches, shapes, starts, ends, patch_size):
     reconstructed_images = []
@@ -95,6 +103,7 @@ def reconstruct_from_patches(patches, shapes, starts, ends, patch_size):
         reconstructed_images.append(reconstructed_image)
     
     return reconstructed_images
+
 def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None]):
     all_patches = []
     all_lon_patches = []
@@ -114,7 +123,7 @@ def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None,
     i=0
     tot = len(x)
     for (image, mask, lon_lat) in zip(x, masks, lon_lats):
-        print("%s/%s" %(i, tot))
+        print(f"{i}/{tot}", end="\r")
         shapes.append(image.shape[0:2])
         patches, idx, n_patches, lon, lat = autoencoder.extract_patches(image,
                                                                             mask,

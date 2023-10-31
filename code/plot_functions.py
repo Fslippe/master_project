@@ -18,7 +18,7 @@ from functions import *
 
 
 # Define the grid in projected coordinates
-def generate_hist_map(n_patches_tot,
+def generate_hist_map(x, masks, n_patches_tot,
                       indices,
                       labels,
                       starts,
@@ -42,7 +42,7 @@ def generate_hist_map(n_patches_tot,
 
     # Initialize the count matrix
     counts = np.zeros_like(x_grid)
-
+        
     # Create a KDTree for faster nearest neighbor search
     tree = cKDTree(list(zip(x_grid.ravel(), y_grid.ravel())))
 
@@ -57,28 +57,44 @@ def generate_hist_map(n_patches_tot,
         reduced_height = height // patch_size
         reduced_width = width //patch_size
 
-        current_lon = np.empty((n_patches_tot[i], 64, 64))
+        current_lon = np.empty((n_patches_tot[i], patch_size, patch_size))
         current_lon[np.squeeze(indices[i].numpy())] = all_lon_patches[i]
-        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, 64, 64))
+        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, patch_size, patch_size))
 
-        current_lat = np.empty((n_patches_tot[i], 64, 64))
+        current_lat = np.empty((n_patches_tot[i], patch_size, patch_size))
         current_lat[np.squeeze(indices[i].numpy())] = all_lat_patches[i]
-        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, 64, 64))
+        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, patch_size, patch_size))
 
         # Get label map
+
         label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
-        binary_map = (label_map == desired_label)
+        binary_map = np.isin(label_map, desired_label)
+
         
         # Label connected components
         labeled_map, num_features = ndimage.label(binary_map)
 
         # Measure sizes of connected components
         region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        fig, axs = plt.subplots(1,3)
+        fig.suptitle("%s\nCAO found for threshold %s" %(dates[i], size_threshold))
+        axs[0].imshow(x[i], cmap="gray")
 
+        #axs[0].invert_xaxis()
+        tab20 = plt.get_cmap("tab20")
+
+        # Create a custom colormap with the first 14 colors
+        custom_cmap = mcolors.ListedColormap(tab20.colors[:14])
+        cb =axs[1].imshow(label_map, cmap=custom_cmap)   
+        axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
+
+        plt.colorbar(cb)
+        plt.show()
 
         # Iterate through each region and check if its size exceeds the threshold
         for region_idx, region_size in enumerate(region_sizes):
             if region_size > size_threshold:
+      
                 # Get the indices of the region
                 region_coordinates = np.where(labeled_map == region_idx)
                 
@@ -98,6 +114,7 @@ def generate_hist_map(n_patches_tot,
                     if dates[i] not in dates_counted[idx]:
                         counts.ravel()[idx] += 1
                         dates_counted[idx].add(dates[i])
+            
 
     return x_grid, y_grid, counts
 
@@ -107,7 +124,6 @@ def generate_hist_map(n_patches_tot,
 
 def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, chosen_label=2, save=None):
     # Add black to the end of cmap
-    norm = Normalize(vmin=global_min, vmax=global_max)  
     norm_mask = Normalize(vmin=0, vmax=1)  
     cmap_tab10 = plt.cm.tab20
     colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
@@ -122,19 +138,31 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
         max_bands[3] = 0.3
         
     print(max_bands.shape)
+    if labels[0].ndim == 1:
+        n_labels = len(labels)
+
+    else:
+        n_labels = 1
+        labels = [labels]
+        global_min = [global_min]  
+        global_max = [global_max]  
+
+
     # Run through index_list corresponding to picture i
     for i in index_list:
         # Get cluster map i
-        map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
 
         # Plot each map        
-        fig, axs = plt.subplots(1,2+ n_bands, figsize=(20+ 5*n_bands , 6))
-        fig.suptitle("idx:%s,  dates:%s,  max:%s,  min:%s,  mean:%s,  n_lab:%s" %(i, dates[i], np.max(map), np.min(map), np.mean(map), np.sum((map.ravel()==chosen_label))))
+        fig, axs = plt.subplots(1, 1 + n_bands + n_labels, figsize=(15+ 5*(n_bands + n_labels) , 6))
         for j in range(n_bands):
             cb = axs[j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
             plt.colorbar(cb)
-        cb = axs[-2].imshow(map, cmap=new_cmap, norm=norm)
-        plt.colorbar(cb)
+        for k in range(n_labels):
+            norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+            map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
+            cb = axs[n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
+            plt.colorbar(cb)
+        fig.suptitle("idx:%s,  dates:%s,  max:%s,  min:%s,  mean:%s,  n_lab:%s" %(i, dates[i], np.max(map), np.min(map), np.mean(map), np.sum((map.ravel()==chosen_label))))
         axs[-1].imshow(masks[i], norm=norm_mask)
         plt.tight_layout()
     

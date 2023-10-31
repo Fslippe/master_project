@@ -74,7 +74,9 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     # Extract the keys between start and end dates
     
     if start_date == None and end_date == None:
+        print(sorted_keys)
         selected_keys = [key for key in date_list if key in sorted_keys]
+        print(selected_keys)
     else:
         selected_keys = [key for key in sorted_keys if int(start_date) <= int(key) <= int(end_date)]
     #all_files = os.listdir(folder)[16:18]
@@ -198,7 +200,6 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
 
     if return_lon_lat:
         for (file, mod_min) in zip(file_group, selected_mod_mins):
-            print(mod_min)
             result, mask, lon_lat, valid_cols_lon = append_data(file, file_layers, bands, min_mean, full_water_mask, tree, return_lon_lat, normalize, max_zenith)
 
             if result.shape[0] > 1 and result.shape[1] > 1:
@@ -247,7 +248,6 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
         masks_to_combine = [masks[i]]
         lon_lats_to_combine = [lon_lats[i]]
         valid_cols_to_combine = [valid_cols_lon[i]]
-        print(valid_cols_lon[i].shape)
 
         date = dates[i]
         min_time = mod_min[i]
@@ -258,7 +258,6 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
             masks_to_combine.append(masks[i+1])
             lon_lats_to_combine.append(lon_lats[i+1])
             valid_cols_to_combine.append(valid_cols_lon[i+1])
-            print(valid_cols_lon[i+1].shape)
 
             i += 1
             min_time = mod_min[i]
@@ -327,7 +326,6 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
     if save == None:
         for key in list(selected_keys):
             file_group = file_groups[key]
-            print("Date:", convert_to_standard_date(key))
             with ProcessPoolExecutor(max_workers=len(file_group)) as executor:
                 X = list(tqdm(executor.map(append_data, [folder]*len(file_group), file_group, [file_layers]*len(file_group), [bands]*len(file_group), [min_mean]*len(file_group), [normalize]*len(file_group)), total=len(file_group)))
 
@@ -338,7 +336,6 @@ def extract_250m_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/wint
         for key in file_groups.keys():
             if not os.path.exists(save +"_" + key +".npz"):
                 file_group = file_groups[key]
-                print(file_group)
                 with ProcessPoolExecutor(max_workers=len(file_group)) as executor:
                     X = list(tqdm(executor.map(append_data, [folder]*len(file_group), file_group, [file_layers]*len(file_group), [bands]*len(file_group), [min_mean]*len(file_group)), total=len(file_group)))
                 
