@@ -41,20 +41,54 @@ def convert_to_standard_date(date_str):
     # Return in the desired format
     return date_obj.strftime('%Y%m%d')
 
-def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size):
-    # Calculate the dimensions of the reduced resolution array
-    height, width = shape
-    reduced_height = height // patch_size
-    reduced_width = width //patch_size
+# def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
+#     # Calculate the dimensions of the reduced resolution array
+#     print(shape)
+#     height, width = shape
+#     if stride == None:
+#         size_mult = 1
+#     else:
+#         size_mult = patch_size // stride
+        
+#     reduced_height = height // patch_size * size_mult
+#     reduced_width = width //patch_size * size_mult
 
-    # Generate map with empty land clusters 
-    current_labels = np.ones((n_patches))*(global_max+1)
+#     # Generate map with empty land clusters 
+#     current_labels = np.ones((n_patches))*(global_max+1)
 
     
-    current_labels[np.squeeze(idx.numpy())] = labels[start:end]
-    cluster_map =  np.reshape(current_labels, (reduced_height, reduced_width))
+#     current_labels[np.squeeze(idx.numpy())] = labels[start:end]
+#     cluster_map =  np.reshape(current_labels, (reduced_height, reduced_width))
+
+#     return cluster_map
+
+def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
+    # Calculate the dimensions of the reduced resolution array
+    height, width = shape
+    if stride is None:
+        size_mult = 1
+    else:
+        size_mult = patch_size // stride
+    reduced_height = height // patch_size * size_mult
+    reduced_width = width // patch_size * size_mult
+
+    # Generate an empty map with all values set to global_max + 1
+    cluster_map = np.full((reduced_height, reduced_width), global_max + 1, dtype=labels.dtype)
+
+    # Get the indices corresponding to the patches
+    patch_indices = np.squeeze(idx.numpy())
+
+    # Ensure the provided indices are within the expected range
+    valid_indices = patch_indices < n_patches
+    patch_indices = patch_indices[valid_indices]
+
+    # Set the labels for the patches with valid indices
+    cluster_map.flat[patch_indices] = labels[start:end][valid_indices]
 
     return cluster_map
+
+
+
 import numpy as np
 
 def generate_map_from_patches(patches, start, end, shape, patch_size, idx):

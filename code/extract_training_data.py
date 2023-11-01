@@ -408,7 +408,12 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
     valid_rows = ~np.all(is_nan, axis=1)
     valid_cols = ~np.all(is_nan, axis=0)
     data = data[valid_rows][:, valid_cols]
+    mask = mask[valid_rows][:, valid_cols]
+    lon_highres = lon_highres[valid_rows][:, valid_cols]
+    lat_highres = lat_highres[valid_rows][:, valid_cols]
 
+
+    
     data = np.where(data > attrs["valid_range"][1], 0, data)
     data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
 

@@ -18,7 +18,7 @@ from functions import *
 
 
 # Define the grid in projected coordinates
-def generate_hist_map(x, masks, n_patches_tot,
+def generate_hist_map(n_patches_tot,
                       indices,
                       labels,
                       starts,
@@ -68,33 +68,39 @@ def generate_hist_map(x, masks, n_patches_tot,
         # Get label map
 
         label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
-        binary_map = np.isin(label_map, desired_label)
 
         
-        # Label connected components
-        labeled_map, num_features = ndimage.label(binary_map)
+        binary_map = np.isin(label_map, desired_label)
+
+        # Label connected components, considering diagonal connections
+        """USE OF DIAGONAL CONNECTIONS"""
+        structure = ndimage.generate_binary_structure(2, 2)
+        labeled_map, num_features = ndimage.label(binary_map, structure=structure)
+        
+        """NO DIAGONAL CONNECTIONS:"""
+        #labeled_map, num_features = ndimage.label(binary_map)
 
         # Measure sizes of connected components
         region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
-        fig, axs = plt.subplots(1,3)
-        fig.suptitle("%s\nCAO found for threshold %s" %(dates[i], size_threshold))
-        axs[0].imshow(x[i], cmap="gray")
-
-        #axs[0].invert_xaxis()
-        tab20 = plt.get_cmap("tab20")
-
-        # Create a custom colormap with the first 14 colors
-        custom_cmap = mcolors.ListedColormap(tab20.colors[:14])
-        cb =axs[1].imshow(label_map, cmap=custom_cmap)   
-        axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
-
-        plt.colorbar(cb)
-        plt.show()
+      
 
         # Iterate through each region and check if its size exceeds the threshold
         for region_idx, region_size in enumerate(region_sizes):
             if region_size > size_threshold:
-      
+                # fig, axs = plt.subplots(1,3)
+                # fig.suptitle("%s\nCAO found for threshold %s" %(dates[i], size_threshold))
+                # axs[0].imshow(x[i], cmap="gray")
+
+                # #axs[0].invert_xaxis()
+                # tab20 = plt.get_cmap("tab20")
+
+                # # Create a custom colormap with the first 14 colors
+                # custom_cmap = mcolors.ListedColormap(tab20.colors[:14])
+                # cb =axs[1].imshow(label_map, cmap=custom_cmap)   
+                # axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
+
+                # plt.colorbar(cb)
+                # plt.show()
                 # Get the indices of the region
                 region_coordinates = np.where(labeled_map == region_idx)
                 
@@ -174,7 +180,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
 
 def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):
     fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10,10), dpi=200)
-    ax.set_extent([-60, 60, 50, 90], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+    ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
     
     # Displaying the map
     ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray')
