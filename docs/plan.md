@@ -83,6 +83,7 @@
 - Combine pictures of same swath path to make it easier to undestand transitions  
 
 - Perform sensitivity tests on encoder setup 
+  - SETUP OF TEST MATRIX 
   - Parameters to test
     - Patch size - Capture larger areas closer to sizes of CAO - problem in transition as these will not see differences. 
     - filter sizes - Interesting to make it easier for clustering
