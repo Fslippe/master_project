@@ -178,25 +178,55 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
     plt.show()
 
 
-def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):
-    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10,10), dpi=200)
+
+
+
+from scipy.spatial import distance_matrix
+
+def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map):
+    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10, 10), dpi=200)
     ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
-    
-    # Displaying the map
+
+    # Scatter plot of points
     ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray')
-    
-    distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))
-    
-    # Replace diagonal (distance to self) with a high value
-    np.fill_diagonal(distances, np.inf)
-    
-    # For each point, find the index of the nearest point (or two nearest points)
-    for i in range(len(lons)):
-        nearest_indices = np.argsort(distances[i])[:2]
-        for ni in nearest_indices:
-            ax.plot([lons[i], lons[ni]], [lats[i], lats[ni]], color='red', linewidth=0.5, transform=ccrs.PlateCarree())
-    
+    ax.scatter(lons, lats, color='red', s=0.1, transform=ccrs.PlateCarree())
+
+    # distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))
+
+    # # Replace diagonal (distance to self) with a high value
+    # np.fill_diagonal(distances, np.inf)
+
+    # # For each point, find the index of the nearest point
+    # nearest_indices = np.argmin(distances, axis=1)
+
+    # for i, ni in enumerate(nearest_indices):
+    #     ax.plot([lons[i], lons[ni]], [lats[i], lats[ni]], color='red', linewidth=0.5, transform=ccrs.PlateCarree())
+
     ax.coastlines()
     ax.gridlines()
 
     plt.show()
+
+
+# def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):
+#     fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10,10), dpi=200)
+#     ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+    
+#     # Displaying the map
+#     ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray')
+    
+#     distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))
+    
+#     # Replace diagonal (distance to self) with a high value
+#     np.fill_diagonal(distances, np.inf)
+    
+#     # For each point, find the index of the nearest point (or two nearest points)
+#     for i in range(len(lons)):
+#         nearest_indices = np.argsort(distances[i])[:2]
+#         for ni in nearest_indices:
+#             ax.plot([lons[i], lons[ni]], [lats[i], lats[ni]], color='red', linewidth=0.5, transform=ccrs.PlateCarree())
+    
+#     ax.coastlines()
+#     ax.gridlines()
+
+#     plt.show()

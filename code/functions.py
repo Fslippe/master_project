@@ -233,3 +233,31 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                             lons.append(interp_lon)
                             lats.append(interp_lat)
     return lons, lats
+
+
+# def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2):
+#     lons = []
+#     lats = []
+#     highest_confidence = -1  # Initialize to a low value
+
+#     for i in range(m.shape[0]):
+#         for j in range(m.shape[1]):
+#             if m[i, j] == label1:
+#                 neighbors = [
+#                     (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
+#                 ]
+
+#                 for ni, nj in neighbors:
+#                     if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
+#                         if m[ni, nj] == label2:
+#                             # Calculate confidence (e.g., based on distance)
+#                             confidence = (lon_map[i, j] - lon_map[ni, nj])**2 + (lat_map[i, j] - lat_map[ni, nj])**2
+
+#                             if confidence > highest_confidence:
+#                                 highest_confidence = confidence
+#                                 # Store lon and lat values for the boundary
+#                                 interp_lon = (lon_map[i, j] + lon_map[ni, nj]) / 2
+#                                 interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
+#                                 lons = [interp_lon]
+#                                 lats = [interp_lat]
+#     return lons, lats
