@@ -99,4 +99,20 @@
     - CAO cases - 100 pics
     - non-CAO cases - 20 pics 
 
+
+
+#### TEST MATRIX
+-- TESTING accuracy metric 
+
+- Problem is different number of clusters 
+  - Solution: Cluster metric algorithm 
+  
+Patch size | filters |  
+    64     |   32    |     
+    64     |   64    |     
+    64     |   128   |     
+    128    |   32    |     
+    128    |   64    |     
+    128    |   128   |     
+
 nohup python3 read_tf.py > output_l90_z50.log 2>&1 &

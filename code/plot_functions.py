@@ -132,7 +132,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
     # Add black to the end of cmap
     norm_mask = Normalize(vmin=0, vmax=1)  
     cmap_tab10 = plt.cm.tab20
-    colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
+    colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))[:global_max]
     black = np.array([0, 0, 0, 1])
     colors_new = np.vstack((colors_tab10, black))
     new_cmap = mcolors.ListedColormap(colors_new)
