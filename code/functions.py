@@ -138,7 +138,7 @@ def reconstruct_from_patches(patches, shapes, starts, ends, patch_size):
     
     return reconstructed_images
 
-def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None]):
+def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 35, 60, 82]):
     all_patches = []
     all_lon_patches = []
     all_lat_patches = []
@@ -164,7 +164,8 @@ def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None,
                                                                             mask_threshold=0.9,
                                                                             lon_lat=lon_lat,
                                                                             extract_lon_lat=True,
-                                                                            strides=strides)  # Assuming this function extracts and reshapes patches for a single image
+                                                                            strides=strides,
+                                                                            lon_lat_min_max=lon_lat_min_max)  # Assuming this function extracts and reshapes patches for a single image
         #patches = autoencoder_predict.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
         #n_patches = len(patches)
         

@@ -9,7 +9,6 @@ from scipy.signal import convolve2d
 
 from pyhdf.SD import SD, SDC
 import matplotlib as mpl
-from mpl_toolkits.basemap import Basemap, cm
 
 
 def on_press(event):
@@ -128,69 +127,74 @@ def apply_brush(mask, x, y, brush):
     return mask
 
 
-# Assuming your image is in variable `img`
-# Initialize last_point as None
-folder = "/home/filip/Downloads/outbreak/"
-all_files = os.listdir(folder)
-hdf_files = [f for f in all_files if f.endswith(
-    '.hdf') and f[:-4] + ".npy" not in os.listdir("/home/filip/Documents/master_project/training_set/data/")]
+def main():
+        
+    # Assuming your image is in variable `img`
+    # Initialize last_point as None
+    folder = "/scratch/fslippe/modis/MOD02/cao_test_data/"
+    all_files = os.listdir(folder)
+    hdf_files = [f for f in all_files if f.endswith(
+        '.hdf')]# and f[:-4] + ".npy" not in os.listdir("/scratch/fslippe/modis/MOD02/cao_test_data/")]
 
 
-last_point = None
+    last_point = None
 
-for file in hdf_files:
-    folder_save = "training_set"
-    fig, ax = plt.subplots(figsize=(10, 10))
-    filepath = os.path.join(folder, file)  # Full path to the file
-    hdf = SD(filepath, SDC.READ)
+    for file in hdf_files:
+        folder_save = "training_set"
+        fig, ax = plt.subplots(figsize=(10, 10))
+        filepath = os.path.join(folder, file)  # Full path to the file
+        hdf = SD(filepath, SDC.READ)
 
-    dataset = hdf.select("1km Surface Reflectance Band 1")
-    data = dataset[:].astype(float)
-    data[data == dataset.attributes()["_FillValue"]] = np.nan
+        dataset = hdf.select("1km Surface Reflectance Band 1")
+        data = dataset[:].astype(float)
+        data[data == dataset.attributes()["_FillValue"]] = np.nan
 
-    # + dataset.attributes()["add_offset"]
-    data = (data - dataset.attributes()
-            ["add_offset"])*dataset.attributes()["scale_factor"]
-    print(data.shape)
-    print(data)
-    # List to store the mouse positions
-    coords = []
+        # + dataset.attributes()["add_offset"]
+        data = (data - dataset.attributes()
+                ["add_offset"])*dataset.attributes()["scale_factor"]
+        print(data.shape)
+        print(data)
+        # List to store the mouse positions
+        coords = []
 
-    # Flag to check if mouse button is pressed
-    drawing = False
+        # Flag to check if mouse button is pressed
+        drawing = False
 
-    ax.imshow(data, cmap='gray')
+        ax.imshow(data, cmap='gray')
 
-    # Connect the functions to the relevant events
-    fig.canvas.mpl_connect('button_press_event', on_press)
-    fig.canvas.mpl_connect('button_release_event', on_release)
-    fig.canvas.mpl_connect('motion_notify_event', on_motion)
+        # Connect the functions to the relevant events
+        fig.canvas.mpl_connect('button_press_event', on_press)
+        fig.canvas.mpl_connect('button_release_event', on_release)
+        fig.canvas.mpl_connect('motion_notify_event', on_motion)
 
-    plt.show()
-    mask = np.zeros(data.shape)  # Initialize the mask with zeros
-    if len(coords) != 0:
-        coords = interpolate_coords(coords)
+        plt.show()
+        mask = np.zeros(data.shape)  # Initialize the mask with zeros
+        if len(coords) != 0:
+            coords = interpolate_coords(coords)
 
-        brush = gaussian_brush(width=50, height=50, sigma=15)
+            brush = gaussian_brush(width=50, height=50, sigma=15)
 
-        for coord in coords:
-            mask = apply_brush(mask, int(coord[0]), int(
-                coord[1]), brush)  # Note the reversed indices
+            for coord in coords:
+                mask = apply_brush(mask, int(coord[0]), int(
+                    coord[1]), brush)  # Note the reversed indices
 
-    # avg_grid_size = 9
-    # kernel = np.ones((avg_grid_size, avg_grid_size)) * 1/avg_grid_size**2
-    # smoothed_output = convolve2d(mask, kernel),
-    # print(smoothed_output[0].shape)
-    fig, ax = plt.subplots(figsize=(10, 10))
-    ax.imshow(data, cmap='gray')
-    ax.imshow(mask, alpha=0.3, cmap='Reds')
-    print(np.max(mask))
-    plt.show()
-    # plt.imshow(mask, cmap="gray")
-    # Print coords after closing the plot
-    # plt.show()
+        # avg_grid_size = 9
+        # kernel = np.ones((avg_grid_size, avg_grid_size)) * 1/avg_grid_size**2
+        # smoothed_output = convolve2d(mask, kernel),
+        # print(smoothed_output[0].shape)
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.imshow(data, cmap='gray')
+        ax.imshow(mask, alpha=0.3, cmap='Reds')
+        print(np.max(mask))
+        plt.show()
+        # plt.imshow(mask, cmap="gray")
+        # Print coords after closing the plot
+        # plt.show()
 
-    # arr = np.array(coords)
-    np.save("%s/data/%s" % (folder_save, file[:-4]), data)
+        # arr = np.array(coords)
+        np.save("%s/data/%s" % (folder_save, file[:-4]), data)
 
-    # np.save("%s/mask/%s_coords" % (folder_save, file[:-4]), mask)
+        # np.save("%s/mask/%s_coords" % (folder_save, file[:-4]), mask)
+
+if __name__ == "__main__":
+    main()

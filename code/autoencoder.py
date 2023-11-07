@@ -40,11 +40,11 @@ class SimpleAutoencoder:
         return tf.logical_and(lon_valid, lat_valid)
 
     def filter_patches(self, image_patches, mask_patches, lon_patches, lat_patches, threshold=0.9, 
-                    lon_min=-35, lon_max=35, lat_min=60, lat_max=82):
+                    lon_lat_min_max=[-35,35,60,82]):
         """ FILTERING BASED ON BOTH LAND PERCENTAGE AND MEAN LON LAT OF EACH PATCH INSIDE THRESHOLD"""
         
         percentages = tf.map_fn(self.valid_percentage, np.float32(mask_patches))
-        roi_mask = tf.map_fn(lambda x: self.within_roi(x[0], x[1], lon_min, lon_max, lat_min, lat_max), 
+        roi_mask = tf.map_fn(lambda x: self.within_roi(x[0], x[1], lon_lat_min_max[0], lon_lat_min_max[1], lon_lat_min_max[2], lon_lat_min_max[3]), 
                             (lon_patches, lat_patches), dtype=tf.bool)
 
         mask = tf.logical_and(percentages >= threshold, roi_mask)
@@ -56,7 +56,7 @@ class SimpleAutoencoder:
 
 
     
-    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False, strides=[None, None, None, None]):
+    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False, strides=[None, None, None, None], lon_lat_min_max=[-35, 35, 60, 82]):
         # Expand dimensions if the image is 3D
         if image.ndim == 3:
             image = np.expand_dims(image, axis=0)
@@ -120,7 +120,7 @@ class SimpleAutoencoder:
                 
             if mask_threshold != None and extract_lon_lat:
                 n_patches = len(patches)
-                patches, idx = self.filter_patches(patches, mask_patches, lon, lat, threshold=mask_threshold)
+                patches, idx = self.filter_patches(patches, mask_patches, lon, lat, threshold=mask_threshold, lon_lat_min_max=lon_lat_min_max)
                 if extract_lon_lat:
                     idx_tf = tf.convert_to_tensor(np.squeeze(idx.numpy()), dtype=tf.int32)
                     lon = tf.gather(lon, idx_tf)

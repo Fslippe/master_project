@@ -125,7 +125,96 @@ def generate_hist_map(n_patches_tot,
     return x_grid, y_grid, counts
 
 
+def save_img_with_labels(x, lon_lats, n_patches_tot,
+                      indices,
+                      labels,
+                      starts,
+                      ends,  
+                      shapes,
+                      all_lon_patches,
+                      all_lat_patches,  
+                      dates,
+                      desired_label,
+                      size_threshold,
+                      patch_size,
+                      global_max):
+    
 
+    cmap_tab10 = plt.cm.tab10
+    cmap_tab20 = plt.cm.tab20
+    colors_tab20 = cmap_tab20(np.arange(cmap_tab20.N))[1::2]
+    colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
+    extra_colors = colors_tab20
+    black = np.array([0, 0, 0, 1])
+    colors_new = np.vstack((colors_tab10, colors_tab20))[:global_max-1]
+    colors_new = np.vstack((colors_new, black))
+
+    new_cmap = mcolors.ListedColormap(colors_new)
+    # This will track which dates have been counted for each grid cell
+    dates_counted = {}
+
+    s = 0
+    # Run through all images 
+    for i in range(len(dates)):
+        # Generate lon lat maps
+        height, width = shapes[i]
+        reduced_height = height // patch_size
+        reduced_width = width //patch_size
+
+        current_lon = np.empty((n_patches_tot[i], patch_size, patch_size))
+        current_lon[np.squeeze(indices[i].numpy())] = all_lon_patches[i]
+        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, patch_size, patch_size))
+
+        current_lat = np.empty((n_patches_tot[i], patch_size, patch_size))
+        current_lat[np.squeeze(indices[i].numpy())] = all_lat_patches[i]
+        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, patch_size, patch_size))
+
+        # Get label map
+
+        label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
+
+        
+        binary_map = np.isin(label_map, desired_label)
+
+        # Label connected components, considering diagonal connections
+        """USE OF DIAGONAL CONNECTIONS"""
+        # structure = ndimage.generate_binary_structure(2, 2)
+        # labeled_map, num_features = ndimage.label(binary_map, structure=structure)
+        
+        """NO DIAGONAL CONNECTIONS:"""
+        labeled_map, num_features = ndimage.label(binary_map)
+
+        # Measure sizes of connected components
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+      
+        # Iterate through each region and check if its size exceeds the threshold
+        for region_idx, region_size in enumerate(region_sizes):
+            if region_size > size_threshold:
+                # fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10, 10), dpi=80)
+                # ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+                # fig.suptitle("%s\n%s CAO found for threshold %s" %(dates[i], region_size, size_threshold))
+
+                # # Scatter plot of points
+                # ax.pcolormesh(lon_lats[i][0,:,:], lon_lats[i][1,:,:], x[i][:,:,0], transform=ccrs.PlateCarree(), cmap='gray', vmin=0, vmax=7)
+                # ax.coastlines()
+                # ax.gridlines()
+
+
+                fig, axs = plt.subplots(1,3)
+                axs[0].imshow(x[i], cmap="gray")
+                fig.suptitle("%s\n%s CAO found for threshold %s" %(dates[i], region_size, size_threshold))
+
+                #axs[0].invert_xaxis()
+                tab20 = plt.get_cmap("tab20")
+
+                # Create a custom colormap with the first 14 colors
+                custom_cmap = mcolors.ListedColormap(tab20.colors[:14])
+                cb =axs[1].imshow(label_map, cmap=new_cmap)   
+                axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
+
+                plt.colorbar(cb)
+                plt.show()
+            
 
 
 def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, chosen_label=2, save=None):
