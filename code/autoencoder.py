@@ -73,12 +73,13 @@ class SimpleAutoencoder:
             
             rates = [1, 1, 1, 1]
             padding = 'VALID'
-
+            print("no EXTRACT")
             patches = tf.image.extract_patches(images=image,
                                             sizes=sizes,
                                             strides=strides,
                                             rates=rates,
                                             padding=padding)
+            print("first EXTRACT")
             
             if mask_threshold != None:
                 if mask.ndim == 3:
@@ -117,7 +118,8 @@ class SimpleAutoencoder:
                 
                 lon = tf.reshape(lon, (-1, self.patch_size, self.patch_size_2))
                 lat = tf.reshape(lat, (-1, self.patch_size, self.patch_size_2))
-                
+            print("first EXTRACT")
+            
             if mask_threshold != None and extract_lon_lat:
                 n_patches = len(patches)
                 patches, idx = self.filter_patches(patches, mask_patches, lon, lat, threshold=mask_threshold, lon_lat_min_max=lon_lat_min_max)

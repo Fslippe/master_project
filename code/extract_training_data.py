@@ -11,6 +11,13 @@ from scipy.ndimage import zoom
 from create_water_mask import * 
 from scipy.spatial import cKDTree
 from scipy.ndimage import distance_transform_edt, generic_filter
+import socket
+
+hostname = socket.gethostname()
+if "nird" in hostname:
+    data_loc = "/nird/projects/NS9600K/fslippe/data/"
+if "mimi" in hostname:
+    data_loc = "/uio/hume/student-u37/fslippe/data/"
 
 
 total_cores = multiprocessing.cpu_count()
@@ -18,7 +25,7 @@ print("total cores:", total_cores)
 
 def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winter_202012-202004/",
                      bands = [6,7,20,28,28,31],
-                     ds_water_mask=xr.open_dataset("/uio/hume/student-u37/fslippe/data/land_sea_ice_mask/sea_land_mask.nc"),
+                     ds_water_mask=None,
                      save=None,
                      start_date=None,
                      end_date=None,
@@ -28,8 +35,11 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      return_lon_lat=False,
                      workers=None,
                      max_zenith=50,
-                     combine_pics=True):
+                     combine_pics=True,
+                     data_loc="/uio/hume/student-u37/fslippe/data/"):
     
+    if ds_water_mask==None:
+        ds_water_mask = xr.open_dataset("%sland_sea_ice_mask/sea_land_mask.nc" %data_loc)
     all_files = []
 
     
@@ -98,6 +108,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     water_mask_ravel = ds_water_mask["sea_ice_region_surface_mask"].values.ravel()
     coords_lowres = np.vstack((ds_water_mask.latitude.values.ravel(), ds_water_mask.longitude.values.ravel())).T
     tree = cKDTree(coords_lowres)
+    
     ##### FOLLOWING CODE IS USED IF PARALLELIZING all files
     if workers == None:
         if len(selected_keys) < 10:
@@ -197,7 +208,7 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
     lon_lats = []
     mod_min_list = []
     valid_cols_lon_list = []
-
+    
     if return_lon_lat:
         for (file, mod_min) in zip(file_group, selected_mod_mins):
             result, mask, lon_lat, valid_cols_lon = append_data(file, file_layers, bands, min_mean, full_water_mask, tree, return_lon_lat, normalize, max_zenith)
@@ -214,7 +225,7 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
 
     else:
         for file in file_group:
-            result, mask,valid_cols_lon = append_data(file, file_layers, bands, min_mean, full_water_mask, return_lon_lat, normalize, max_zenith)
+            result, mask,valid_cols_lon = append_data(file, file_layers, bands, min_mean, full_water_mask, tree, return_lon_lat, normalize, max_zenith)
 
             if  result.shape[0] > 1 and result.shape[1] > 1:
                 X.append(result) 
@@ -365,7 +376,7 @@ def replace_out_of_bounds_with_nearest(data, low_bound, high_bound):
     return data
 
 def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree=None, return_lon_lat=False, normalize=False, max_zenith=50):
-    zenith = np.load("/uio/hume/student-u37/fslippe/master_project/code/data/sensor_zenith_bilinear_1km.npy")
+    zenith = np.load("%sland_sea_ice_mask/sensor_zenith_bilinear_1km.npy" %data_loc)
     zenith_mask = zenith < max_zenith
     hdf = SD(file, SDC.READ)
     current_data_list = []

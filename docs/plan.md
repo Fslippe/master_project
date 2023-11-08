@@ -98,7 +98,9 @@
   - Get test set
     - CAO cases - 100 pics
     - non-CAO cases - 20 pics 
-
+    - Use more seasons 
+      - Clear cases with boundaries 
+      - randomized cases. 
 
 
 #### TEST MATRIX
@@ -106,7 +108,7 @@
 
 - Problem is different number of clusters 
   - Solution: Cluster metric algorithm 
-  
+
 Patch size | filters |  
     64     |   32    |     
     64     |   64    |     
