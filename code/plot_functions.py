@@ -214,7 +214,7 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
                 plt.colorbar(cb)
                 plt.show()
-            
+        
 
 
 def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, chosen_label=2, save=None):
