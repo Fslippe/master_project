@@ -30,13 +30,12 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      start_date=None,
                      end_date=None,
                      date_list=None,
-                     min_mean=0,
-                     normalize=None,
                      return_lon_lat=False,
                      workers=None,
                      max_zenith=50,
                      combine_pics=True,
-                     data_loc="/uio/hume/student-u37/fslippe/data/"):
+                     data_loc="/uio/hume/student-u37/fslippe/data/",
+                     data_type="hdf"):
     
     if ds_water_mask==None:
         ds_water_mask = xr.open_dataset("%sland_sea_ice_mask/sea_land_mask.nc" %data_loc)
@@ -47,25 +46,28 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     print(folders)
 
     for f in folders:
-        all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith('.hdf')])
+        all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith(data_type)])
 
-    hdf = SD(all_files[0], SDC.READ)
+    if data_type == "hdf":
+        hdf = SD(all_files[0], SDC.READ)
 
-        
-    list1 = [int(num_str) for num_str in hdf.select("EV_250_Aggr1km_RefSB").attributes()["band_names"].split(",")]
-    list2 = [int(num_str) for num_str in hdf.select("EV_500_Aggr1km_RefSB").attributes()["band_names"].split(",")]
-    list3 = [int(num_str) for num_str in hdf.select("EV_1KM_RefSB").attributes()["band_names"].split(",") if num_str.isdigit()]
-    list4 = [int(num_str) for num_str in hdf.select("EV_1KM_Emissive").attributes()["band_names"].split(",")]
+        list1 = [int(num_str) for num_str in hdf.select("EV_250_Aggr1km_RefSB").attributes()["band_names"].split(",")]
+        list2 = [int(num_str) for num_str in hdf.select("EV_500_Aggr1km_RefSB").attributes()["band_names"].split(",")]
+        list3 = [int(num_str) for num_str in hdf.select("EV_1KM_RefSB").attributes()["band_names"].split(",") if num_str.isdigit()]
+        list4 = [int(num_str) for num_str in hdf.select("EV_1KM_Emissive").attributes()["band_names"].split(",")]
 
-    file_layers = np.empty(36, dtype=object)
-    for i, (band) in enumerate(list1):
-        file_layers[band-1] = {"EV_250_Aggr1km_RefSB": i}
-    for i, (band) in enumerate(list2):
-        file_layers[band-1] = {"EV_500_Aggr1km_RefSB": i}    
-    for i, (band) in enumerate(list3):
-        file_layers[band-1] = {"EV_1KM_RefSB": i}
-    for i, (band) in enumerate(list4):
-        file_layers[band-1] = {"EV_1KM_Emissive": i}
+        file_layers = np.empty(36, dtype=object)
+        for i, (band) in enumerate(list1):
+            file_layers[band-1] = {"EV_250_Aggr1km_RefSB": i}
+        for i, (band) in enumerate(list2):
+            file_layers[band-1] = {"EV_500_Aggr1km_RefSB": i}    
+        for i, (band) in enumerate(list3):
+            file_layers[band-1] = {"EV_1KM_RefSB": i}
+        for i, (band) in enumerate(list4):
+            file_layers[band-1] = {"EV_1KM_Emissive": i}
+
+    else:
+        file_layers = None
 
     file_groups = defaultdict(list)
     mod_mins = defaultdict(list)
@@ -124,10 +126,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                     file_groups,
                     file_layers,
                     bands,
-                    min_mean,
                     water_mask_ravel,
                     tree,
-                    normalize,
                     mod_mins,
                     return_lon_lat,
                     max_zenith
@@ -144,7 +144,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                 valid_cols_lon = [item for sublist in valid_cols_lon for item in sublist]
 
                 if combine_pics:
-                    ds_all, dates, masks, lon_lats = combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_cols_lon)
+                    ds_all, dates, masks, lon_lats, mod_min = combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_cols_lon)
 
                 return ds_all, dates, masks, lon_lats, mod_min
 
@@ -165,10 +165,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                             [file_groups] * len(selected_keys),
                             [file_layers] * len(selected_keys),
                             [bands] * len(selected_keys),
-                            [min_mean] * len(selected_keys),
                             [water_mask_ravel] * len(selected_keys),
                             [tree] * len(selected_keys),
-                            [normalize] * len(selected_keys),
                             [mod_mins] * len(selected_keys),
                             [return_lon_lat] * len(selected_keys),
                             [max_zenith] * len(selected_keys)
@@ -187,7 +185,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
 
                 if combine_pics:
-                    ds_all, dates, masks, lon_lats = combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_cols_lon)
+                    ds_all, dates, masks, lon_lats, mod_min = combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_cols_lon)
                 
                 return ds_all, dates, masks, lon_lats, mod_min
             
@@ -199,7 +197,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
                 return ds_all, dates, masks
 
-def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask, tree,  normalize, mod_mins, return_lon_lat=False, max_zenith=50):
+def process_key(key, file_groups, file_layers, bands, full_water_mask, tree, mod_mins, return_lon_lat=False, max_zenith=50):
     file_group = file_groups[key]
     selected_mod_mins  = mod_mins[key]
     X = []
@@ -211,7 +209,7 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
     
     if return_lon_lat:
         for (file, mod_min) in zip(file_group, selected_mod_mins):
-            result, mask, lon_lat, valid_cols_lon = append_data(file, file_layers, bands, min_mean, full_water_mask, tree, return_lon_lat, normalize, max_zenith)
+            result, mask, lon_lat, valid_cols_lon = process_file(file, file_layers, bands, full_water_mask, tree, return_lon_lat, max_zenith)
 
             if result.shape[0] > 1 and result.shape[1] > 1:
                 X.append(result) 
@@ -225,7 +223,7 @@ def process_key(key, file_groups, file_layers, bands, min_mean, full_water_mask,
 
     else:
         for file in file_group:
-            result, mask,valid_cols_lon = append_data(file, file_layers, bands, min_mean, full_water_mask, tree, return_lon_lat, normalize, max_zenith)
+            result, mask,valid_cols_lon = process_file(file, file_layers, bands, full_water_mask, tree, return_lon_lat, max_zenith)
 
             if  result.shape[0] > 1 and result.shape[1] > 1:
                 X.append(result) 
@@ -249,7 +247,7 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
     lon_lats = [lon_lats[i] for i in sorted_indices]
     mod_min = [mod_min[i] for i in sorted_indices]
     valid_cols_lon = [valid_cols_lon[i] for i in sorted_indices]
-  
+    combined_mod_min = []
    
     i = 0
 
@@ -259,17 +257,16 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
         masks_to_combine = [masks[i]]
         lon_lats_to_combine = [lon_lats[i]]
         valid_cols_to_combine = [valid_cols_lon[i]]
-
         date = dates[i]
         min_time = mod_min[i]
+        mod_min_start = min_time
 
-        while i < len(dates) - 1 and (mod_min[i+1] - min_time == 5 or (min_time == 2355 and mod_min[i+1] == 0)):
+        while i < len(dates) - 1 and (abs(mod_min[i+1] - min_time) == 5 or (min_time == 2355 and mod_min[i+1] == 0)):
             
             imgs_to_combine.append(ds_all[i+1])
             masks_to_combine.append(masks[i+1])
             lon_lats_to_combine.append(lon_lats[i+1])
             valid_cols_to_combine.append(valid_cols_lon[i+1])
-
             i += 1
             min_time = mod_min[i]
 
@@ -283,7 +280,10 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
         for valid_cols in valid_cols_to_combine:
             full_final_valid_cols_mask &= valid_cols
         
+        full_final_valid_cols_mask = np.any(valid_cols_to_combine, axis=0)
+
         # Use the mask to extract the overlapping columns
+        combined_mod_min.append(mod_min_start)
         combined_ds.append(np.vstack([img[:, full_final_valid_cols_mask] for img in imgs_to_combine]))
         combined_dates.append(date)  # Taking the first date
         combined_masks.append(np.vstack([mask[:, full_final_valid_cols_mask] for mask in masks_to_combine]))
@@ -291,15 +291,18 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
         
         i += 1
 
+    print(len(combined_mod_min))
+    print(len(combined_dates))
 
     # For the last image if it's standalone
     if len(imgs_to_combine) == 1:
+        combined_mod_min.append(mod_min[-1])
         combined_ds.append(ds_all[-1][valid_cols_to_combine[0]])
-        combined_dates.append(dates[-1][valid_cols_to_combine[0]])
+        combined_dates.append(dates[-1])
         combined_masks.append(masks[-1][valid_cols_to_combine[0]])
         combined_lon_lats.append(lon_lats[-1][valid_cols_to_combine[0]])
 
-    return combined_ds, combined_dates, combined_masks, combined_lon_lats
+    return combined_ds, combined_dates, combined_masks, combined_lon_lats, combined_mod_min
 
 
 
@@ -375,20 +378,31 @@ def replace_out_of_bounds_with_nearest(data, low_bound, high_bound):
 
     return data
 
-def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree=None, return_lon_lat=False, normalize=False, max_zenith=50):
+
+def process_file(file, file_layers, bands, full_water_mask=None, tree=None, return_lon_lat=False, max_zenith=50):
+    if file.endswith(".hdf"):
+        return process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat)
+    elif file.endswith(".npy"):
+        return process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat)
+    else:
+        raise ValueError(f"Unsupported file format: {file}")
+
+def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat):
     zenith = np.load("%sland_sea_ice_mask/sensor_zenith_bilinear_1km.npy" %data_loc)
     zenith_mask = zenith < max_zenith
-    hdf = SD(file, SDC.READ)
     current_data_list = []
+
+    hdf = SD(file, SDC.READ)
     key = list(file_layers[bands[0]-1].keys())[0]
     idx = list(file_layers[bands[0]-1].values())[0]
     data = hdf.select(key)[:][idx]
     lat = hdf.select("Latitude")[:]
     lon = hdf.select("Longitude")[:]
+
     lat = replace_out_of_bounds_with_nearest(lat, -90, 90)
     lon = replace_out_of_bounds_with_nearest(lon, -180, 180)
 
-    lon_min, lon_max = -35, 35
+    lon_min, lon_max = -35, 45
     lat_min, lat_max = 60, 82
     
     mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon > lon_min) & (lon < lon_max)
@@ -397,8 +411,8 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
     zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
     
 
-    mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # order=0 for nearest neighbor interpolation
-    lat_highres = zoom(lat, zoom_factors, order=1)  # order=1 for bilinear interpolation
+    mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # nearest neighbor interpolation
+    lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
     lon_highres = zoom(lon, zoom_factors, order=1) 
     valid_rows_ll = np.any(mask_highres , axis=1)
 
@@ -416,22 +430,23 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
     mask = full_water_mask[indices].reshape(data.shape)
     attrs = hdf.select(key).attributes()
     is_nan = data == attrs["_FillValue"]
+       
     valid_rows = ~np.all(is_nan, axis=1)
     valid_cols = ~np.all(is_nan, axis=0)
     data = data[valid_rows][:, valid_cols]
     mask = mask[valid_rows][:, valid_cols]
     lon_highres = lon_highres[valid_rows][:, valid_cols]
     lat_highres = lat_highres[valid_rows][:, valid_cols]
-
-
     
-    data = np.where(data > attrs["valid_range"][1], 0, data)
-    data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+    data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
+    if data_shape_bool:
+        data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
+        data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+        current_data_list.append(data)
+    else:
+        current_data_list.append(np.empty((0,0)))
 
-    current_data_list.append(data)
-    
     for j, (band) in enumerate(bands[1:]):
-
         key = list(file_layers[band-1].keys())[0]
         idx = list(file_layers[band-1].values())[0]
 
@@ -440,12 +455,12 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
         data = data[valid_rows_ll][:, valid_cols_ll]
 
         data = data[valid_rows][:, valid_cols]
-        data = np.where(data > attrs["valid_range"][1], 0, data)
+        data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
 
         data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
                     
         current_data_list.append(data)
-        
+    
     
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
@@ -453,7 +468,194 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
     if return_lon_lat:
         return x_bands, mask, np.array([lon_highres, lat_highres]), valid_cols_lon 
     else:
+        return x_bands, mask, valid_cols_lon 
+
+def process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat):
+    zenith = np.load("%sland_sea_ice_mask/sensor_zenith_bilinear_1km.npy" %data_loc)
+    zenith_mask = zenith < max_zenith
+    current_data_list = []
+    ds = np.load(file, allow_pickle=True).item()
+    data = ds["data"]
+    lon = ds["lon"]
+    lat = ds["lat"]
+
+    lat = replace_out_of_bounds_with_nearest(lat, -90, 90)
+    lon = replace_out_of_bounds_with_nearest(lon, -180, 180)
+
+    lon_min, lon_max = -35, 45
+    lat_min, lat_max = 60, 82
+    
+    mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon >= lon_min) & (lon <= lon_max)
+    zoom_factor_y = data.shape[0] / lat.shape[0]
+    zoom_factor_x = data.shape[1] / lat.shape[1]
+    zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
+    
+
+    mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # nearest neighbor interpolation
+    lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
+    lon_highres = zoom(lon, zoom_factors, order=1) 
+    valid_rows_ll = np.any(mask_highres , axis=1)
+
+    valid_cols_ll = zenith_mask
+    valid_cols_lon = np.any(mask_highres[valid_rows_ll][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
+    data = data[valid_rows_ll][:, valid_cols_ll]
+    lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
+    lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 
+
+    
+
+    # lon_min, lon_max = -35, 45
+    # lat_min, lat_max = 60, 82
+
+    # mask_lat = (lat >= lat_min) & (lat <= lat_max)
+    # zoom_factor_y = data.shape[0] / lat.shape[0]
+    # zoom_factor_x = data.shape[1] / lat.shape[1]
+    # zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
+
+    # mask_highres = zoom(mask_lat, zoom_factors, order=0)  # nearest neighbor interpolation
+    # lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
+    # lon_highres = zoom(lon, zoom_factors, order=1)
+
+    # valid_rows_ll = np.any(mask_highres, axis=1)
+
+    # # Apply zenith_mask to valid_cols_lon, assuming zenith_mask is already defined
+    # valid_cols_lon = zenith_mask
+
+    # data = data[valid_rows_ll][:, valid_cols_lon]
+    # lat_highres = lat_highres[valid_rows_ll][:, valid_cols_lon]
+    # lon_highres = lon_highres[valid_rows_ll][:, valid_cols_lon]
+
+
+
+
+    #coords_lowres = np.column_stack((full_water_mask.latitude.values.ravel(), full_water_mask.longitude.values.ravel()))
+
+    coords_highres = np.column_stack((lat_highres.ravel(), lon_highres.ravel()))
+    distances, indices = tree.query(coords_highres, k=1,  eps=0.5)
+
+    mask = full_water_mask[indices].reshape(data.shape)
+
+    is_nan = np.isnan(data)
+
+    valid_rows = ~np.all(is_nan, axis=1)
+    valid_cols = ~np.all(is_nan, axis=0)
+    data = data[valid_rows][:, valid_cols]
+    mask = mask[valid_rows][:, valid_cols]
+    lon_highres = lon_highres[valid_rows][:, valid_cols]
+    lat_highres = lat_highres[valid_rows][:, valid_cols]
+    
+    data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
+    if data_shape_bool:
+        data = np.where(is_nan, np.nanmean(data), data)
+        current_data_list.append(data)
+    else:
+        current_data_list.append(np.empty((0,0)))
+    
+    ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
+    x_bands = np.stack(current_data_list, axis=-1)
+
+    if return_lon_lat:
+        return x_bands, mask, np.array([lon_highres, lat_highres]), valid_cols_lon 
+    else:
         return x_bands, mask, valid_cols_lon
+
+
+def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree=None, return_lon_lat=False, normalize=False, max_zenith=50):
+    zenith = np.load("%sland_sea_ice_mask/sensor_zenith_bilinear_1km.npy" %data_loc)
+    zenith_mask = zenith < max_zenith
+    current_data_list = []
+
+    if file.endswith(".hdf"):
+        hdf = SD(file, SDC.READ)
+        key = list(file_layers[bands[0]-1].keys())[0]
+        idx = list(file_layers[bands[0]-1].values())[0]
+        data = hdf.select(key)[:][idx]
+        lat = hdf.select("Latitude")[:]
+        lon = hdf.select("Longitude")[:]
+    elif file.endswith(".npy"):
+        ds = np.load(file, allow_pickle=True).item()
+        data = ds["data"]
+        lon = ds["lon"]
+        lat = ds["lat"]
+
+    lat = replace_out_of_bounds_with_nearest(lat, -90, 90)
+    lon = replace_out_of_bounds_with_nearest(lon, -180, 180)
+
+    lon_min, lon_max = -35, 45
+    lat_min, lat_max = 60, 82
+    
+    mask_lowres = (lat >= lat_min) & (lat <= lat_max) & (lon > lon_min) & (lon < lon_max)
+    zoom_factor_y = data.shape[0] / lat.shape[0]
+    zoom_factor_x = data.shape[1] / lat.shape[1]
+    zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
+    
+
+    mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # nearest neighbor interpolation
+    lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
+    lon_highres = zoom(lon, zoom_factors, order=1) 
+    valid_rows_ll = np.any(mask_highres , axis=1)
+
+    valid_cols_ll = zenith_mask
+    valid_cols_lon = np.any(mask_highres[:][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
+    print(valid_cols_lon.shape)
+    data = data[valid_rows_ll][:, valid_cols_ll]
+    lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
+    lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 
+
+    #coords_lowres = np.column_stack((full_water_mask.latitude.values.ravel(), full_water_mask.longitude.values.ravel()))
+
+    coords_highres = np.column_stack((lat_highres.ravel(), lon_highres.ravel()))
+    distances, indices = tree.query(coords_highres, k=1,  eps=0.5)
+
+    mask = full_water_mask[indices].reshape(data.shape)
+    if file.endswith(".hdf"):
+        attrs = hdf.select(key).attributes()
+        is_nan = data == attrs["_FillValue"]
+    elif file.endswith(".npy"):
+        is_nan = np.isnan(data)
+
+    valid_rows = ~np.all(is_nan, axis=1)
+    valid_cols = ~np.all(is_nan, axis=0)
+    data = data[valid_rows][:, valid_cols]
+    mask = mask[valid_rows][:, valid_cols]
+    lon_highres = lon_highres[valid_rows][:, valid_cols]
+    lat_highres = lat_highres[valid_rows][:, valid_cols]
+    
+    data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
+    if data_shape_bool:
+        if file.endswith(".hdf"):
+            data = np.where(data > attrs["valid_range"][1], 0, data)
+            data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+        elif file.endswith(".npy"):
+            data = np.where(is_nan, np.nanmean(data), data)
+        current_data_list.append(data)
+    else:
+        current_data_list.append(np.empty((0,0)))
+
+    if file.endswith(".hdf"):
+        for j, (band) in enumerate(bands[1:]):
+            key = list(file_layers[band-1].keys())[0]
+            idx = list(file_layers[band-1].values())[0]
+
+            attrs = hdf.select(key).attributes()
+            data = hdf.select(key)[:][idx]
+            data = data[valid_rows_ll][:, valid_cols_ll]
+
+            data = data[valid_rows][:, valid_cols]
+            data = np.where(data > attrs["valid_range"][1], 0, data)
+
+            data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+                        
+            current_data_list.append(data)
+    
+    
+    ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
+    x_bands = np.stack(current_data_list, axis=-1)
+   
+    if return_lon_lat:
+        return x_bands, mask, np.array([lon_highres, lat_highres]), valid_cols_lon 
+    else:
+        return x_bands, mask, valid_cols_lon 
     
 
 def normalize_data(data):
