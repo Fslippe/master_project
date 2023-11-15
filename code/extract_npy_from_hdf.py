@@ -16,22 +16,25 @@ def process_hdf_file(file, key, idx, band, attrs):
     file_loc = f"/scratch/fslippe/modis/MOD02/{year}/{filename}_ll_band_{band}.npy"
 
     if not os.path.exists(file_loc):
-        hdf = SD(file, SDC.READ)
-        data = hdf.select(key)[:][idx]
-        data = np.where(data == attrs["_FillValue"], np.nan, data)
-        out_of_range = np.where(data > attrs["valid_range"][1])
-        data = np.float32((data - attrs["radiance_offsets"][idx]) * attrs["radiance_scales"][idx])
-        data[out_of_range] = np.nan
-        lat = hdf.select("Latitude")[:]
-        lon = hdf.select("Longitude")[:]
+        try:
+            hdf = SD(file, SDC.READ)
+            data = hdf.select(key)[:][idx]
+            data = np.where(data == attrs["_FillValue"], np.nan, data)
+            out_of_range = np.where(data > attrs["valid_range"][1])
+            data = np.float32((data - attrs["radiance_offsets"][idx]) * attrs["radiance_scales"][idx])
+            data[out_of_range] = np.nan
+            lat = hdf.select("Latitude")[:]
+            lon = hdf.select("Longitude")[:]
 
-        data_dict = {
-            'lon': lon,
-            'lat': lat,
-            'data': data
-        }
-
-        np.save(file_loc, data_dict)
+            data_dict = {
+                'lon': lon,
+                'lat': lat,
+                'data': data
+            }
+            np.save(file_loc, data_dict)
+        except:
+            print("FAILED ON HDF FILE", file)
+        
 
 def process_files_parallel(files, key, idx, band, attrs):
     with ThreadPoolExecutor(max_workers=32) as executor, tqdm(total=len(files), desc="Processing Files") as pbar:
@@ -45,12 +48,12 @@ def process_files_serial(files, key, idx, band, attrs):
             pbar.update(1)
 
 def main():
-    # folders = ["/scratch/fslippe/modis/MOD02/daytime_1km/",
-    #            "/scratch/fslippe/modis/MOD02/boundary_1km/",
-    #            "/scratch/fslippe/modis/MOD02/night_1km/",
-    #            "/scratch/fslippe/modis/MOD02/may-nov_2021/",
-    #            "/scratch/fslippe/modis/MOD02/cao_test_data/"]
-    folders = ["/uio/hume/student-u37/fslippe/nird_mod02/2020/"]
+    folders = ["/scratch/fslippe/modis/MOD02/daytime_1km/",
+               "/scratch/fslippe/modis/MOD02/boundary_1km/",
+               "/scratch/fslippe/modis/MOD02/night_1km/",
+               "/scratch/fslippe/modis/MOD02/may-nov_2021/",
+               "/scratch/fslippe/modis/MOD02/cao_test_data/"]
+    #folders = ["/uio/hume/student-u37/fslippe/nird_mod02/2020/"]
 
     all_files = get_all_files_in_folders(folders)#[1000:]
     

@@ -261,7 +261,7 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
         min_time = mod_min[i]
         mod_min_start = min_time
 
-        while i < len(dates) - 1 and (abs(mod_min[i+1] - min_time) == 5 or (min_time == 2355 and mod_min[i+1] == 0)):
+        while i < len(dates) - 1 and ((mod_min[i+1] - min_time) == 5 or (mod_min[i+1] % 100 == 0 and ((min_time+45) % 100 == 0))):#or (min_time == 2355 and mod_min[i+1] == 0)):
             
             imgs_to_combine.append(ds_all[i+1])
             masks_to_combine.append(masks[i+1])
