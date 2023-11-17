@@ -6,3 +6,4 @@
 *.npy
 *.nc
 *.log
+*.out

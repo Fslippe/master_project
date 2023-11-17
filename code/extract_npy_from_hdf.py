@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from pyhdf.SD import SD, SDC
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from tqdm import tqdm
 
 def get_all_files_in_folders(folders):
@@ -37,7 +37,7 @@ def process_hdf_file(file, key, idx, band, attrs):
         
 
 def process_files_parallel(files, key, idx, band, attrs):
-    with ThreadPoolExecutor(max_workers=32) as executor, tqdm(total=len(files), desc="Processing Files") as pbar:
+    with ThreadPoolExecutor(max_workers=4) as executor, tqdm(total=len(files), desc="Processing Files") as pbar:
         for _ in executor.map(lambda file: process_hdf_file(file, key, idx, band, attrs), files):
             pbar.update(1)
 
@@ -53,19 +53,24 @@ def main():
                "/scratch/fslippe/modis/MOD02/night_1km/",
                "/scratch/fslippe/modis/MOD02/may-nov_2021/",
                "/scratch/fslippe/modis/MOD02/cao_test_data/"]
-    #folders = ["/uio/hume/student-u37/fslippe/nird_mod02/2020/"]
+    folders = ["/uio/hume/student-u37/fslippe/nird_mod02/2019/"]
 
     all_files = get_all_files_in_folders(folders)#[1000:]
-    
+    length = (len(all_files))
+    print(length)
+    all_files_2 = all_files[length // 2:]
+    all_files = all_files[:length // 2]
+    print(len(all_files_2), len(all_files)) 
     key = "EV_1KM_Emissive"
-    idx = 4
     band = 29
-    
-    # Assuming attrs are the same for all files, using the first file to get attributes
     hdf_attrs = SD(all_files[0], SDC.READ) 
     attrs = hdf_attrs.select(key).attributes()
-
-    process_files_serial(all_files, key, idx, band, attrs)
+    idx = (np.where(np.array(attrs["band_names"].split(",")) == "%s" %band)[0][0])
+    # Assuming attrs are the same for all files, using the first file to get attributes
+    
+    #process_files_serial(all_files, key, idx, band, attrs)
+    process_files_serial(all_files_2, key, idx, band, attrs)
 
 if __name__ == "__main__":
     main()
+

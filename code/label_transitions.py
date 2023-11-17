@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import sys
 
 ### python /uio/hume/student-u37/fslippe/master_project/code/label_transitions.py
     
@@ -124,8 +125,11 @@ def apply_brush(mask, x, y, brush):
         
 # Assuming your image is in variable `img`
 # Initialize last_point as None
+print("\n### Thank you for helping! ###")
+print("Please draw a transition and quit the figure when finished. You can use the zoom functionality to get a closer look at the picture")
 
 name = input("Please enter your name: ")
+
 
 
 folder = "/scratch/fslippe/modis/MOD02/cao_w_boundaries/"
@@ -138,15 +142,10 @@ if not os.path.exists(folder_save):
 
 
 last_point = None
-
-for file in npy_files:
-    fig, ax = plt.subplots(figsize=(10, 10))
+def run_again(file, coords, fig, ax):
     filepath = os.path.join(folder, file)  # Full path to the file
     data = np.load(filepath)
 
-    coords = []
-    # Flag to check if mouse button is pressed
-    drawing = False
 
     ax.imshow(data, cmap='gray')
 
@@ -154,7 +153,6 @@ for file in npy_files:
     fig.canvas.mpl_connect('button_press_event', on_press)
     fig.canvas.mpl_connect('button_release_event', on_release)
     fig.canvas.mpl_connect('motion_notify_event', on_motion)
-
     plt.show()
     mask = np.zeros(data.shape)  # Initialize the mask with zeros
     if len(coords) != 0:
@@ -165,12 +163,37 @@ for file in npy_files:
         for coord in coords:
             mask = apply_brush(mask, int(coord[0]), int(
                 coord[1]), brush)  # Note the reversed indices
-    fig, ax = plt.subplots(figsize=(10, 10))
-    ax.imshow(data, cmap='gray')
-    ax.imshow(mask, alpha=0.3, cmap='Reds')
+    plt.ion() 
+
+    plt.figure(figsize=(10, 10))  # Create a new figure explicitly
+    plt.imshow(data, cmap='gray')
+    plt.imshow(mask, alpha=0.3, cmap='Reds')
+    run = input("Are you happy with the result y/n or quit q: ")
     plt.show()
+    plt.ioff()  # Turn on interactive mode again for subsequent plots
 
-    #np.save("%s/data/%s" % (folder_save, file[:-4]), data)
+    if run == "y":
+        #np.save("%s/data/%s" % (folder_save, file[:-4]), data)
+        plt.close()
+        np.save(folder_save + "/" + file + "_mask", mask)
+    elif run == "n":
+        plt.close()
+        coords.clear()
+        #run_again(file, coords, fig, ax)
+    elif run == "q":
+        sys.exit()
+    
+    return run
 
-    np.save(folder_save + file + "_mask", mask)
 
+for file in npy_files:
+    while True:
+        fig, ax = plt.subplots(figsize=(10, 10))
+        coords = []
+        # Flag to check if the mouse button is pressed
+        drawing = False
+        run = run_again(file, coords, fig, ax)
+        if run == "y":
+            break
+        elif run == "q":
+            sys.exit()
