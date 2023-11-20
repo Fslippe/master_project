@@ -1,7 +1,21 @@
-from datetime import datetime, timedelta 
 import numpy as np 
 from scipy import ndimage
 from autoencoder import * 
+import datetime
+import xarray as xr
+import pyproj
+
+
+def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
+    datetime_obj = datetime.datetime.strptime("%s%s" %(date, time), "%Y%j%H%M")
+    formatted_date = datetime_obj.strftime("%Y%m%d")
+    year = str(date)[:4]
+    ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2_400.inst3_3d_asm_Np.%s.SUB.nc" % (year, formatted_date))
+    ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
+    wind_dir = np.degrees(np.arctan2(ds_time['U'], ds_time['V']))
+    
+
+    return np.float32(wind_dir)
 
 def convert_to_day_of_year(date_str):
     # Parse the date
@@ -10,7 +24,7 @@ def convert_to_day_of_year(date_str):
     day = int(date_str[6:8])
 
     # Convert to datetime object
-    date_obj = datetime(year, month, day)
+    date_obj = datetime.datetime(year, month, day)
 
     # Get the day of the year
     day_of_year = date_obj.timetuple().tm_yday
@@ -20,14 +34,14 @@ def convert_to_day_of_year(date_str):
 
 
 def generate_date_list(start, end):
-    start_date = datetime.strptime(start, '%Y%m%d')
-    end_date = datetime.strptime(end, '%Y%m%d')
+    start_date = datetime.datetime.strptime(start, '%Y%m%d')
+    end_date = datetime.datetime.strptime(end, '%Y%m%d')
     
     date_list = []
     current_date = start_date
     while current_date <= end_date:
         date_list.append(convert_to_day_of_year(current_date.strftime('%Y%m%d')))
-        current_date += timedelta(days=1)
+        current_date += datetime.timedelta(days=1)
     return date_list
 
 def convert_to_standard_date(date_str):
@@ -35,8 +49,8 @@ def convert_to_standard_date(date_str):
     year = int(date_str[:4])
     day_of_year = int(date_str[4:])
 
-    # Convert to datetime object
-    date_obj = datetime(year, 1, 1) + timedelta(days=day_of_year - 1)  # Using day_of_year - 1 because timedelta is 0-indexed
+    # Convert to datetime.datetime object
+    date_obj = datetime.datetime(year, 1, 1) + datetime.timedelta(days=day_of_year - 1)  # Using day_of_year - 1 because datetime.timedelta is 0-indexed
 
     # Return in the desired format
     return date_obj.strftime('%Y%m%d')
@@ -187,6 +201,7 @@ def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None,
     return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
 
 
+
 def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, global_max, n_patches_tot, desired_label, size_threshold, n,  patch_size):
     """
     Find pictures with regions of patches of a desired label of sizes higher than given threshold 
@@ -214,15 +229,24 @@ def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, globa
 
 
 
+import numpy as np
+
+import numpy as np
+
 def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2):
     lons = []
     lats = []
+    angles = []
 
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
             if m[i, j] == label1:
+                # neighbors = [
+                #     (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
+                # ]
                 neighbors = [
-                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
+                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
+                    (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
                 ]
 
                 for ni, nj in neighbors:
@@ -232,8 +256,25 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                             interp_lon = (lon_map[i, j] + lon_map[ni, nj]) / 2
                             interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
                             lons.append(interp_lon)
+
                             lats.append(interp_lat)
-    return lons, lats
+                            # km_conv = 111.111 * np.cos(interp_lat/180*np.pi)
+                            # print(km_conv)
+                            # delta_lon = (lon_map[ni, nj] - lon_map[i, j])*km_conv
+                            # delta_lat = (lat_map[ni, nj] - lat_map[i, j])*111.111
+
+                            # #Calculate the angle
+                            # angle = np.arctan2(delta_lon, delta_lat) * 180 / np.pi
+                            geodesic = pyproj.Geod(ellps='WGS84')
+                            angle,angle2,distance = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
+                            angles.append(angle )
+
+    return lons, lats, angles
+    
+
+
+
+
 
 
 # def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2):

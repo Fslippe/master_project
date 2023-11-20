@@ -284,7 +284,7 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map):
 
     # Scatter plot of points
     ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray')
-    ax.scatter(lons, lats, color='red', s=0.1, transform=ccrs.PlateCarree())
+    ax.scatter(lons, lats, color='red', s=0.2, transform=ccrs.PlateCarree())
 
     # distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))
 

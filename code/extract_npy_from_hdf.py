@@ -58,9 +58,9 @@ def main():
     all_files = get_all_files_in_folders(folders)#[1000:]
     length = (len(all_files))
     print(length)
-    all_files_2 = all_files[length // 2:]
-    all_files = all_files[:length // 2]
-    print(len(all_files_2), len(all_files)) 
+    #all_files_2 = all_files[length // 2:]
+    #all_files = all_files[:length // 2]
+    #print(len(all_files_2), len(all_files)) 
     key = "EV_1KM_Emissive"
     band = 29
     hdf_attrs = SD(all_files[0], SDC.READ) 
@@ -68,8 +68,8 @@ def main():
     idx = (np.where(np.array(attrs["band_names"].split(",")) == "%s" %band)[0][0])
     # Assuming attrs are the same for all files, using the first file to get attributes
     
-    #process_files_serial(all_files, key, idx, band, attrs)
-    process_files_serial(all_files_2, key, idx, band, attrs)
+    process_files_serial(all_files, key, idx, band, attrs)
+    #process_files_serial(all_files_2, key, idx, band, attrs)
 
 if __name__ == "__main__":
     main()
