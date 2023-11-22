@@ -108,6 +108,7 @@
 
 - Problem is different number of clusters 
   - Solution: Cluster metric algorithm 
+  - Use ex 12 Clusters for all tests, to see performance - Of cource very limited - Could use 11, 12, 13 
 
 Patch size | filters |  
     64     |   32    |     
@@ -116,6 +117,7 @@ Patch size | filters |
     128    |   32    |     
     128    |   64    |     
     128    |   128   |     
+
 
 nohup python3 read_tf.py > output_l90_z50.log 2>&1 &
 

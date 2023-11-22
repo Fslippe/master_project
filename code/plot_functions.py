@@ -278,14 +278,21 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
 
 from scipy.spatial import distance_matrix
 
-def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map):
+def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, ds_sel=None):
     fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10, 10), dpi=200)
-    ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+    #ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+    ax.set_extent([-15, 15, 60, 75], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
+
 
     # Scatter plot of points
     ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray')
-    ax.scatter(lons, lats, color='red', s=0.2, transform=ccrs.PlateCarree())
+    ax.scatter(lons, lats, color='red', s=1, transform=ccrs.PlateCarree())
 
+    # Select data for the given time and level
+
+    u = ds_sel['U'].values
+    v = ds_sel['V'].values  
+    quiver = ax.quiver(ds_sel['lon'], ds_sel['lat'], u, v, transform=ccrs.PlateCarree(), scale=500)
     # distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))
 
     # # Replace diagonal (distance to self) with a high value
@@ -300,7 +307,6 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map):
     ax.coastlines()
     ax.gridlines()
 
-    plt.show()
 
 
 # def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):

@@ -1,5 +1,7 @@
 import numpy as np 
 from scipy import ndimage
+from scipy.stats import linregress
+
 from autoencoder import * 
 import datetime
 import xarray as xr
@@ -12,10 +14,11 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
     year = str(date)[:4]
     ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2_400.inst3_3d_asm_Np.%s.SUB.nc" % (year, formatted_date))
     ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
-    wind_dir = np.degrees(np.arctan2(ds_time['U'], ds_time['V']))
+    wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
     
 
     return np.float32(wind_dir)
+
 
 def convert_to_day_of_year(date_str):
     # Parse the date
@@ -79,12 +82,21 @@ def convert_to_standard_date(date_str):
 def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
     # Calculate the dimensions of the reduced resolution array
     height, width = shape
+    # if stride is None:
+    #     size_mult = 1
+    # else:
+    #     size_mult = patch_size // stride
+
+
+    # reduced_height = height // patch_size * size_mult
+    # reduced_width = width // patch_size * size_mult
+
     if stride is None:
-        size_mult = 1
+        reduced_height = height // patch_size
+        reduced_width = width // patch_size 
     else:
-        size_mult = patch_size // stride
-    reduced_height = height // patch_size * size_mult
-    reduced_width = width // patch_size * size_mult
+        reduced_height = (height - patch_size) // stride + 1
+        reduced_width = (width - patch_size) // stride + 1    
 
     # Generate an empty map with all values set to global_max + 1
     cluster_map = np.full((reduced_height, reduced_width), global_max + 1, dtype=labels.dtype)
@@ -233,16 +245,20 @@ import numpy as np
 
 import numpy as np
 
-def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2):
+def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None):
     lons = []
     lats = []
     angles = []
+    geodesic = pyproj.Geod(ellps='WGS84')
 
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
             if m[i, j] == label1:
+                neighbors = [
+                      (i-1, j ), (i+1, j + 1), (i, j - 1), (i, j + 1)
+                ]
                 # neighbors = [
-                #     (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1)
+                #     (i - 1, j), (i + 1, j)
                 # ]
                 neighbors = [
                     (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
@@ -265,10 +281,44 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
 
                             # #Calculate the angle
                             # angle = np.arctan2(delta_lon, delta_lat) * 180 / np.pi
-                            geodesic = pyproj.Geod(ellps='WGS84')
                             angle,angle2,distance = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
-                            angles.append(angle )
+                            angle2 = (angle2 + 360) % 360
 
+                            angles.append(angle2)
+
+    print(np.min(np.array(angle2)), np.max(np.array(angle2)))
+
+    if max_distance_to_avg != None:
+        for i in range(len(lons)):
+            sum = angles[i]
+            tot_points = 1
+            lons_filtered = [lons[i]]
+            lats_filtered = [lats[i]]
+            for j in range(len(lons)):
+                if j != i:
+                    _,_,distance = geodesic.inv(lons[i], lats[i], lons[j], lats[j])
+
+                    if distance < max_distance_to_avg:
+                        sum += angles[j]
+                        tot_points += 1
+                        lons_filtered.append(lons[j])
+                        lats_filtered.append(lats[j])
+
+
+            slope, intercept, _, _, _ = linregress(lons_filtered, lats_filtered)
+
+            lon2 = lons_filtered[0] + 0.01
+            lat2 = lats_filtered[0] + slope*0.01
+            angle,angle2,distance = geodesic.inv(lons_filtered[0], lats_filtered[0], lon2, lat2)
+            angle2 = (angle2 + 360) % 360 
+            if sum / tot_points >= angle2:
+                angle_normal = (angle2 + 90 +  360) % 360
+            else: 
+                angle_normal = (angle2 - 90 +  360) % 360
+
+            # Calculate the angle 90 degrees normal to the regression line
+            angle_normal = (sum / tot_points) 
+            angles[i] =  (angle_normal + 360) % 360 #sum / tot_points
     return lons, lats, angles
     
 
