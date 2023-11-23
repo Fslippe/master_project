@@ -1,8 +1,11 @@
 import os
 import numpy as np
+import matplotlib.path as mpath
 import matplotlib.pyplot as plt
+from matplotlib.patches import PathPatch
 import matplotlib as mpl
 import sys
+import matplotlib.path as mplPath
 
 ### python /uio/hume/student-u37/fslippe/master_project/code/label_transitions.py
     
@@ -189,128 +192,165 @@ if not os.path.exists(folder_save_coords):
     os.makedirs(folder_save_coords)
 
 
-def create_path(coords):
-    # Create a closed path using the interpolated coordinates
-    path_data = [(mpath.Path.MOVETO, coords[0])]
-    path_data.extend([(mpath.Path.LINETO, coord) for coord in coords[1:]])
-    path_data.append((mpath.Path.CLOSEPOLY, coords[-1]))
-
-    codes, verts = zip(*path_data)
-    path = mpath.Path(verts, codes)
-    return path
 
 
+import numpy as np
+from scipy.spatial import ConvexHull
+import matplotlib.pyplot as plt
 
-# last_point = None
-# def run_again(file, coords, fig, ax):
-#     filepath = os.path.join(folder, file)  # Full path to the file
-#     data = np.load(filepath)
-#     print("Please draw around the Cold air outbreak")
-#     ax.imshow(data, cmap='gray')
+def fill_area_manually(coords, data_shape):
+    coords = [(round(c[1]), round(c[0])) for c in coords]
 
-#     # Connect the functions to the relevant events
-#     fig.canvas.mpl_connect('button_press_event', on_press)
-#     fig.canvas.mpl_connect('button_release_event', on_release)
-#     fig.canvas.mpl_connect('motion_notify_event', on_motion)
-#     plt.show()
-#     mask_cao = np.zeros(data.shape)  # Initialize the mask with zeros
-#     if len(coords) != 0:
-#         coords = interpolate_coords(coords, connect)
-#         coord_array_cao = np.array([(round(coord[0]), round(coord[1])) for coord in coords])
-#         brush = gaussian_brush(width=50, height=50, sigma=15)
-        
-#         for coord in coords:
-#             mask_cao = apply_brush(mask_cao, round(coord[0]), round(
-#                 coord[1]), brush)  # Note the reversed indices
+    # Create a path object using the coordinates
+    path = mplPath.Path(coords)
+
+    # create an empty binary matrix with same shape as the image data
+    mask = np.zeros(data_shape)
+
+    for r in range(mask.shape[0]):
+        for c in range(mask.shape[1]):
+            if path.contains_point((r,c)):
+                mask[r,c] = 1  # Set to 1 if the point is within the path
+    return mask
 
 
-#     plt.ion() 
-#     print(coord_array)
-#     plt.figure(figsize=(10, 10))  # Create a new figure explicitly
-#     plt.imshow(data, cmap='gray')
-#     plt.imshow(mask_cao, alpha=0.3, cmap='Reds')
-#     run = input("Are you happy with the result y/n or quit q: ")
-#     plt.show()
-#     plt.ioff()  # Turn on interactive mode again for subsequent plots
+last_point = None
 
-
-#     if run == "y":
-#         #np.save("%s/data/%s" % (folder_save, file[:-4]), data)
-#         plt.close()
-#         np.save(folder_save_masks + "/" + file + "_mask_cao", mask_cao)
-#         np.save(folder_save_coords + "/" + file + "_coords_cao", coord_array_cao)
-
-#     elif run == "n":
-#         plt.close()
-#         coords.clear()  
-#         #run_again(file, coords, fig, ax)
-#     elif run == "q":
-#         sys.exit()
-
-
-
-
-
-
-
-#     print("Please draw a transition line")
-
-#     ax.imshow(data, cmap='gray')
-
-#     # Connect the functions to the relevant events
-#     fig.canvas.mpl_connect('button_press_event', on_press)
-#     fig.canvas.mpl_connect('button_release_event', on_release)
-#     fig.canvas.mpl_connect('motion_notify_event', on_motion)
-#     plt.show()
-#     mask_transition = np.zeros(data.shape)  # Initialize the mask_transition with zeros
-#     if len(coords) != 0:
-#         coords = interpolate_coords(coords, connect)
-#         coord_array_transition = np.array([(round(coord[0]), round(coord[1])) for coord in coords])
-#         brush = gaussian_brush(width=50, height=50, sigma=15)
-        
-#         for coord in coords:
-#             if round(coord[0]) != int(coord[0]):
-#                 print(round(coord[0]), int(coord[0])) 
-#             mask_transition = apply_brush(mask_transition, round(coord[0]), round(
-#                 coord[1]), brush)  # Note the reversed indices
-
-
-#     plt.ion() 
-#     print(coord_array_transition)
-#     plt.figure(figsize=(10, 10))  # Create a new figure explicitly
-#     plt.imshow(data, cmap='gray')
-#     plt.imshow(mask_transition, alpha=0.3, cmap='Blues')
-#     run = input("Are you happy with the result y/n or quit q: ")
-#     plt.show()
-#     plt.ioff()  # Turn on interactive mode again for subsequent plots
-
-#     if run == "y":
-#         #np.save("%s/data/%s" % (folder_save, file[:-4]), data)
-#         plt.close()
-#         np.save(folder_save_masks + "/" + file + "_mask_transition", mask_transition)
-#         np.save(folder_save_coords + "/" + file + "_coords_transition", coord_array_transition)
-
-
-#     elif run == "n":
-#         plt.close()
-#         coords.clear()  
-#         #run_again(file, coords, fig, ax)
-#     elif run == "q":
-#         sys.exit()
+def run_again(file, coords, fig, ax):
+    global folder_save_masks, folder_save_coords
     
-#     return run
+    filepath = os.path.join(folder, file)  # Full path to the file
+    data = np.load(filepath)
+    
+    ax.imshow(data, cmap='gray')
+
+    # Connect the functions to the relevant events
+    fig.canvas.mpl_connect('button_press_event', on_press)
+    fig.canvas.mpl_connect('button_release_event', on_release)
+    fig.canvas.mpl_connect('motion_notify_event', on_motion)
+    plt.show()
+
+    mask_cao = np.zeros(data.shape)  # Initialize the mask with zeros
+    cord_img = np.zeros(data.shape)  # Initialize the mask with zeros
+
+    brush = gaussian_brush(width=50, height=50, sigma=15)
+    if len(coords) != 0:
+        coords = interpolate_coords(coords, connect)
+        coord_array = np.array([(round(coord[0]), round(coord[1])) for coord in coords])
+        # for idx in coord_array:
+        #     cord_img[idx[1], idx[0]] = 1
+        
+        for coord in coords:
+            mask_cao = apply_brush(mask_cao, round(coord[0]), round(
+                coord[1]), brush)  # Note the reversed indices
+        # Run the create_path function here
+       # mask_patch_cao = fill_area_manually(coords, data.shape)
+        #create_path(folder_save_coords)
+
+        
+
+    plt.ion()
+    plt.figure(figsize=(10, 10))  # Create a new figure explicitly
+    plt.imshow(data, cmap='gray')
+    
+    plt.imshow(mask_cao, alpha=0.3, cmap='Reds')
+    run = input(f"Are you happy with the result? (y/n/q): ")
+    plt.show()
+    plt.ioff()
+
+    if run == "y":
+        plt.close()
+
+        # Save mask and coords
+        np.save(os.path.join(folder_save_coords, f"{file}_coords_{mask_type}"), coord_array)
+        np.save(os.path.join(folder_save_masks, f"{file}_mask_{mask_type}"), mask)
+
+        # Check if the user wants to fill the area inside
+        mask_filled_type = f"{mask_type}_filled"
+        mask_filled = np.zeros(data.shape)
+
+        plt.ion()
+        plt.figure(figsize=(10, 10))
+        #plt.imshow(data, cmap='gray')
+        plt.imshow(mask_filled, alpha=0.3, cmap='Reds')
+        fill = input(f"Do you want to fill the area inside the {mask_type_capitalized}? (y/n): ")
+        plt.show()
+        plt.ioff()
+
+        if fill == "y":
+            plt.close()
+            mask_filled[mask_filled > 0] = 1  # Set all non-zero values to 1
+            np.save(os.path.join(folder_save_masks, f"{file}_mask_{mask_filled_type}"), mask_filled)
+
+    elif run == "n":
+        plt.close()
+        coords.clear()
+    elif run == "q":
+        sys.exit()
 
 
-# for file in npy_files:
-#     while True:
-#         fig, ax = plt.subplots(figsize=(10, 10))
-#         coords = []
-#         connect = []
-#         # Flag to check if the mouse button is pressed
-#         drawing = False
-#         released = False
-#         run = run_again(file, coords, fig, ax)
-#         if run == "y":
-#             break
-#         elif run == "q":
-#             sys.exit()
+
+
+
+
+    print("Please draw a transition line")
+
+    # ax.imshow(data, cmap='gray')
+
+    # # Connect the functions to the relevant events
+    # fig.canvas.mpl_connect('button_press_event', on_press)
+    # fig.canvas.mpl_connect('button_release_event', on_release)
+    # fig.canvas.mpl_connect('motion_notify_event', on_motion)
+    # plt.show()
+    # mask_transition = np.zeros(data.shape)  # Initialize the mask_transition with zeros
+    # if len(coords) != 0:
+    #     coords = interpolate_coords(coords, connect)
+    #     coord_array_transition = np.array([(round(coord[0]), round(coord[1])) for coord in coords])
+    #     brush = gaussian_brush(width=50, height=50, sigma=15)
+        
+    #     for coord in coords:
+    #         if round(coord[0]) != int(coord[0]):
+    #             print(round(coord[0]), int(coord[0])) 
+    #         mask_transition = apply_brush(mask_transition, round(coord[0]), round(
+    #             coord[1]), brush)  # Note the reversed indices
+
+
+    # plt.ion() 
+    # print(coord_array_transition)
+    # plt.figure(figsize=(10, 10))  # Create a new figure explicitly
+    # plt.imshow(data, cmap='gray')
+    # plt.imshow(mask_transition, alpha=0.3, cmap='Blues')
+    # run = input("Are you happy with the result y/n or quit q: ")
+    # plt.show()
+    # plt.ioff()  # Turn on interactive mode again for subsequent plots
+
+    # if run == "y":
+    #     #np.save("%s/data/%s" % (folder_save, file[:-4]), data)
+    #     plt.close()
+    #     np.save(folder_save_masks + "/" + file + "_mask_transition", mask_transition)
+    #     np.save(folder_save_coords + "/" + file + "_coords_transition", coord_array_transition)
+
+
+    # elif run == "n":
+    #     plt.close()
+    #     coords.clear()  
+    #     #run_again(file, coords, fig, ax)
+    # elif run == "q":
+    #     sys.exit()
+    
+    return run
+
+
+for file in npy_files:
+    while True:
+        fig, ax = plt.subplots(figsize=(10, 10))
+        coords = []
+        connect = []
+        # Flag to check if the mouse button is pressed
+        drawing = False
+        released = False
+        run = run_again(file, coords, fig, ax)
+        if run == "y":
+            break
+        elif run == "q":
+            sys.exit()
