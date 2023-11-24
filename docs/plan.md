@@ -127,3 +127,15 @@ idx_list =
 
 nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.modaps.eosdis.nasa.gov/archive/orders/502046887/" --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbF9hZGRyZXNzIjoiZnZvbmRlcmxpcHBlQGdtYWlsLmNvbSIsImlzcyI6IkFQUyBPQXV0aDIgQXV0aGVudGljYXRvciIsImlhdCI6MTY5OTg5MTk0MSwibmJmIjoxNjk5ODkxOTQxLCJleHAiOjE4NTc1NzE5NDEsInVpZCI6ImZpbGlwc2V2ZXJpbiIsInRva2VuQ3JlYXRvciI6ImZpbGlwc2V2ZXJpbiJ9.HpXspqyv0ldi3i7bgqqcUXc-cx2ZQVy1Rp5J2asb8RY" -P . > 2019dec.out 2>&1 &
 nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.modaps.eosdis.nasa.gov/archive/orders/502046876/" --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbF9hZGRyZXNzIjoiZnZvbmRlcmxpcHBlQGdtYWlsLmNvbSIsImlzcyI6IkFQUyBPQXV0aDIgQXV0aGVudGljYXRvciIsImlhdCI6MTY5OTg5MTM0MSwibmJmIjoxNjk5ODkxMzQxLCJleHAiOjE4NTc1NzEzNDEsInVpZCI6ImZpbGlwc2V2ZXJpbiIsInRva2VuQ3JlYXRvciI6ImZpbGlwc2V2ZXJpbiJ9.Sd0DqwTDVTSA-wAyqirQXWP8SFiXF7OEH4cxZQPx3kE" -P . > 2021okt.out 2>&1 &
+
+
+
+### LABELING SESSION
+- Generate dataset
+  - 25% predicted by model, 25% not predicted by model, 25% random sample, 25% block randomly sampled from the three others 
+  - Get visible band sets of these
+  - compress to jpg - conserve pixel ratio
+  - Download data 
+
+
+

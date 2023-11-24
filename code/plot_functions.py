@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
+from matplotlib import colors
 import matplotlib as mpl
 from functions import *
 import importlib
@@ -131,91 +132,124 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
                       starts,
                       ends,  
                       shapes,
-                      all_lon_patches,
-                      all_lat_patches,  
                       dates,
+                      mod_min,
                       desired_label,
                       size_threshold,
+                      less_than,
                       patch_size,
-                      global_max):
+                      global_max,
+                      max_pics = 50,
+                      shuffle=False,
+                      save_np="", plot=True):
     
-
     cmap_tab10 = plt.cm.tab10
     cmap_tab20 = plt.cm.tab20
     colors_tab20 = cmap_tab20(np.arange(cmap_tab20.N))[1::2]
     colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
     extra_colors = colors_tab20
     black = np.array([0, 0, 0, 1])
-    colors_new = np.vstack((colors_tab10, colors_tab20))[:global_max-1]
+    colors_new = np.vstack((colors_tab10, colors_tab20))[:global_max]
     colors_new = np.vstack((colors_new, black))
-
+    norm = colors.Normalize(vmin=0, vmax=global_max)
     new_cmap = mcolors.ListedColormap(colors_new)
+    if shuffle:
+      # Create an index array
+        shuffled_indices = np.arange(len(x))
+
+        # Shuffle the indices
+        np.random.shuffle(shuffled_indices)
+
+        # Create new blank lists for storing the re-ordered data
+        x_new, starts_new, ends_new, shapes_new, indices_new, n_patches_tot_new, dates_new, mod_min_new = [], [], [], [], [], [], [], []
+
+        # Reorder each list based on shuffled indices
+        for i in shuffled_indices:
+            x_new.append(x[i])
+            starts_new.append(starts[i])
+            ends_new.append(ends[i])
+            shapes_new.append(shapes[i])
+            indices_new.append(indices[i])
+            n_patches_tot_new.append(n_patches_tot[i])
+            dates_new.append(dates[i])
+            mod_min_new.append(mod_min[i])
+        x, starts, ends, shapes, indices, n_patches_tot, dates, mod_min = x_new, starts_new, ends_new, shapes_new, indices_new, n_patches_tot_new, dates_new, mod_min_new
+
     # This will track which dates have been counted for each grid cell
     dates_counted = {}
-
+    dates_in_thr = []
+    time_in_thr = []
     s = 0
+    tot_pics = 0
+
     # Run through all images 
     for i in range(len(dates)):
-        print(dates[i])
+        if tot_pics < max_pics:
+            # Generate lon lat maps
+            height, width = shapes[i]
+            reduced_height = height // patch_size
+            reduced_width = width //patch_size
 
-        # Generate lon lat maps
-        height, width = shapes[i]
-        reduced_height = height // patch_size
-        reduced_width = width //patch_size
+            # Get label map
+            label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
 
-        current_lon = np.empty((n_patches_tot[i], patch_size, patch_size))
-        current_lon[np.squeeze(indices[i].numpy())] = all_lon_patches[i]
-        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, patch_size, patch_size))
+            
+            binary_map = np.isin(label_map, desired_label)
 
-        current_lat = np.empty((n_patches_tot[i], patch_size, patch_size))
-        current_lat[np.squeeze(indices[i].numpy())] = all_lat_patches[i]
-        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, patch_size, patch_size))
+            # Label connected components, considering diagonal connections
+            """USE OF DIAGONAL CONNECTIONS"""
+            # structure = ndimage.generate_binary_structure(2, 2)
+            # labeled_map, num_features = ndimage.label(binary_map, structure=structure)
+            
+            """NO DIAGONAL CONNECTIONS:"""
+            labeled_map, num_features = ndimage.label(binary_map)
 
-        # Get label map
-
-        label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
-
+            # Measure sizes of connected components
+            region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
         
-        binary_map = np.isin(label_map, desired_label)
+            # Iterate through each region and check if its size exceeds the threshold
+            if less_than and all(region_size <= size_threshold for region_size in region_sizes):
+                sum_land = np.sum(label_map==global_max) / len(label_map.flatten())     
+                if sum_land < 0.5:          
+                    if plot:
+                        fig, axs = plt.subplots(1,3, figsize=[15, 10])
+                        axs[0].imshow(x[i], cmap="gray", vmin=0, vmax=8)
+                        fig.suptitle("%s %s idx: %s\n %s" %(dates[i], mod_min[i], i, size_threshold))
 
-        # Label connected components, considering diagonal connections
-        """USE OF DIAGONAL CONNECTIONS"""
-        # structure = ndimage.generate_binary_structure(2, 2)
-        # labeled_map, num_features = ndimage.label(binary_map, structure=structure)
-        
-        """NO DIAGONAL CONNECTIONS:"""
-        labeled_map, num_features = ndimage.label(binary_map)
+                        cb =axs[1].imshow(label_map, cmap=new_cmap, norm=norm)   
+                        axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
 
-        # Measure sizes of connected components
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
-      
-        # Iterate through each region and check if its size exceeds the threshold
-        for region_idx, region_size in enumerate(region_sizes):
-            if region_size > size_threshold:
-                # fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10, 10), dpi=80)
-                # ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
-                # fig.suptitle("%s\n%s CAO found for threshold %s" %(dates[i], region_size, size_threshold))
+                        plt.colorbar(cb)
+                        plt.show()
+                    dates_in_thr.append(dates[i])
+                    time_in_thr.append(mod_min[i])
+                    tot_pics +=1
 
-                # # Scatter plot of points
-                # ax.pcolormesh(lon_lats[i][0,:,:], lon_lats[i][1,:,:], x[i][:,:,0], transform=ccrs.PlateCarree(), cmap='gray', vmin=0, vmax=7)
-                # ax.coastlines()
-                # ax.gridlines()
+            elif not less_than and any(region_size > size_threshold for region_size in region_sizes): 
+                if plot:
+                    fig, axs = plt.subplots(1,3, figsize=[15, 10])
+                    axs[0].imshow(x[i], cmap="gray", vmin=0, vmax=8)
+                    fig.suptitle("%s %s idx: %s\n CAO found for threshold %s" %(dates[i], mod_min[i], i, size_threshold))
+
+                    cb =axs[1].imshow(label_map, cmap=new_cmap, norm=norm)   
+                    axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
+
+                    plt.colorbar(cb)
+                    plt.show()
+                dates_in_thr.append(dates[i])
+                time_in_thr.append(mod_min[i])
+                tot_pics +=1
 
 
-                fig, axs = plt.subplots(1,3)
-                axs[0].imshow(x[i], cmap="gray")
-                fig.suptitle("%s idx: %s\n%s CAO found for threshold %s" %(dates[i], i, region_size, size_threshold))
+    print(len(dates_in_thr))
 
-                #axs[0].invert_xaxis()
-                #tab20 = plt.get_cmap("tab20")
+    np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_dates" %(save_np), dates_in_thr)
+    np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_dates" %(save_np), time_in_thr)
 
-                # Create a custom colormap with the first 14 colors
-                #custom_cmap = mcolors.ListedColormap(tab20.colors[:14])
-                cb =axs[1].imshow(label_map, cmap=new_cmap)   
-                axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
 
-                plt.colorbar(cb)
-                plt.show()
+    
+
+
 
         
 

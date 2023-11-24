@@ -99,7 +99,7 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
         reduced_width = (width - patch_size) // stride + 1    
 
     # Generate an empty map with all values set to global_max + 1
-    cluster_map = np.full((reduced_height, reduced_width), global_max + 1, dtype=labels.dtype)
+    cluster_map = np.full((reduced_height, reduced_width), global_max , dtype=labels.dtype)
 
     # Get the indices corresponding to the patches
     patch_indices = np.squeeze(idx.numpy())
@@ -164,7 +164,14 @@ def reconstruct_from_patches(patches, shapes, starts, ends, patch_size):
     
     return reconstructed_images
 
-def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 35, 60, 82]):
+def shuffle_in_unison(*args):
+    rng_state = np.random.get_state()
+    for array in args:
+        np.random.set_state(rng_state)
+        np.random.shuffle(array)
+
+        
+def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
     all_patches = []
     all_lon_patches = []
     all_lat_patches = []
