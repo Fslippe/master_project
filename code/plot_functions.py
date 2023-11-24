@@ -156,6 +156,8 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
     s = 0
     # Run through all images 
     for i in range(len(dates)):
+        print(dates[i])
+
         # Generate lon lat maps
         height, width = shapes[i]
         reduced_height = height // patch_size
@@ -214,6 +216,7 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
                 plt.colorbar(cb)
                 plt.show()
+
         
 
 

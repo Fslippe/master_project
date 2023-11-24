@@ -297,10 +297,12 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
     # For the last image if it's standalone
     if len(imgs_to_combine) == 1:
         combined_mod_min.append(mod_min[-1])
-        combined_ds.append(ds_all[-1][valid_cols_to_combine[0]])
+        combined_ds.append(ds_all[-1][:, valid_cols_to_combine[0]]) 
+        combined_masks.append(masks[-1][:, valid_cols_to_combine[0]]) 
+        combined_lon_lats.append(lon_lats[-1][:,:, valid_cols_to_combine[0]]) 
         combined_dates.append(dates[-1])
-        combined_masks.append(masks[-1][valid_cols_to_combine[0]])
-        combined_lon_lats.append(lon_lats[-1][valid_cols_to_combine[0]])
+        # combined_masks.append(masks[-1][valid_cols_to_combine[0]])
+        # combined_lon_lats.append(lon_lats[-1][valid_cols_to_combine[0]])
 
     return combined_ds, combined_dates, combined_masks, combined_lon_lats, combined_mod_min
 
@@ -482,6 +484,7 @@ def process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     lat = replace_out_of_bounds_with_nearest(lat, -90, 90)
     lon = replace_out_of_bounds_with_nearest(lon, -180, 180)
 
+    # Inside region of interest check
     lon_min, lon_max = -35, 45
     lat_min, lat_max = 60, 82
     
@@ -502,54 +505,41 @@ def process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
     lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 
 
-    
-
-    # lon_min, lon_max = -35, 45
-    # lat_min, lat_max = 60, 82
-
-    # mask_lat = (lat >= lat_min) & (lat <= lat_max)
-    # zoom_factor_y = data.shape[0] / lat.shape[0]
-    # zoom_factor_x = data.shape[1] / lat.shape[1]
-    # zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
-
-    # mask_highres = zoom(mask_lat, zoom_factors, order=0)  # nearest neighbor interpolation
-    # lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
-    # lon_highres = zoom(lon, zoom_factors, order=1)
-
-    # valid_rows_ll = np.any(mask_highres, axis=1)
-
-    # # Apply zenith_mask to valid_cols_lon, assuming zenith_mask is already defined
-    # valid_cols_lon = zenith_mask
-
-    # data = data[valid_rows_ll][:, valid_cols_lon]
-    # lat_highres = lat_highres[valid_rows_ll][:, valid_cols_lon]
-    # lon_highres = lon_highres[valid_rows_ll][:, valid_cols_lon]
-
-
-
-
-    #coords_lowres = np.column_stack((full_water_mask.latitude.values.ravel(), full_water_mask.longitude.values.ravel()))
 
     coords_highres = np.column_stack((lat_highres.ravel(), lon_highres.ravel()))
     distances, indices = tree.query(coords_highres, k=1,  eps=0.5)
 
     mask = full_water_mask[indices].reshape(data.shape)
 
+    # nan check of whole rows and columns
+  # Check for columns that are all NaN
     is_nan = np.isnan(data)
-
-    valid_rows = ~np.all(is_nan, axis=1)
     valid_cols = ~np.all(is_nan, axis=0)
+
+    # If any invalid columns exist, create an empty dataset
+    # if not np.all(valid_cols):
+    #     print("FOUND UNVALID DATA")
+    #     data = np.empty((0, 0))
+    # else:
+    # Check for rows that are all NaN
+    valid_rows = ~np.all(is_nan, axis=1)
+
+    # Use only valid data
     data = data[valid_rows][:, valid_cols]
     mask = mask[valid_rows][:, valid_cols]
     lon_highres = lon_highres[valid_rows][:, valid_cols]
     lat_highres = lat_highres[valid_rows][:, valid_cols]
-    
+
+    # nan check of single values inside dataset
+    is_nan = np.isnan(data)
     data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
+
     if data_shape_bool:
         data = np.where(is_nan, np.nanmean(data), data)
-        current_data_list.append(data)
     else:
-        current_data_list.append(np.empty((0,0)))
+        data = np.empty((0, 0))
+
+    current_data_list.append(data)
     
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
