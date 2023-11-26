@@ -210,7 +210,7 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
             # Iterate through each region and check if its size exceeds the threshold
             if less_than and all(region_size <= size_threshold for region_size in region_sizes):
                 sum_land = np.sum(label_map==global_max) / len(label_map.flatten())     
-                if sum_land < 0.5:          
+                if sum_land < 0.2:          
                     if plot:
                         fig, axs = plt.subplots(1,3, figsize=[15, 10])
                         axs[0].imshow(x[i], cmap="gray", vmin=0, vmax=8)
@@ -221,9 +221,10 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
                         plt.colorbar(cb)
                         plt.show()
-                    dates_in_thr.append(dates[i])
-                    time_in_thr.append(mod_min[i])
-                    tot_pics +=1
+                    if (mod_min[i] > 800) and (mod_min[i] < 1400):
+                        dates_in_thr.append(dates[i])
+                        time_in_thr.append(mod_min[i])
+                        tot_pics +=1
 
             elif not less_than and any(region_size > size_threshold for region_size in region_sizes): 
                 if plot:
@@ -236,15 +237,16 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
                     plt.colorbar(cb)
                     plt.show()
-                dates_in_thr.append(dates[i])
-                time_in_thr.append(mod_min[i])
-                tot_pics +=1
+                if (mod_min[i] > 800) and (mod_min[i] < 1400):
+                    dates_in_thr.append(dates[i])
+                    time_in_thr.append(mod_min[i])
+                    tot_pics +=1
 
 
     print(len(dates_in_thr))
 
     np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_dates" %(save_np), dates_in_thr)
-    np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_dates" %(save_np), time_in_thr)
+    np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_times" %(save_np), time_in_thr)
 
 
     

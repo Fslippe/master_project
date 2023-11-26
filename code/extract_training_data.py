@@ -37,6 +37,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      data_loc="/uio/hume/student-u37/fslippe/data/",
                      data_type="hdf"):
     
+    date_list = np.unique(np.array(date_list))
     if ds_water_mask==None:
         ds_water_mask = xr.open_dataset("%sland_sea_ice_mask/sea_land_mask.nc" %data_loc)
     all_files = []
@@ -419,7 +420,7 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     valid_rows_ll = np.any(mask_highres , axis=1)
 
     valid_cols_ll = zenith_mask
-    valid_cols_lon = np.any(mask_highres[:][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
+    valid_cols_lon = np.any(mask_highres[valid_rows_ll][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
     data = data[valid_rows_ll][:, valid_cols_ll]
     lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
     lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 
@@ -440,6 +441,8 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     lon_highres = lon_highres[valid_rows][:, valid_cols]
     lat_highres = lat_highres[valid_rows][:, valid_cols]
     
+
+
     data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
     if data_shape_bool:
         data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
