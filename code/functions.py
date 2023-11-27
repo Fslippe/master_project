@@ -267,10 +267,10 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                 # neighbors = [
                 #     (i - 1, j), (i + 1, j)
                 # ]
-                neighbors = [
-                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
-                    (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
-                ]
+                # neighbors = [
+                #     (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
+                #     (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
+                # ]
 
                 for ni, nj in neighbors:
                     if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
