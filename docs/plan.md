@@ -132,10 +132,11 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
 
 ### LABELING SESSION
 - Generate dataset
-  - 25% predicted by model, 25% not predicted by model, 25% random sample, 25% block randomly sampled from the three others 
-  - Get visible band sets of these
+  - 25% predicted by model, 25% not predicted by model, 25% random sample, 25% block randomly sampled from the three others (10, 10, 10, 10)*5 years
+  - Get visible band sets of these  
   - compress to jpg - conserve pixel ratio
   - Download data 
 
 
 
+  wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
