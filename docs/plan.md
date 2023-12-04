@@ -82,6 +82,8 @@
 
 - Combine pictures of same swath path to make it easier to undestand transitions  
 
+
+
 - Perform sensitivity tests on encoder setup 
   - SETUP OF TEST MATRIX 
   - Parameters to test
@@ -102,6 +104,8 @@
       - Clear cases with boundaries 
       - randomized cases. 
 
+- Wind direction and transition extraction
+  - Using minimum threshold for sizes of label areas to mask unsure predictions. 
 
 #### TEST MATRIX
 -- TESTING accuracy metric 

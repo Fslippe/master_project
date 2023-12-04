@@ -58,26 +58,7 @@ def convert_to_standard_date(date_str):
     # Return in the desired format
     return date_obj.strftime('%Y%m%d')
 
-# def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
-#     # Calculate the dimensions of the reduced resolution array
-#     print(shape)
-#     height, width = shape
-#     if stride == None:
-#         size_mult = 1
-#     else:
-#         size_mult = patch_size // stride
-        
-#     reduced_height = height // patch_size * size_mult
-#     reduced_width = width //patch_size * size_mult
 
-#     # Generate map with empty land clusters 
-#     current_labels = np.ones((n_patches))*(global_max+1)
-
-    
-#     current_labels[np.squeeze(idx.numpy())] = labels[start:end]
-#     cluster_map =  np.reshape(current_labels, (reduced_height, reduced_width))
-
-#     return cluster_map
 
 def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
     # Calculate the dimensions of the reduced resolution array
@@ -246,17 +227,200 @@ def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, globa
     return patches_w
 
 
-
-
 import numpy as np
+import pyproj
+from skimage import measure
+from shapely.geometry import LineString
+import matplotlib.pyplot as plt
 
-import numpy as np
 
-def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None):
+
+def perpendicular_distance(point, line_start, line_end):
+    """
+    Calculate the perpendicular distance from a point to a line defined by two endpoints.
+    """
+    x0, y0 = point
+    x1, y1 = line_start
+    x2, y2 = line_end
+
+    numerator = np.abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+    denominator = np.sqrt((y2 - y1)**2 + (x2 - x1)**2)
+
+    return numerator / denominator if denominator != 0 else 0
+
+def douglas_peucker(point_list, epsilon):
+    """
+    Douglas-Peucker algorithm for line simplification.
+    Returns the simplified coordinates and the indices of points inside the epsilon.
+    """
+    dmax = 0
+    index = 0
+    end = len(point_list)
+
+    for i in range(2, end - 1):
+        d = perpendicular_distance(point_list[i], point_list[0], point_list[end - 1])
+        if d > dmax:
+            index = i
+            dmax = d
+
+
+    result_list = []
+    indices_inside_epsilon = []
+
+    if dmax > epsilon:
+        rec_results1, rec_indices1 = douglas_peucker(point_list[:index + 1], epsilon)
+        rec_results2, rec_indices2 = douglas_peucker(point_list[index:], epsilon)
+
+        # Build the result list
+        result_list = rec_results1[:-1] + rec_results2
+        indices_inside_epsilon = rec_indices1 + [index] + [i + index for i in rec_indices2]
+    else:
+        result_list = [point_list[0], point_list[end - 1]]
+
+    return result_list, indices_inside_epsilon
+
+
+
+
+
+def simplify_line(coords, tolerance):
+    line = LineString(coords)
+    print("line", len(line))
+    simplified_line = line.simplify(tolerance, preserve_topology=False)
+    return np.array(simplified_line.xy).T
+
+def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None, simplification_tolerance=0.1):
+    lons = []
+    lats = []
+    angles = []
+    orientations = []
+
+    geodesic = pyproj.Geod(ellps='WGS84')
+
+    if size_threshold_1:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label1])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+
+        # Loop through each region and check if the region size is below the threshold
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_threshold_1:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+    if size_threshold_2:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label2])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+
+        # Loop through each region and check if the region size is below the threshold
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_threshold_2:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            if m[i, j] == label1:
+                neighbors = [
+                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
+                    (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
+                ]
+
+
+                for ni, nj in neighbors:
+                    if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
+                        if m[ni, nj] == label2:
+                            # Interpolate lon/lat values for the boundary
+                            interp_lon = (lon_map[i, j] + lon_map[ni, nj]) / 2
+                            interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
+
+                            # Calculate relative positions of label1 and label2
+                            label_position = (lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
+                            orientations.append(label_position)
+
+                            lons.append(interp_lon)
+                            lats.append(interp_lat)
+
+    # Combine lon and lat coordinates into a single array
+    coords = np.column_stack((lons, lats))
+
+    # Simplify the boundary using the Ramer–Douglas–Peucker algorithm
+    #simplified_coords = simplify_line(coords, simplification_tolerance)
+    simplified_coords, indices_inside=  (douglas_peucker(coords, simplification_tolerance))
+    print(indices_inside)
+    print(np.array(simplified_coords))
+    print(len(simplified_coords))
+    print(len(coords))
+    plt.scatter(coords[:,0], coords[:,1])
+    plt.scatter(simplified_coords[:,0], simplified_coords[ :,1], s=10)
+    plt.show()
+    # Calculate angles for the simplified coordinates
+    for i in range(1, len(simplified_coords)):
+        lon1, lat1 = simplified_coords[i - 1]
+        lon2, lat2 = simplified_coords[i]
+        
+        # Calculate the angle
+        _, angle, _ = geodesic.inv(lon1, lat1, lon2, lat2)
+
+        angle = (angle + 360) % 360
+        
+        # Find indices of points in the original coordinates that match the simplified coordinates
+        indices = np.where(np.logical_and(lons == lon1, lats == lat1))
+        idx1 = indices[0][0] if len(indices[0]) > 0 else None
+        
+        indices = np.where(np.logical_and(lons == lon2, lats == lat2))
+        idx2 = indices[0][0] if len(indices[0]) > 0 else None
+        
+        # Fill angles for points between idx1 and idx2
+        if idx1 is not None and idx2 is not None:
+            linear_vec = (lon2-lon1, lat2-lat1)
+            avg_orientation = np.mean(orientations[idx1:idx2], axis=0)
+            cross_product = linear_vec[0] * avg_orientation[1] - linear_vec[1] * avg_orientation[0] 
+            angle_right = True if cross_product > 0 else False
+            for j in range(idx1, idx2):
+                angles.append(angle if angle_right else (angle + 180) % 360)
+
+
+        
+    print(len(angles))
+    return lons, lats, angles
+
+
+
+
+def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None):
     lons = []
     lats = []
     angles = []
     geodesic = pyproj.Geod(ellps='WGS84')
+
+
+    if size_threshold_1:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label1])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+
+        # Loop through each region and check if the region size is below the threshold
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_threshold_1:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+    if size_threshold_2:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label2])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+
+        # Loop through each region and check if the region size is below the threshold
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_threshold_2:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+
+
 
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
@@ -267,10 +431,10 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                 # neighbors = [
                 #     (i - 1, j), (i + 1, j)
                 # ]
-                # neighbors = [
-                #     (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
-                #     (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
-                # ]
+                neighbors = [
+                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
+                    (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
+                ]
 
                 for ni, nj in neighbors:
                     if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
@@ -279,15 +443,9 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                             interp_lon = (lon_map[i, j] + lon_map[ni, nj]) / 2
                             interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
                             lons.append(interp_lon)
-
                             lats.append(interp_lat)
-                            # km_conv = 111.111 * np.cos(interp_lat/180*np.pi)
-                            # print(km_conv)
-                            # delta_lon = (lon_map[ni, nj] - lon_map[i, j])*km_conv
-                            # delta_lat = (lat_map[ni, nj] - lat_map[i, j])*111.111
 
                             # #Calculate the angle
-                            # angle = np.arctan2(delta_lon, delta_lat) * 180 / np.pi
                             angle,angle2,distance = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
                             angle2 = (angle2 + 360) % 360
 
