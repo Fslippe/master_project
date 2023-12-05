@@ -1,7 +1,7 @@
 import numpy as np 
 from scipy import ndimage
 from scipy.stats import linregress
-
+import pyproj
 from autoencoder import * 
 import datetime
 import xarray as xr
@@ -256,16 +256,16 @@ def douglas_peucker(point_list, epsilon):
     dmax = 0
     index = 0
     end = len(point_list)
-
+    tot_indices = []
     for i in range(2, end - 1):
         d = perpendicular_distance(point_list[i], point_list[0], point_list[end - 1])
         if d > dmax:
             index = i
             dmax = d
-
+        
 
     result_list = []
-    indices_inside_epsilon = []
+    indices_inside_epsilon = [False] * len(point_list)
 
     if dmax > epsilon:
         rec_results1, rec_indices1 = douglas_peucker(point_list[:index + 1], epsilon)
@@ -273,19 +273,18 @@ def douglas_peucker(point_list, epsilon):
 
         # Build the result list
         result_list = rec_results1[:-1] + rec_results2
-        indices_inside_epsilon = rec_indices1 + [index] + [i + index for i in rec_indices2]
+        indices_inside_epsilon[:index + 1] = rec_indices1
+        indices_inside_epsilon[index:] = rec_indices2
     else:
         result_list = [point_list[0], point_list[end - 1]]
 
     return result_list, indices_inside_epsilon
 
 
-
-
+from scipy.interpolate import CubicSpline
 
 def simplify_line(coords, tolerance):
     line = LineString(coords)
-    print("line", len(line))
     simplified_line = line.simplify(tolerance, preserve_topology=False)
     return np.array(simplified_line.xy).T
 
@@ -339,28 +338,36 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                             # Calculate relative positions of label1 and label2
                             label_position = (lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
                             orientations.append(label_position)
+                            #_, angle, _ = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
+                            #orientations.append((angle +360 ) % 360)
 
                             lons.append(interp_lon)
                             lats.append(interp_lat)
 
-    # Combine lon and lat coordinates into a single array
-    coords = np.column_stack((lons, lats))
 
+    
+    # Combine lon and lat coordinates into a single array
+    
+    coords = np.column_stack((lons, lats))
+    
     # Simplify the boundary using the Ramer–Douglas–Peucker algorithm
-    #simplified_coords = simplify_line(coords, simplification_tolerance)
-    simplified_coords, indices_inside=  (douglas_peucker(coords, simplification_tolerance))
-    print(indices_inside)
-    print(np.array(simplified_coords))
-    print(len(simplified_coords))
-    print(len(coords))
+    simplified_coords = simplify_line(coords, simplification_tolerance)
+    #simplified_coords, indices_inside = douglas_peucker(coords, simplification_tolerance)
+    #print(indices_inside)
+    #print(np.array(simplified_coords))
+    #print(len(simplified_coords))
+    #print(len(coords))
+    plt.figure(figsize=[10,10])
     plt.scatter(coords[:,0], coords[:,1])
-    plt.scatter(simplified_coords[:,0], simplified_coords[ :,1], s=10)
-    plt.show()
+    for i in range(len(np.array(simplified_coords))):
+        plt.scatter(np.array(simplified_coords)[i,0], np.array(simplified_coords)[ i,1], s=100, label="%s" %(i+1))
+
+    plt.legend()
     # Calculate angles for the simplified coordinates
     for i in range(1, len(simplified_coords)):
         lon1, lat1 = simplified_coords[i - 1]
         lon2, lat2 = simplified_coords[i]
-        
+        plt.plot([lon1, lon2], [lat1,lat2])
         # Calculate the angle
         _, angle, _ = geodesic.inv(lon1, lat1, lon2, lat2)
 
@@ -377,15 +384,203 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
         if idx1 is not None and idx2 is not None:
             linear_vec = (lon2-lon1, lat2-lat1)
             avg_orientation = np.mean(orientations[idx1:idx2], axis=0)
+            # avg_orientation = mean_angle(orientations[idx1:idx2])
             cross_product = linear_vec[0] * avg_orientation[1] - linear_vec[1] * avg_orientation[0] 
-            angle_right = True if cross_product > 0 else False
+            angle_right = True if cross_product < 0 else False
             for j in range(idx1, idx2):
-                angles.append(angle if angle_right else (angle + 180) % 360)
+                angles.append((angle-90) % 360 if angle_right else (angle +90) % 360)
+    plt.show()
 
 
         
     print(len(angles))
     return lons, lats, angles
+
+
+def mean_angle(angles):
+    """
+    Calculate the mean angle of a list of angles in degrees.
+    """
+    angles_rad = np.radians(angles)
+    mean_vector = np.mean(np.exp(1j * angles_rad))
+    mean_angle_rad = np.angle(mean_vector)
+    mean_angle_deg = np.degrees(mean_angle_rad)
+    return (mean_angle_deg + 360) % 360  # Convert back to the [0, 360) range
+
+
+def calculate_angle(slope):
+    return np.degrees(np.arctan(slope))
+
+# Function to fit linear regression and calculate angle
+def fit_linear_regression(coords):
+    x, y = coords[:, 0], coords[:, 1]
+    slope, _, _, _, _ = linregress(x, y)
+    vec = (slope, 1)
+    return vec
+
+
+
+
+
+def rotate_vector(vector, angle):
+    # Convert angle to radians
+    angle_rad = np.radians(angle)
+
+    # Define rotation matrix for the specified angle
+    rotation_matrix = np.array([[np.cos(angle_rad), -np.sin(angle_rad)],
+                                [np.sin(angle_rad), np.cos(angle_rad)]])
+
+    # Rotate the vector using the matrix
+    rotated_vector = np.dot(rotation_matrix, vector)
+
+    return rotated_vector
+
+def find_closest_angle(initial_angle, avg_orientation):
+    # Convert initial_angle and avg_orientation to radians
+    initial_angle_rad = np.radians(initial_angle)
+    avg_orientation_rad = np.radians(avg_orientation)
+
+    # Create unit vectors in the direction of initial_angle and avg_orientation
+    initial_vector = np.array([np.cos(initial_angle_rad), np.sin(initial_angle_rad)])
+    avg_orientation_vector = np.array([np.cos(avg_orientation_rad), np.sin(avg_orientation_rad)])
+
+    # Rotate the initial vector both left and right
+    rotated_left = rotate_vector(initial_vector, 90)  # Rotate left
+    rotated_right = rotate_vector(initial_vector, -90)  # Rotate right
+
+    # Calculate the angular differences between the rotated vectors and avg_orientation
+    diff_left = np.abs(np.degrees(np.arccos(np.dot(rotated_left, avg_orientation_vector))))
+    diff_right = np.abs(np.degrees(np.arccos(np.dot(rotated_right, avg_orientation_vector))))
+
+    # Choose the rotation direction that gives the minimum angular difference
+    if np.min(diff_left) < np.min(diff_right):
+        return initial_angle - 90  # Rotate left
+    else:
+        return initial_angle + 90  # Rotate right
+
+
+def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None, n_closest=10):
+    lons = []
+    lats = []
+    angles = []
+    orientations = []
+
+    geodesic = pyproj.Geod(ellps='WGS84')
+
+    if size_threshold_1:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label1])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+
+        # Loop through each region and check if the region size is below the threshold
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_threshold_1:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+
+    if size_threshold_2:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label2])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+
+        # Loop through each region and check if the region size is below the threshold
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_threshold_2:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+
+    for i in range(m.shape[0]):
+        for j in range(m.shape[1]):
+            if m[i, j] == label1:
+                neighbors = [
+                    (i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1),
+                    (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
+                ]
+
+
+                for ni, nj in neighbors:
+                    if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
+                        if m[ni, nj] == label2:
+                            # Interpolate lon/lat values for the boundary
+                            interp_lon = (lon_map[i, j] + lon_map[ni, nj]) / 2
+                            interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
+
+                            # Calculate relative positions of label1 and label2
+                            label_position = (lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
+                            orientations.append(label_position)
+                            #_, angle, _ = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
+                            #orientations.append((angle +360 ) % 360)
+
+                            lons.append(interp_lon)
+                            lats.append(interp_lat)
+
+
+    
+    # Combine lon and lat coordinates into a single array
+    lons = np.array(lons)
+    lats = np.array(lats)
+    orientations = np.array(orientations)
+
+
+    coords = np.column_stack((lons, lats))
+    all_vecs = []
+
+    for i in range(len(lons)):
+        # Calculate distances to all other points
+        distances = [geodesic.inv(lons[i], lats[i], lon2, lat2)[2] for lon2, lat2 in zip(lons, lats)]
+        #_, _, distance = geodesic.inv(lons, lats, lons[i], lats[i])
+        #distances = np.sqrt((lons - lons[i])**2 + (lats - lats[i])**2)
+        closest_indices = np.argsort(distances)[1:n_closest+1]
+        closest_coords = np.column_stack((lons[closest_indices], lats[closest_indices]))
+        orientations[i] = np.mean(orientations[closest_indices], axis=0)
+        vec = fit_linear_regression(closest_coords)
+        all_vecs.append(vec)
+
+
+    all_vecs = np.array(all_vecs)
+    for i, vec in enumerate(all_vecs):
+        _, angle, _ = geodesic.inv(lons[i], lats[i], lons[i]+0.001, lats[i]+0.001*vec[0])
+        angle = (angle + 360) % 360
+        avg_orientation = orientations[i]
+        # avg_orientation = mean_angle(orientations[idx1:idx2])
+        #cross_product = vec[0] * avg_orientation[1] - vec[1] * avg_orientation[0] 
+        #angle_right = True if cross_product < 0 else False
+        avg_orientation_angle = (geodesic.inv(lons[i], lats[i], lons[i]+0.001*avg_orientation[0], lats[i]+0.001*avg_orientation[1])[1] + 360) % 360
+        #angle_right = abs((angle-90 - avg_orientation_angle + 180) % 360 - 180) < abs((angle+90 - avg_orientation_angle + 180) % 360 - 180)
+        #angles.append((angle-90) % 360 if angle_right else (angle +90) % 360)
+        angle = (find_closest_angle(angle, avg_orientation_angle) + 360) % 360
+
+        angles.append(angle)
+    plt.show()
+
+
+        
+    print(len(angles))
+    return lons, lats, angles
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

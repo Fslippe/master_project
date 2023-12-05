@@ -106,7 +106,11 @@
 
 - Wind direction and transition extraction
   - Using minimum threshold for sizes of label areas to mask unsure predictions. 
-
+  - Using Douglas Peucker algorithm to get lines that can be used as angles. 
+    - Problem: data not ordered on a line, but in terms of position in 2d-Space
+  - Using linear regression on closest datapoints
+    - REMBEMBER TO USE max distance for closest points to count towards linreg
+  
 #### TEST MATRIX
 -- TESTING accuracy metric 
 
