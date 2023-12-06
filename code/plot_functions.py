@@ -345,7 +345,7 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, 
 
     ax.coastlines()
     ax.gridlines()
-
+    return ax
 
 # def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):
 #     fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(10,10), dpi=200)

@@ -6,6 +6,7 @@ from autoencoder import *
 import datetime
 import xarray as xr
 import pyproj
+geodesic = pyproj.Geod(ellps='WGS84')
 
 
 def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
@@ -16,8 +17,60 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
     ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
     wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
     
-
+    wind_dir = (wind_dir +270) % 360
     return np.float32(wind_dir)
+
+
+def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_distance):
+    for lon_i, lat_i in zip(lons, lats):
+        # Calculate vector angle for the current pair of longitude and latitude
+        _, angle, distance = geodesic.inv(lon, lat, lon_i, lat_i)
+        if distance > min_distance:
+            vector_angle = (angle + 360) % 360
+            # Check if the angle difference is within the threshold range of the wind direction
+            if abs((vector_angle - wind_direction + 180) % 360 - 180) <= threshold:
+                #print(wind_direction, vector_angle)
+                #print(lon, lon_i, lat, lat_i)
+                #print(abs((vector_angle - wind_direction + 180) % 360 - 180))
+
+                print("wind_Dir", wind_direction)
+                print("vector", vector_angle)
+
+                print("distance", distance)
+                print("lat", lat, lat_i)
+                print("lon", lon, lon_i)
+                
+
+                return True, lon, lat, lon_i, lat_i  # Return True if any angle is within the threshold
+
+    return False, 0, 0, 0, 0  # Return False if no angles are within the threshold
+
+
+
+def step_against_wind(lon, lat, wind_direction):
+    # Step 32 km against the wind direction
+    step_distance = 32  # Adjust as needed
+
+    # Calculate the longitudinal scale at the given latitude
+
+    # Adjust the step in longitude based on the scale
+
+    step_lon = step_distance / (111.111 * np.cos(np.radians(lat)))
+
+    new_lon = lon + step_lon * np.sin(np.radians(wind_direction-180))
+    new_lat = lat + step_distance / 111.111 * np.cos(np.radians(wind_direction))
+    return new_lon, new_lat
+
+def is_closer_to_any_point(original_lon, original_lat, new_lon, new_lat, existing_lons, existing_lats):
+    # Check if the new point is closer to any existing point
+    original_distance = geodesic.inv(new_lon, new_lat, original_lon, original_lat)[2]
+
+    for (existing_lon, existing_lat) in zip(existing_lons, existing_lats):
+        distance = geodesic.inv(new_lon, new_lat, existing_lon, existing_lat)[2]
+        # Extract the distance from the result
+        if distance < original_distance:  # You may adjust this threshold
+            return True
+    return False
 
 
 def convert_to_day_of_year(date_str):
@@ -589,7 +642,6 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
     lons = []
     lats = []
     angles = []
-    geodesic = pyproj.Geod(ellps='WGS84')
 
 
     if size_threshold_1:
@@ -647,6 +699,10 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
                             angles.append(angle2)
 
     print(np.min(np.array(angle2)), np.max(np.array(angle2)))
+
+
+
+
 
     if max_distance_to_avg != None:
         for i in range(len(lons)):

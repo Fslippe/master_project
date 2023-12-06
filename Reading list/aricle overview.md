@@ -40,7 +40,6 @@
 - A Lagrangian Climatology of Wintertime Cold Air Outbreaks in the Irminger and Nordic Seas and Their Role in Shaping Air–Sea Heat Fluxes (https://journals.ametsoc.org/view/journals/clim/30/8/jcli-d-16-0605.1.xml)
 - Cold-Air Outbreaks in the Marine Boundary Layer Experiment (COMBLE) Field Campaign Report (https://www.arm.gov/publications/programdocs/doe-sc-arm-21-001.pdf)
 - Lukas Papritz and Thomas Spengler 2017: A Lagrangian Climatology of Wintertime Cold Air Outbreaks in the Irminger and Nordic Seas and Their Role in Shaping Air–Sea Heat Fluxes (https://journals.ametsoc.org/view/journals/clim/30/8/jcli-d-16-0605.1.xml)
-- Cold-Air Outbreaks in the Marine Boundary Layer Experiment (COMBLE) Field Campaign Report (https://www.arm.gov/publications/programdocs/doe-sc-arm-21-001.pdf)
 - Sandro Dahlke et al. 2021: Cold Air Outbreaks in Fram Strait: Climatology, Trends, and Observations During an Extreme Season in 2020 (https://agupubs.onlinelibrary.wiley.com/doi/pdf/10.1029/2021JD035741)
 
 

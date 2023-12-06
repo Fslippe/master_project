@@ -110,7 +110,23 @@
     - Problem: data not ordered on a line, but in terms of position in 2d-Space
   - Using linear regression on closest datapoints
     - REMBEMBER TO USE max distance for closest points to count towards linreg
-  
+    - Problem: Linreg can be combination of different orientations that are orthogonal, Using what is wrong to fix it gives just more problems
+  - Using Wind direction to check if there are boundaries more upwind. 
+    - Use average wind direction of CAO / open cells
+      - Inaccurate
+    - Follow contour lines
+      - Problems:
+        - super computationally intensive 
+        - Hard to define what the contour lines should "hit" - a regression line or a point? - Either more computation or innacuracy because of holes in dataset. One also have to interpolate to closest grid cell of satellite swath. 
+    - Step with wind direction and check if any other points closer than original point.
+      - if so check angle between new point and that point and see if it is in the direction of the wind +/- some threshold
+      - Problems:
+    - Make threshold check between every angle of all points and compare to wind_dir
+    - Step with wind direction and check if any other points closer than before. 
+    - Step one step with wind direction and check if any angle of other points matches up wind wind_direction of new point +/- some threshold.  
+    - Problems for all
+      - Computationally intensive
+
 #### TEST MATRIX
 -- TESTING accuracy metric 
 
