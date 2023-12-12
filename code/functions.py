@@ -22,39 +22,42 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
 
 
 def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_distance):
+    new_lon, new_lat = step_against_wind(lon, lat, (wind_direction+180) % 360, step_distance = 100)
     for lon_i, lat_i in zip(lons, lats):
         # Calculate vector angle for the current pair of longitude and latitude
-        _, angle, distance = geodesic.inv(lon, lat, lon_i, lat_i)
+
+        _, angle, distance = geodesic.inv(new_lon, new_lat, lon_i, lat_i)
         if distance > min_distance:
             vector_angle = (angle + 360) % 360
             # Check if the angle difference is within the threshold range of the wind direction
             if abs((vector_angle - wind_direction + 180) % 360 - 180) <= threshold:
-                #print(wind_direction, vector_angle)
-                #print(lon, lon_i, lat, lat_i)
-                #print(abs((vector_angle - wind_direction + 180) % 360 - 180))
-
-                print("wind_Dir", wind_direction)
-                print("vector", vector_angle)
-
-                print("distance", distance)
-                print("lat", lat, lat_i)
-                print("lon", lon, lon_i)
-                
-
                 return True, lon, lat, lon_i, lat_i  # Return True if any angle is within the threshold
 
     return False, 0, 0, 0, 0  # Return False if no angles are within the threshold
 
 
+def check_angle_threshold_downwind(wind_direction, lons, lats, lon, lat, threshold, min_distance):
+    filtered_lons = []
+    filtered_lats = []
+    idx = []
+    for i, (lon_i, lat_i) in enumerate(zip(lons, lats)):
+        # Calculate vector angle for the current pair of longitude and latitude
+        _, angle, distance = geodesic.inv(lon, lat, lon_i, lat_i)
+        if distance > min_distance:
+            vector_angle = (angle + 360) % 360
+            # Check if the angle difference is within the threshold range of the wind direction
+            if not abs((vector_angle - wind_direction) % 360 - 180) <= threshold:
+                filtered_lons.append(lon_i)
+                filtered_lats.append(lat_i)
 
-def step_against_wind(lon, lat, wind_direction):
-    # Step 32 km against the wind direction
-    step_distance = 32  # Adjust as needed
 
-    # Calculate the longitudinal scale at the given latitude
+        else:
+            filtered_lons.append(lon_i)
+            filtered_lats.append(lat_i)
 
-    # Adjust the step in longitude based on the scale
+    return filtered_lons, filtered_lats  
 
+def step_against_wind(lon, lat, wind_direction, step_distance = 32):
     step_lon = step_distance / (111.111 * np.cos(np.radians(lat)))
 
     new_lon = lon + step_lon * np.sin(np.radians(wind_direction-180))
