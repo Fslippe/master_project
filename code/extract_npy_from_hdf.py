@@ -53,7 +53,7 @@ def main():
                "/scratch/fslippe/modis/MOD02/night_1km/",
                "/scratch/fslippe/modis/MOD02/may-nov_2021/",
                "/scratch/fslippe/modis/MOD02/cao_test_data/"]
-    folders = ["/uio/hume/student-u37/fslippe/nird_mod02/2019/"]
+    folders = ["/uio/hume/student-u37/fslippe/mounts/nird_mod02/2019/"]
 
     all_files = get_all_files_in_folders(folders)#[1000:]
     length = (len(all_files))

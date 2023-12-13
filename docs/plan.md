@@ -104,7 +104,7 @@
       - Clear cases with boundaries 
       - randomized cases. 
 
-- Wind direction and transition extraction
+#### Wind direction and transition extraction
   - Using minimum threshold for sizes of label areas to mask unsure predictions. 
   - Using Douglas Peucker algorithm to get lines that can be used as angles. 
     - Problem: data not ordered on a line, but in terms of position in 2d-Space
@@ -121,11 +121,18 @@
     - Step with wind direction and check if any other points closer than original point.
       - if so check angle between new point and that point and see if it is in the direction of the wind +/- some threshold
       - Problems:
+    - # Step with wind 100km
+      - Check angle with every points.
+      - Only append for those who dont have points more upwind inside a threshold +/-5 degrees 
+      
     - Make threshold check between every angle of all points and compare to wind_dir
     - Step with wind direction and check if any other points closer than before. 
     - Step one step with wind direction and check if any angle of other points matches up wind wind_direction of new point +/- some threshold.  
     - Problems for all
       - Computationally intensive
+
+#### Reanalysis boundary extraction
+- get all reanalysis points closest to boundary and step with wind from this. 
 
 #### TEST MATRIX
 -- TESTING accuracy metric 
@@ -161,6 +168,20 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
   - compress to jpg - conserve pixel ratio
   - Download data 
 
+
+
+### Weekly plan
+- #Find out way of removing downwind boundaries 
+- Make Histogram maps
+- Prepare model tests by running with different simulations
+  - Use only 2019-2023 or download more data?
+
+
+
+#### TODAYS PLAN
+- Try to perform histograms on new data
+  - Histogram maps is of most interest
+    - Save counts for each year by month, to see evolution of the maps
 
 
   wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results

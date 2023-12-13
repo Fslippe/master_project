@@ -1,12 +1,107 @@
 import numpy as np 
 from scipy import ndimage
 from scipy.stats import linregress
+import cartopy.crs as ccrs
 import pyproj
+from scipy.spatial import cKDTree
 from autoencoder import * 
 import datetime
 import xarray as xr
 import pyproj
 geodesic = pyproj.Geod(ellps='WGS84')
+
+def generate_xy_grid(x_extent = [-2.2e6, 2.2e6], y_extent = [-3.6e6, -0.5e6], grid_resolution=128e3):
+    x_grid, y_grid = np.meshgrid(np.arange(x_extent[0], x_extent[1], grid_resolution),
+                                np.arange(y_extent[0], y_extent[1], grid_resolution))
+    return x_grid, y_grid
+def generate_hist_map(n_patches_tot,
+                      indices,
+                      labels,
+                      starts,
+                      ends,  
+                      shapes,
+                      all_lon_patches,
+                      all_lat_patches,  
+                      dates,
+                      desired_label,
+                      size_threshold,
+                      patch_size,
+                      global_max,
+                      projection = ccrs.Stereographic(central_latitude=90),
+                      grid_resolution = 128e3):
+    
+    # Generate grid to add counts on
+   
+    x_grid, y_grid = generate_xy_grid(grid_resolution=grid_resolution)
+    # Initialize the count matrix
+    counts = np.zeros_like(x_grid)
+        
+    # Create a KDTree for faster nearest neighbor search
+    tree = cKDTree(list(zip(x_grid.ravel(), y_grid.ravel())))
+
+    # This will track which dates have been counted for each grid cell
+    dates_counted = {}
+
+    s = 0
+    # Run through all images 
+    for i in range(len(dates)):
+        # Generate lon lat maps
+        height, width = shapes[i]
+        reduced_height = height // patch_size
+        reduced_width = width //patch_size
+
+        current_lon = np.empty((n_patches_tot[i], patch_size, patch_size))
+        current_lon[np.squeeze(indices[i].numpy())] = all_lon_patches[i]
+        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, patch_size, patch_size))
+
+        current_lat = np.empty((n_patches_tot[i], patch_size, patch_size))
+        current_lat[np.squeeze(indices[i].numpy())] = all_lat_patches[i]
+        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, patch_size, patch_size))
+
+        # Get label map
+
+        label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
+
+        
+        binary_map = np.isin(label_map, desired_label)
+
+        # Label connected components, considering diagonal connections
+        """USE OF DIAGONAL CONNECTIONS"""
+        structure = ndimage.generate_binary_structure(2, 2)
+        labeled_map, num_features = ndimage.label(binary_map, structure=structure)
+        
+        """NO DIAGONAL CONNECTIONS:"""
+        #labeled_map, num_features = ndimage.label(binary_map)
+
+        # Measure sizes of connected components
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+      
+
+        # Iterate through each region and check if its size exceeds the threshold
+        for region_idx, region_size in enumerate(region_sizes):
+            if region_size >= size_threshold:
+                # Get the indices of the region
+                region_coordinates = np.where(labeled_map == region_idx)
+                
+                # Convert to projected coordinates
+                x_proj, y_proj = projection.transform_points(ccrs.PlateCarree(), 
+                                                            lon_map[region_coordinates].ravel(), 
+                                                            lat_map[region_coordinates].ravel())[:, :2].T
+                s+=1
+
+                # Query the KDTree for nearest grid points
+                _, idxs = tree.query(list(zip(x_proj, y_proj)))  
+
+                # Check and Increment the counts based on date condition
+                for idx in idxs:
+                    if idx not in dates_counted:
+                        dates_counted[idx] = set()
+                    if dates[i] not in dates_counted[idx]:
+                        counts.ravel()[idx] += 1
+                        dates_counted[idx].add(dates[i])
+            
+
+    return x_grid, y_grid, counts
 
 
 def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
@@ -31,9 +126,9 @@ def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_d
             vector_angle = (angle + 360) % 360
             # Check if the angle difference is within the threshold range of the wind direction
             if abs((vector_angle - wind_direction + 180) % 360 - 180) <= threshold:
-                return True, lon, lat, lon_i, lat_i  # Return True if any angle is within the threshold
+                return True  # Return True if any angle is within the threshold
 
-    return False, 0, 0, 0, 0  # Return False if no angles are within the threshold
+    return False # Return False if no angles are within the threshold
 
 
 def check_angle_threshold_downwind(wind_direction, lons, lats, lon, lat, threshold, min_distance):

@@ -1,5 +1,4 @@
 import numpy as np
-import cartopy.crs as ccrs
 from scipy.spatial import cKDTree
 from scipy import ndimage
 import matplotlib.colors as mcolors
@@ -10,120 +9,18 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from matplotlib import colors
 import matplotlib as mpl
+import cartopy.feature as cfeature
 from functions import *
 import importlib
 import functions 
 from scipy.spatial import distance_matrix
 importlib.reload(functions)
 from functions import * 
-
+from matplotlib.colors import ListedColormap
+plt.style.use("bmh")
 
 # Define the grid in projected coordinates
-def generate_hist_map(n_patches_tot,
-                      indices,
-                      labels,
-                      starts,
-                      ends,  
-                      shapes,
-                      all_lon_patches,
-                      all_lat_patches,  
-                      dates,
-                      desired_label,
-                      size_threshold,
-                      patch_size,
-                      global_max,
-                      projection = ccrs.Stereographic(central_latitude=90),
-                      grid_resolution = 100e3):
-    
-    # Generate grid to add counts on
-    x_extent = [-4e6, 4e6]
-    y_extent = [-4e6, 4e6]
-    x_grid, y_grid = np.meshgrid(np.arange(x_extent[0], x_extent[1], grid_resolution),
-                                np.arange(y_extent[0], y_extent[1], grid_resolution))
 
-    # Initialize the count matrix
-    counts = np.zeros_like(x_grid)
-        
-    # Create a KDTree for faster nearest neighbor search
-    tree = cKDTree(list(zip(x_grid.ravel(), y_grid.ravel())))
-
-    # This will track which dates have been counted for each grid cell
-    dates_counted = {}
-
-    s = 0
-    # Run through all images 
-    for i in range(len(dates)):
-        # Generate lon lat maps
-        height, width = shapes[i]
-        reduced_height = height // patch_size
-        reduced_width = width //patch_size
-
-        current_lon = np.empty((n_patches_tot[i], patch_size, patch_size))
-        current_lon[np.squeeze(indices[i].numpy())] = all_lon_patches[i]
-        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, patch_size, patch_size))
-
-        current_lat = np.empty((n_patches_tot[i], patch_size, patch_size))
-        current_lat[np.squeeze(indices[i].numpy())] = all_lat_patches[i]
-        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, patch_size, patch_size))
-
-        # Get label map
-
-        label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
-
-        
-        binary_map = np.isin(label_map, desired_label)
-
-        # Label connected components, considering diagonal connections
-        """USE OF DIAGONAL CONNECTIONS"""
-        structure = ndimage.generate_binary_structure(2, 2)
-        labeled_map, num_features = ndimage.label(binary_map, structure=structure)
-        
-        """NO DIAGONAL CONNECTIONS:"""
-        #labeled_map, num_features = ndimage.label(binary_map)
-
-        # Measure sizes of connected components
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
-      
-
-        # Iterate through each region and check if its size exceeds the threshold
-        for region_idx, region_size in enumerate(region_sizes):
-            if region_size > size_threshold:
-                # fig, axs = plt.subplots(1,3)
-                # fig.suptitle("%s\nCAO found for threshold %s" %(dates[i], size_threshold))
-                # axs[0].imshow(x[i], cmap="gray")
-
-                # #axs[0].invert_xaxis()
-                # tab20 = plt.get_cmap("tab20")
-
-                # # Create a custom colormap with the first 14 colors
-                # custom_cmap = mcolors.ListedColormap(tab20.colors[:14])
-                # cb =axs[1].imshow(label_map, cmap=custom_cmap)   
-                # axs[2].imshow(np.where( np.isin(label_map, desired_label), label_map, np.nan))                
-
-                # plt.colorbar(cb)
-                # plt.show()
-                # Get the indices of the region
-                region_coordinates = np.where(labeled_map == region_idx)
-                
-                # Convert to projected coordinates
-                x_proj, y_proj = projection.transform_points(ccrs.PlateCarree(), 
-                                                            lon_map[region_coordinates].ravel(), 
-                                                            lat_map[region_coordinates].ravel())[:, :2].T
-                s+=1
-
-                # Query the KDTree for nearest grid points
-                _, idxs = tree.query(list(zip(x_proj, y_proj)))  
-
-                # Check and Increment the counts based on date condition
-                for idx in idxs:
-                    if idx not in dates_counted:
-                        dates_counted[idx] = set()
-                    if dates[i] not in dates_counted[idx]:
-                        counts.ravel()[idx] += 1
-                        dates_counted[idx].add(dates[i])
-            
-
-    return x_grid, y_grid, counts
 
 
 def save_img_with_labels(x, lon_lats, n_patches_tot,
@@ -251,8 +148,22 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
     
 
+def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentage of time with predicted CAO", extent=[-50, 50, 55, 84], levels=10, cmap="turbo"):
+    
+    
+    fig, ax = plt.subplots(subplot_kw={'projection': projection}, figsize=(15, 8), dpi=200)
+    plt.title(title)
+    ax.set_extent(extent, ccrs.PlateCarree())  # Set extent to focus on the Arctic
+    #c = ax.contourf(x_grid, y_grid, np.ma.masked_where(counts==0, counts) / tot_days * 100, transform=projection, levels=levels, cmap=cmap,set_under='white')
+    new_cmap = ListedColormap(['white'] + [plt.get_cmap(cmap)(i) for i in range(plt.get_cmap(cmap).N)])
+    c = ax.contourf(x_grid, y_grid, counts / tot_days * 100, transform=projection, levels=levels, cmap=new_cmap,set_under='white')
 
-
+    ax.add_feature(cfeature.LAND, edgecolor='black')
+    ax.add_feature(cfeature.OCEAN)
+    ax.add_feature(cfeature.COASTLINE)
+    plt.colorbar(c, ax=ax, orientation='vertical', label='[%]')
+    ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+    return fig, ax
         
 
 
@@ -316,8 +227,8 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
 
 from scipy.spatial import distance_matrix
 
-def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, ds_sel=None, extent= [-15, 25, 58, 84]):
-    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(14, 10), dpi=200)
+def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, ds_sel=None, extent= [-15, 25, 58, 84], figsize=(14, 10)):
+    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=figsize, dpi=200)
     #ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
     ax.set_extent(extent, crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
 
