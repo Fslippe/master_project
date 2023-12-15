@@ -14,6 +14,7 @@ def generate_xy_grid(x_extent = [-2.2e6, 2.2e6], y_extent = [-3.6e6, -0.5e6], gr
     x_grid, y_grid = np.meshgrid(np.arange(x_extent[0], x_extent[1], grid_resolution),
                                 np.arange(y_extent[0], y_extent[1], grid_resolution))
     return x_grid, y_grid
+    
 def generate_hist_map(n_patches_tot,
                       indices,
                       labels,

@@ -16,7 +16,9 @@ import functions
 from scipy.spatial import distance_matrix
 importlib.reload(functions)
 from functions import * 
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, to_rgba, to_hex
+import seaborn as sns
+sns.set_style("darkgrid")
 plt.style.use("bmh")
 
 # Define the grid in projected coordinates
@@ -151,18 +153,23 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentage of time with predicted CAO", extent=[-50, 50, 55, 84], levels=10, cmap="turbo"):
     
     
-    fig, ax = plt.subplots(subplot_kw={'projection': projection}, figsize=(15, 8), dpi=200)
+    fig, ax = plt.subplots(subplot_kw={'projection': projection}, figsize=(12, 8), dpi=200)
     plt.title(title)
     ax.set_extent(extent, ccrs.PlateCarree())  # Set extent to focus on the Arctic
-    #c = ax.contourf(x_grid, y_grid, np.ma.masked_where(counts==0, counts) / tot_days * 100, transform=projection, levels=levels, cmap=cmap,set_under='white')
-    new_cmap = ListedColormap(['white'] + [plt.get_cmap(cmap)(i) for i in range(plt.get_cmap(cmap).N)])
-    c = ax.contourf(x_grid, y_grid, counts / tot_days * 100, transform=projection, levels=levels, cmap=new_cmap,set_under='white')
+    #new_cmap = ListedColormap(['white'] + [plt.get_cmap(cmap)(i) for i in range(plt.get_cmap(cmap).N)])
+    turbo = plt.cm.turbo(np.linspace(0, 1, len(levels) -1))
+    white = np.array([1, 1, 1, 1])  # RGBA values for white
+    turbo_with_white = ListedColormap(np.vstack([white, turbo]))
 
+
+    c = ax.contourf(x_grid, y_grid, counts / tot_days * 100, transform=projection, levels=levels, cmap=cmap,set_under='white', extend="max")
     ax.add_feature(cfeature.LAND, edgecolor='black')
     ax.add_feature(cfeature.OCEAN)
     ax.add_feature(cfeature.COASTLINE)
     plt.colorbar(c, ax=ax, orientation='vertical', label='[%]')
     ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+    fig.tight_layout()
+
     return fig, ax
         
 
