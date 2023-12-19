@@ -66,23 +66,22 @@ if "nird" in hostname:
     folder = "/nird/projects/NS9600K/data/modis/cao/MOD02/2020/ /nird/projects/NS9600K/data/modis/cao/MOD02/2021/ /nird/projects/NS9600K/data/modis/cao/MOD02/2023/"
 if "mimi" in hostname:
     data_loc = "/uio/hume/student-u37/fslippe/data/"
-    folder = "/scratch/fslippe/modis/MOD02/2019/ /scratch/fslippe/modis/MOD02/2020/ /scratch/fslippe/modis/MOD02/2021/ /scratch/fslippe/modis/MOD02/2022/ /scratch/fslippe/modis/MOD02/2023/ /scratch/fslippe/modis/MOD02/daytime_1km/ /scratch/fslippe/modis/MOD02/boundary_1km/ /scratch/fslippe/modis/MOD02/night_1km/ /scratch/fslippe/modis/MOD02/may-nov_2021/ /scratch/fslippe/modis/MOD02/cao_test_data/"
+    folder = "/scratch/fslippe/modis/MOD02/2018/ /scratch/fslippe/modis/MOD02/2019/ /scratch/fslippe/modis/MOD02/2020/ /scratch/fslippe/modis/MOD02/2021/ /scratch/fslippe/modis/MOD02/2022/ /scratch/fslippe/modis/MOD02/2023/ /scratch/fslippe/modis/MOD02/daytime_1km/ /scratch/fslippe/modis/MOD02/boundary_1km/ /scratch/fslippe/modis/MOD02/night_1km/ /scratch/fslippe/modis/MOD02/may-nov_2021/ /scratch/fslippe/modis/MOD02/cao_test_data/"
 
 
 bands=[29]
-max_vals = np.load("%smodels/max_vals_dnb_l95_z50_ps128_(29)_cao_months_202012-202111.npy" %data_loc)
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
 print(len(bands))
 
 #encoder = load_model("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(6,20,29)_encoder")
-encoder = load_model("%smodels/encoder_scheduler_250k_dnb_l90_z50_fcao_months_202012_(29)_202111-64" %data_loc)
 
-year = 2020
+year = 2023
 start = "%s0101" %(year)
 end = "%s0430" %(year)
 dates = generate_date_list(start, end)
 start = "%s1001" %(year)
 end = "%s1231" %(year)
+
 dates.extend(generate_date_list(start, end))
 
 x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao = extract_1km_data(folder,
@@ -146,5 +145,4 @@ def save_patches(patch_size):
 
 save_patches(64)
 save_patches(128)
-
 

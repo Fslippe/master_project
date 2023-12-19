@@ -3,7 +3,8 @@ import autoencoder
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
 from keras.callbacks import LearningRateScheduler
 import numpy as np 
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -44,15 +45,25 @@ def scheduler(epoch, lr):
 
 
 def main():
-    # Define LearningRateScheduler callback
-    model_run_name = "dnb_l95_z50_ps128_(29)_%s-%s" %("cao_months_202012", "202111")
+    #### Define parameters
     patch_size = 128
+    bands = [29]  
+    filters = [16, 32, 64, 128]
+    #filters = [8, 16, 32, 64]
+    #filters = [4, 8, 16, 32]
 
-    print(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{model_run_name}*.tfrecord")
-    file_pattern = f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{model_run_name}*.tfrecord"
+    #### Define load and save names
+    patch_load_name = "dnb_l95_z50_ps%s_(29)_%s-%s" %(patch_size, "cao_months_20181216", "20231215")
+    model_run_name = "dnb_l95_z50_ps%s_f%s_%s-%s" %(patch_size, filters[-1], "201812", "202312")
+
+
+    #### prepare files
+    print(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{patch_load_name}*.tfrecord")
+    file_pattern = f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{patch_load_name}*.tfrecord"
     files = tf.data.Dataset.list_files(file_pattern)
+    val_data = np.load(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_valpatches_{patch_load_name}.npy")
     num_files = len(tf.io.gfile.glob(file_pattern))
-    print(num_files)
+    print("Number of tfrecord files:", num_files)
 
     dataset = files.interleave(
     lambda x: tf.data.TFRecordDataset(x)
@@ -61,45 +72,56 @@ def main():
     cycle_length=20,  # number of files read concurrently
     num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-
-    # Load your validation data (assuming it's not in TFRecord format)
-    val_data = np.load(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_valpatches_{model_run_name}.npy")
-
-    # Reload your model (if necessary)
-
-    # Initialize your autoencoder
-    bands = [29]  # You might need to specify the bands here
-    filters = [16, 32, 64, 128]
+    # Set up model 
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
-
-    # Set up your optimizer and compile the model
     optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     model = autoencoder.model(optimizer=optimizer, loss="combined")
 
     # Train the model on your dataset
     batch_size = 32 
     total_records = sum(1 for _ in dataset) #534460
+    total_records -= total_records % batch_size 
     print(total_records)
-    buffer_size = total_records#patches_per_file * num_files
+    buffer_size = total_records #patches_per_file * num_files
     dataset = dataset.shuffle(buffer_size)
     dataset = dataset.batch(batch_size)
     dataset = dataset.repeat()
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
     steps_per_epoch = total_records // batch_size #patches_per_file * num_files // batch_size
-    lr_schedule = LearningRateScheduler(scheduler, verbose=1)
+
+    lr_schedule = ReduceLROnPlateau(
+                                    monitor='val_loss', 
+                                    factor=0.1, 
+                                    patience=20, 
+                                    verbose=1, 
+                                    mode='auto',
+                                    min_lr=1e-5
+                                    )
+
+
+    save_folder = f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{filter_size}/"
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder, exist_ok=True)
+    
+
+    #lr_schedule = LearningRateScheduler(scheduler, verbose=1)
 
     early_stopping = EarlyStopping(monitor='val_loss', patience=20, verbose=1, restore_best_weights=True)
 
-    history = model.fit(dataset, validation_data=(val_data, val_data), epochs=500, steps_per_epoch=steps_per_epoch, callbacks=[early_stopping, lr_schedule])
+    history = model.fit(dataset,
+                        validation_data=(val_data, val_data),
+                        epochs=500,
+                        steps_per_epoch=steps_per_epoch,
+                        callbacks=[early_stopping, lr_schedule])
 
-    model_run_name = "scheduler_250k_dnb_l90_z50_f%s_(29)_%s-%s" %(filters[-1], "cao_months_202012", "202111")
-
-    model.save("/uio/hume/student-u37/fslippe/data/models/autoencoder_%s" %(model_run_name))
-    autoencoder.encoder.save("/uio/hume/student-u37/fslippe/data/models/encoder_%s" %(model_run_name))
-    autoencoder.decoder.save("/uio/hume/student-u37/fslippe/data/models/decoder_%s" %(model_run_name))
+    # Save models
+    model.save(f"{save_folder}autoencoder_{model_run_name}.h5")
+    autoencoder.encoder.save(f"{save_folder}encoder_{model_run_name}.h5")
+    autoencoder.decoder.save(f"{save_folder}decoder_{model_run_name}.h5")
 
     import pickle
-    with open('training_history%s.pkl' %(model_run_name), 'wb') as f:
+
+    with open(f'{save_folder}/training_history_{model_run_name}.pkl' , 'wb') as f:
         pickle.dump(history.history, f)
 
 if __name__ == "__main__":
