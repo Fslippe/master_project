@@ -4,7 +4,8 @@ from autoencoder import SobelFilterLayer, SimpleAutoencoder
 from keras.callbacks import LearningRateScheduler
 import numpy as np 
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-
+import os
+import pickle
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -49,17 +50,17 @@ def main():
     patch_size = 128
     bands = [29]  
     filters = [16, 32, 64, 128]
-    #filters = [8, 16, 32, 64]
+    filters = [8, 16, 32, 64]
     #filters = [4, 8, 16, 32]
 
     #### Define load and save names
-    patch_load_name = "dnb_l95_z50_ps%s_(29)_%s-%s" %(patch_size, "cao_months_20181216", "20231215")
+    patch_load_name = "dnb_l95_z50_ps%s_band29" %(patch_size)
     model_run_name = "dnb_l95_z50_ps%s_f%s_%s-%s" %(patch_size, filters[-1], "201812", "202312")
 
 
     #### prepare files
-    print(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{patch_load_name}*.tfrecord")
-    file_pattern = f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_trainingpatches_{patch_load_name}*.tfrecord"
+    print(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/{patch_load_name}/normalized_trainingpatches_{patch_load_name}*.tfrecord")
+    file_pattern = f"/scratch/fslippe/modis/MOD02/training_data/tf_data/{patch_load_name}/normalized_trainingpatches_{patch_load_name}*.tfrecord"
     files = tf.data.Dataset.list_files(file_pattern)
     val_data = np.load(f"/scratch/fslippe/modis/MOD02/training_data/tf_data/normalized_valpatches_{patch_load_name}.npy")
     num_files = len(tf.io.gfile.glob(file_pattern))
@@ -74,7 +75,7 @@ def main():
 
     # Set up model 
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
     model = autoencoder.model(optimizer=optimizer, loss="combined")
 
     # Train the model on your dataset
@@ -99,14 +100,14 @@ def main():
                                     )
 
 
-    save_folder = f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{filter_size}/"
+    save_folder = f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{filters[-1]}/"
     if not os.path.exists(save_folder):
         os.makedirs(save_folder, exist_ok=True)
     
 
     #lr_schedule = LearningRateScheduler(scheduler, verbose=1)
 
-    early_stopping = EarlyStopping(monitor='val_loss', patience=20, verbose=1, restore_best_weights=True)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=50, verbose=1, restore_best_weights=True)
 
     history = model.fit(dataset,
                         validation_data=(val_data, val_data),
@@ -119,7 +120,6 @@ def main():
     autoencoder.encoder.save(f"{save_folder}encoder_{model_run_name}.h5")
     autoencoder.decoder.save(f"{save_folder}decoder_{model_run_name}.h5")
 
-    import pickle
 
     with open(f'{save_folder}/training_history_{model_run_name}.pkl' , 'wb') as f:
         pickle.dump(history.history, f)

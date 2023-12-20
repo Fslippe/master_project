@@ -81,7 +81,6 @@ end = "%s0430" %(year)
 dates = generate_date_list(start, end)
 start = "%s1001" %(year)
 end = "%s1231" %(year)
-
 dates.extend(generate_date_list(start, end))
 
 x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao = extract_1km_data(folder,
@@ -91,6 +90,7 @@ x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao = extract_1km_data(folder
                                                          data_loc=data_loc,
                                                          data_type="npy",
                                                          combine_pics=True)
+
 dates_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_block.npy")
 times_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_block.npy")
 x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao = zip(*[(xi, date, mask, lon_lat, mod_min) for xi, date, mask, lon_lat, mod_min in zip(x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao) if not (date, mod_min) in zip(dates_block, times_block)])

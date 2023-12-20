@@ -149,6 +149,11 @@ Patch size | filters |
     128    |   64    |     
     128    |   128   |     
 
+  
+#### Calculate scores
+- Find way of drawing area 
+  - Make lower resolution grid to append to
+
 
 nohup python3 read_tf.py > output_l90_z50.log 2>&1 &
 
