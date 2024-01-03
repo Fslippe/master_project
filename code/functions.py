@@ -304,7 +304,7 @@ def shuffle_in_unison(*args):
         np.random.shuffle(array)
 
         
-def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
+def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
     all_patches = []
     all_lon_patches = []
     all_lat_patches = []
@@ -348,7 +348,7 @@ def generate_patches(x, masks, lon_lats, max_vals, autoencoder, strides = [None,
         start += len(patches)
         i+=1
     # Stack filtered patches from all images
-    patches = np.concatenate(all_patches, axis=0) / max_vals
+    patches = (np.concatenate(all_patches, axis=0) - min_vals) / (max_vals - min_vals)
 
     return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
 

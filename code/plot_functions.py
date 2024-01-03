@@ -184,7 +184,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
     colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
     extra_colors = colors_tab20
     black = np.array([0, 0, 0, 1])
-    colors_new = np.vstack((colors_tab10, colors_tab20))[:global_max-1]
+    colors_new = np.vstack((colors_tab10, colors_tab20))[:np.max(global_max)-1]
     colors_new = np.vstack((colors_new, black))
 
     new_cmap = mcolors.ListedColormap(colors_new)
@@ -197,9 +197,12 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
         
     print(max_bands.shape)
     if labels[0].ndim == 1:
+        print("TRUE")
         n_labels = len(labels)
 
     else:
+        print("FALSE")
+
         n_labels = 1
         labels = [labels]
         global_min = [global_min]  

@@ -155,7 +155,7 @@ Patch size | filters |
   - Make lower resolution grid to append to
 
 
-nohup python3 read_tf.py > output_l90_z50.log 2>&1 &
+nohup python3 read_tf.py > log_outs/output_ps128_f64.log 2>&1 &
 
 
 idx_list = 
