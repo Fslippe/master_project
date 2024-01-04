@@ -353,7 +353,6 @@ def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, stride
     return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
 
 
-
 def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, global_max, n_patches_tot, desired_label, size_threshold, n,  patch_size):
     """
     Find pictures with regions of patches of a desired label of sizes higher than given threshold 

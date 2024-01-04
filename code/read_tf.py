@@ -3,9 +3,11 @@ import autoencoder
 from autoencoder import SobelFilterLayer, SimpleAutoencoder
 from keras.callbacks import LearningRateScheduler
 import numpy as np 
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, Callback
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, Callback, LearningRateScheduler
 import os
 import pickle
+import sys 
+from keras import backend as K
 
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
@@ -20,6 +22,16 @@ if gpus:
         print(e)
 
 
+class CustomLearningRateScheduler(Callback):
+    """Custom learning rate scheduler that runs after ReduceLROnPlateau."""
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if not hasattr(self.model.optimizer, 'lr'):
+            raise ValueError('Optimizer must have a "lr" attribute.')
+
+        # Only reduce the lr at the start of epoch 15 or below
+        if epoch == 14:
+            K.set_value(self.model.optimizer.lr, 1e-4)
 
 class CustomModelCheckpoint(Callback):
     def __init__(self, model, autoencoder, save_folder, model_run_name, save_freq):
@@ -32,7 +44,7 @@ class CustomModelCheckpoint(Callback):
     def on_epoch_end(self, epoch, logs=None):
         if (epoch + 1) % self.save_freq == 0:
             # Save the complete model
-            self.model.save(f"{self.save_folder}model_{self.model_run_name}_epoch_{epoch+1}.h5")
+            self.model.save(f"{self.save_folder}autoencoder_{self.model_run_name}_epoch_{epoch+1}.h5")
             # Save the individual encoder and decoder
             self.autoencoder.encoder.save(f"{self.save_folder}encoder_{self.model_run_name}_epoch_{epoch+1}.h5")
             self.autoencoder.decoder.save(f"{self.save_folder}decoder_{self.model_run_name}_epoch_{epoch+1}.h5")
@@ -60,8 +72,8 @@ def parse_function(example_proto, patch_size=64):
 def input_target_map_fn(patch):
     return (patch, patch)
 
-def scheduler(epoch, lr):
-    if epoch < 15:
+def scheduler(epoch):
+    if epoch < 1:
         return 1e-3
     else:
         return 1e-4
@@ -70,9 +82,12 @@ def scheduler(epoch, lr):
 def main():
     #### Define parameters
     bands = [29]  
-
-    patch_size = 128
-    last_filter = 64
+    if len(sys.argv) < 3:
+        patch_size = 128
+        last_filter = 64
+    else:
+        patch_size = int(sys.argv[1])  # Convert first argument to an integer.
+        last_filter = int(sys.argv[2])  # Convert second argument to an integer.
     
     if last_filter == 128:
         filters = [16, 32, 64, 128]
@@ -81,8 +96,10 @@ def main():
     elif last_filter == 32:
         filters = [4, 8, 16, 32]
     else:
-        filters = [2, 4, 8, 16]
+        filters = [8, 16, 32, 64]
 
+    print(f'Patch size is set to: {patch_size}')
+    print(f'Filters is set to: {filters}')
 
     #### Define load and save names
     patch_load_name = "dnb_l95_z50_ps%s_band29" %(patch_size)
@@ -106,7 +123,7 @@ def main():
 
     # Set up model 
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
     model = autoencoder.model(optimizer=optimizer, loss="combined")
 
     # Train the model on your dataset
@@ -134,11 +151,12 @@ def main():
 
     # # Enable prefetching to improve performance
     # val_dataset = val_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-    
+    custom_lr_scheduler = CustomLearningRateScheduler()
+
     lr_schedule = ReduceLROnPlateau(
                                     monitor='val_loss', 
                                     factor=0.1, 
-                                    patience=20, 
+                                    patience=30, 
                                     verbose=1, 
                                     mode='auto',
                                     min_delta=0.00001,
@@ -158,7 +176,7 @@ def main():
             # validation_steps are not needed if your dataset perfectly divides by batch size,
             # if not, you can use the following line:
             #validation_steps=np.ceil(len(val_data) / val_batch_size),
-            callbacks=[early_stopping, lr_schedule, custom_checkpoint_callback]
+            callbacks=[early_stopping, custom_lr_scheduler, lr_schedule, custom_checkpoint_callback]
     )
 
     # Save models
