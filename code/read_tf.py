@@ -123,7 +123,7 @@ def main():
 
     # Set up model 
     autoencoder = SimpleAutoencoder(len(bands), patch_size, patch_size, filters=filters)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
     model = autoencoder.model(optimizer=optimizer, loss="combined")
 
     # Train the model on your dataset

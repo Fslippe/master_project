@@ -10,6 +10,108 @@ import xarray as xr
 import pyproj
 geodesic = pyproj.Geod(ellps='WGS84')
 
+def gaussian_brush(width=5, height=5, sigma=1.0, strength=1):
+    """
+    Create a 2D Gaussian brush centered in the middle of the width and height.
+    """
+    x, y = np.meshgrid(np.linspace(-width//2, width//2, width),
+                       np.linspace(-height//2, height//2, height))
+    d = np.sqrt(x*x + y*y)
+    g = strength*np.exp(-(d**2 / (2.0 * sigma**2)))
+    return g
+
+
+def apply_brush(mask, x, y, brush):
+    """
+    Apply the given brush to the mask at position x, y.
+    """
+    half_width = brush.shape[1] // 2
+    half_height = brush.shape[0] // 2
+
+    col_start = max(0, x - half_width)
+    col_end = col_start + brush.shape[1]
+
+    row_start = max(0, y - half_height)
+    row_end = row_start + brush.shape[0]
+
+    if col_end > mask.shape[1]:
+        col_end = mask.shape[1]
+        col_start = col_end - brush.shape[1]
+
+    if row_end > mask.shape[0]:
+        row_end = mask.shape[0]
+        row_start = row_end - brush.shape[0]
+
+    mask[row_start:row_end, col_start:col_end] = np.where(
+        mask[row_start:row_end, col_start:col_end] < brush, brush, mask[row_start:row_end, col_start:col_end])
+    #mask[row_start:row_end, col_start:col_end] = mask[row_start:row_end, col_start:col_end] + brush
+   # mask[row_start:row_end, col_start:col_end] = brush
+
+    return mask
+
+
+def bresenham_line(x0, y0, x1, y1):
+    """Bresenham's Line Algorithm to generate points between start and end."""
+    points = []
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+
+    while True:
+        points.append((x0, y0))
+        if x0 == x1 and y0 == y1:
+            break
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x0 += sx
+        if e2 < dx:
+            err += dx
+            y0 += sy
+
+    return points
+
+def interpolate_coords(coords, connect_first_last):
+    """Interpolate between points in coords if they are not neighbors."""
+    interpolated = []
+    for i in range(len(coords) - 1):
+        start = coords[i] 
+        end = coords[i + 1]
+        if start[0] < 0:
+            start[0] = 0 
+        if start[1] < 0:
+            start[1] = 0
+        if end[0] < 0:
+            end[0] = 0 
+        if end[1] < 0:
+            end[1] = 0            
+
+        # Check if points are neighbors
+        if max(abs(round(start[0]) - round(end[0])), abs(round(start[1]) - round(end[1]))) > 1:
+            interpolated.extend(bresenham_line(
+                round((start[0])), round((start[1])), round((end[0])), round((end[1]))))
+        else:
+            interpolated.append((round(start[0]), round(start[1])))
+
+    interpolated.append(coords[-1])  # Add the last point
+
+    if connect_first_last:
+        start = (coords[-1])
+        end = (coords[0])
+        # Check if points are neighbors
+        if max(abs(round(start[0]) - round(end[0])), abs(round(start[1]) - round(end[1]))) > 1:
+            interpolated.extend(bresenham_line(
+                round((start[0])), round((start[1])), round((end[0])), round((end[1]))))
+        else:            
+            interpolated.append((round(start[0]), round(start[1])))
+
+    
+    return np.array(interpolated)  
+
+
+
 def generate_xy_grid(x_extent = [-2.2e6, 2.2e6], y_extent = [-3.6e6, -0.5e6], grid_resolution=128e3):
     x_grid, y_grid = np.meshgrid(np.arange(x_extent[0], x_extent[1], grid_resolution),
                                 np.arange(y_extent[0], y_extent[1], grid_resolution))
