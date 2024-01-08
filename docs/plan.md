@@ -152,10 +152,20 @@ Patch size | filters |
   
 #### Calculate scores
 - Find way of drawing area 
-  - Make lower resolution grid to append to
+  - make brush
+  - Make lower resolution grid and average over every grid box 
+  - Make same brush for model output and append to grid
+- Scores
+  - calculate accuary scores
+  - Weight the accuracies by multiplying by highest truth probability (More people predicting one area, More likely to be right)
+    - Multiply over whole score, or just the areas 
+    - Multiply when everyone agrees on nothing. 
+  - should post processing be used? 
+  
+   
 
 
-nohup python3 read_tf.py 128 64> log_outs/output_ps128_f64.log 2>&1 &
+nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &
 
 
 idx_list = 

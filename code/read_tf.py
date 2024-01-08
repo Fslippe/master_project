@@ -88,7 +88,11 @@ def main():
     else:
         patch_size = int(sys.argv[1])  # Convert first argument to an integer.
         last_filter = int(sys.argv[2])  # Convert second argument to an integer.
-    
+        
+    if last_filter == 196:
+        filters = [16, 64, 128, 196]
+    if last_filter == 256:
+        filters = [32, 64, 128, 256]
     if last_filter == 128:
         filters = [16, 32, 64, 128]
     elif last_filter == 64:
@@ -96,7 +100,7 @@ def main():
     elif last_filter == 32:
         filters = [4, 8, 16, 32]
     else:
-        filters = [8, 16, 32, 64]
+        print("No filters chosen")
 
     print(f'Patch size is set to: {patch_size}')
     print(f'Filters is set to: {filters}')

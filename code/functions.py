@@ -8,7 +8,113 @@ from autoencoder import *
 import datetime
 import xarray as xr
 import pyproj
+from shapely.geometry import Point, Polygon
 geodesic = pyproj.Geod(ellps='WGS84')
+
+
+
+def get_area_mask(boundary_coordinates, mask_shape):
+    polygon = Polygon(boundary_coordinates)
+    minx, miny, maxx, maxy = polygon.bounds
+    points_inside = []
+    # Loop through the grid of points covering the bounding box
+    for x in range(int(minx), int(maxx) + 1):
+        for y in range(int(miny), int(maxy) + 1):
+            point = Point(x, y)
+            # Check if the current point is inside the polygon
+            if polygon.contains(point):
+                points_inside.append((x, y))
+
+    mask_idx = np.array(points_inside)[:, [1, 0]]  # Swap columns to have (row, column) ordering
+    mask = np.zeros(mask_shape)
+    mask[tuple(mask_idx.T)] = 1
+    return mask 
+
+def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_min_cao, reduction, plot=False):
+    downscaled_areas = []
+    downscaled_borders = []
+    for d, t in zip(dates, times):
+        extracted_rows = df[df["image_id"].str.split("/").str[1].str.split("_").str[0] == f"MOD021KM.A{d}.{t}"]
+        if len(extracted_rows) > 6:
+            if plot:
+                fig, axs = plt.subplots(1,3, figsize=[35, 20])
+
+            interpolated_border = []
+            interpolated_area_i = []
+            for i in range(len(extracted_rows)):
+                interpolated_area = []
+                interpolated_area_mask = []
+                di = extracted_rows.iloc[i]
+                date_img = str(di["image_id"].split("/")[1].split(".")[1][1:])
+                time_img = int(di["image_id"].split("/")[1].split(".")[2].split("_")[0])
+                idx = np.where((np.array(dates_cao) == date_img) & (np.array(mod_min_cao) == time_img))[0][0]
+
+                area_lines = np.array(di["data.areaLines"])
+                border_lines = np.array(di["data.borderLines"], dtype=object)
+
+                n_areas = len(area_lines)
+                if n_areas > 0:
+                    for j in range(n_areas):
+                        area = np.array(area_lines[j])
+                        interpolated_area_boundary = interpolate_coords(area, connect_first_last=True)
+                        area_mask = get_area_mask(interpolated_area_boundary // reduction, (x_cao[idx].shape[0] // reduction, x_cao[idx].shape[1] // reduction))
+                        interpolated_area.append(interpolated_area_boundary)
+                        interpolated_area_mask.append(area_mask)
+
+                    interpolated_sum = np.sum(interpolated_area_mask, axis=0)
+                    interpolated_area_i.append(np.where(interpolated_sum > 1, 1, interpolated_sum))
+
+                if plot:
+                    axs[0].imshow(x_cao[idx], cmap="gray_r")
+                    for k in range(len(interpolated_area)):
+                        #axs[0].scatter(interpolated_area[k].T[0] // reduction, interpolated_area[k].T[1] // reduction, s=0.05, color="r")
+                        #axs[0].imshow(interpolated_area[k], alpha=0.8/len(extracted_rows), cmap="Reds")
+                        axs[0].fill(interpolated_area[k].T[0], interpolated_area[k].T[1], alpha=0.8/len(extracted_rows), color="r")
+
+                n_borders = len(border_lines)
+                if n_borders > 0:
+                    for j in range(n_borders):
+                        border = np.array(border_lines[j])
+                        interpolated_border.append(interpolate_coords(border.astype(float), connect_first_last=False))
+            
+                
+                idx = np.where((np.array(dates_cao) == date_img) & (np.array(mod_min_cao) == time_img))[0][0]
+                if plot:
+                    axs[1].imshow(x_cao[idx], cmap="gray_r")
+                    for k in range(len(interpolated_border)):
+                        axs[1].scatter(interpolated_border[k].T[0], interpolated_border[k].T[1], s=0.5, color="r")
+
+            # Final areas
+            interpolated_sum_i = np.sum(interpolated_area_i, axis=0) / len(extracted_rows)
+            downscaled_areas.append(interpolated_sum_i)
+
+            
+
+            # Generate the Gaussian brush (adjust width, height, and sigma as needed)
+            brush = gaussian_brush(width=64, height=64, sigma=16, strength=1/len(extracted_rows))
+
+            tot_border = np.zeros(x_cao[idx].shape[:2])
+            tot_border_reduced = np.zeros((x_cao[idx].shape[0] // reduction, x_cao[idx].shape[1] // reduction))
+            
+            # Iterate through your border coordinates and apply the brush
+            for border_coords in interpolated_border:
+                border_mask = np.zeros(x_cao[idx].shape[:2])
+                for x, y in border_coords:
+                    apply_brush(border_mask, int(x), int(y), brush)
+                tot_border += border_mask 
+
+            for i in range(x_cao[idx].shape[0] // reduction):
+                for j in range(x_cao[idx].shape[1] // reduction):
+                    tot_border_reduced[i, j] = np.mean(tot_border[i * reduction: (i + 1) * reduction, j * reduction: (j + 1) * reduction])
+            downscaled_borders.append(tot_border_reduced)
+
+            if plot:
+                cb = axs[2].imshow(tot_border_reduced, vmin=0, vmax=1)
+                plt.colorbar(cb)
+                plt.show()
+
+        return downscaled_areas, downscaled_borders
+
 
 def gaussian_brush(width=5, height=5, sigma=1.0, strength=1):
     """
