@@ -155,6 +155,7 @@ Patch size | filters |
   - make brush
   - Make lower resolution grid and average over every grid box 
   - Make same brush for model output and append to grid
+    - Important to give better scores to models being close than those that are completely off.  
 - Scores
   - calculate accuary scores
   - Weight the accuracies by multiplying by highest truth probability (More people predicting one area, More likely to be right)
@@ -198,3 +199,11 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
 
 
   wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
+
+
+scp subset_M2I3NPASM_5.12.4_20240109_160927_.txt fslippe@login.nird.sigma2.no:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240109_160927_.txt
+
+
+rsync -av --progress /source/directory user@remote:/destination/directory
+
+rsync -av --progress /nird/projects/NS9600K/data/MERRA fslippe@mimi.uio.no:/scratch/fslippe/MERRA

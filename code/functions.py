@@ -11,26 +11,52 @@ import pyproj
 from shapely.geometry import Point, Polygon
 geodesic = pyproj.Geod(ellps='WGS84')
 
+def find_closest_indices(grid_lons, grid_lats, lons_list, lats_list):
+    index_list = []
+
+    for lon, lat in zip(lons_list, lats_list):
+        min_distance = None
+        closest_index = None
+
+        for i in range(grid_lons.shape[0]):
+            for j in range(grid_lons.shape[1]):
+                _, _, distance = geodesic.inv(lon, lat, grid_lons[i,j], grid_lats[i,j])
+                
+                if min_distance is None or distance < min_distance:
+                    min_distance = distance
+                    closest_index = (i, j)
+
+        index_list.append(closest_index)
+
+    return index_list
 
 
 def get_area_mask(boundary_coordinates, mask_shape):
     polygon = Polygon(boundary_coordinates)
     minx, miny, maxx, maxy = polygon.bounds
     points_inside = []
+
     # Loop through the grid of points covering the bounding box
     for x in range(int(minx), int(maxx) + 1):
         for y in range(int(miny), int(maxy) + 1):
             point = Point(x, y)
+
             # Check if the current point is inside the polygon
             if polygon.contains(point):
                 points_inside.append((x, y))
+    
+    # Create a mask of the specified shape and set points inside the polygon to True (or 1)
+    mask = np.full(mask_shape, False)  # or np.zeros(mask_shape, dtype=bool)
+    for x, y in points_inside:
+        # Assure that point indices are within bounds of mask
+        if 0 <= x < mask_shape[1] and 0 <= y < mask_shape[0]:
+            mask[y, x] = True  # or 1 for a binary mask
 
-    mask_idx = np.array(points_inside)[:, [1, 0]]  # Swap columns to have (row, column) ordering
-    mask = np.zeros(mask_shape)
-    mask[tuple(mask_idx.T)] = 1
-    return mask 
+    return mask
 
-def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_min_cao, reduction, plot=False):
+    
+
+def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_min_cao, reduction, patch_size=128, plot=False):
     downscaled_areas = []
     downscaled_borders = []
     for d, t in zip(dates, times):
@@ -51,13 +77,24 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
 
                 area_lines = np.array(di["data.areaLines"])
                 border_lines = np.array(di["data.borderLines"], dtype=object)
+                reduced_height = (x_cao[idx].shape[0] - patch_size) // reduction + 1
+                reduced_width = (x_cao[idx].shape[1] - patch_size) // reduction + 1
+                scale_factor_y = reduced_height / x_cao[idx].shape[0]
+                scale_factor_x = reduced_width / x_cao[idx].shape[1]
+
 
                 n_areas = len(area_lines)
                 if n_areas > 0:
                     for j in range(n_areas):
                         area = np.array(area_lines[j])
                         interpolated_area_boundary = interpolate_coords(area, connect_first_last=True)
-                        area_mask = get_area_mask(interpolated_area_boundary // reduction, (x_cao[idx].shape[0] // reduction, x_cao[idx].shape[1] // reduction))
+                        scaled_boundary_coordinates = np.copy(interpolated_area_boundary.astype(float))
+                        scaled_boundary_coordinates[:, 0] *= scale_factor_x
+                        scaled_boundary_coordinates[:, 1] *= scale_factor_y
+                        area_mask = get_area_mask(scaled_boundary_coordinates, (reduced_height, reduced_width))
+
+                        #area_mask = get_area_mask(interpolated_area_boundary // reduction, (x_cao[idx].shape[0] // reduction, x_cao[idx].shape[1] // reduction))
+
                         interpolated_area.append(interpolated_area_boundary)
                         interpolated_area_mask.append(area_mask)
 
@@ -94,7 +131,7 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
             brush = gaussian_brush(width=64, height=64, sigma=16, strength=1/len(extracted_rows))
 
             tot_border = np.zeros(x_cao[idx].shape[:2])
-            tot_border_reduced = np.zeros((x_cao[idx].shape[0] // reduction, x_cao[idx].shape[1] // reduction))
+            tot_border_reduced = np.zeros((reduced_height, reduced_width))
             
             # Iterate through your border coordinates and apply the brush
             for border_coords in interpolated_border:
@@ -103,8 +140,8 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
                     apply_brush(border_mask, int(x), int(y), brush)
                 tot_border += border_mask 
 
-            for i in range(x_cao[idx].shape[0] // reduction):
-                for j in range(x_cao[idx].shape[1] // reduction):
+            for i in range(reduced_height):
+                for j in range(reduced_width):
                     tot_border_reduced[i, j] = np.mean(tot_border[i * reduction: (i + 1) * reduction, j * reduction: (j + 1) * reduction])
             downscaled_borders.append(tot_border_reduced)
 
@@ -423,16 +460,8 @@ def convert_to_standard_date(date_str):
 def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
     # Calculate the dimensions of the reduced resolution array
     height, width = shape
-    # if stride is None:
-    #     size_mult = 1
-    # else:
-    #     size_mult = patch_size // stride
-
-
-    # reduced_height = height // patch_size * size_mult
-    # reduced_width = width // patch_size * size_mult
-
-    if stride is None:
+   
+    if stride is None or stride == patch_size:
         reduced_height = height // patch_size
         reduced_width = width // patch_size 
     else:
@@ -1004,7 +1033,6 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
 
                             angles.append(angle2)
 
-    print(np.min(np.array(angle2)), np.max(np.array(angle2)))
 
 
 
