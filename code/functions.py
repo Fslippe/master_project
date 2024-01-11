@@ -128,7 +128,7 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
             
 
             # Generate the Gaussian brush (adjust width, height, and sigma as needed)
-            brush = gaussian_brush(width=64, height=64, sigma=16, strength=1/len(extracted_rows))
+            brush = gaussian_brush(width=65, height=65, sigma=16, strength=1/len(extracted_rows))
 
             tot_border = np.zeros(x_cao[idx].shape[:2])
             tot_border_reduced = np.zeros((reduced_height, reduced_width))
@@ -157,8 +157,8 @@ def gaussian_brush(width=5, height=5, sigma=1.0, strength=1):
     """
     Create a 2D Gaussian brush centered in the middle of the width and height.
     """
-    x, y = np.meshgrid(np.linspace(-width//2, width//2, width),
-                       np.linspace(-height//2, height//2, height))
+    x, y = np.meshgrid(np.linspace(-width/2, width/2, width),
+                       np.linspace(-height/2, height/2, height))
     d = np.sqrt(x*x + y*y)
     g = strength*np.exp(-(d**2 / (2.0 * sigma**2)))
     return g
@@ -460,7 +460,7 @@ def convert_to_standard_date(date_str):
 def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
     # Calculate the dimensions of the reduced resolution array
     height, width = shape
-   
+    
     if stride is None or stride == patch_size:
         reduced_height = height // patch_size
         reduced_width = width // patch_size 
@@ -477,6 +477,7 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
     # Ensure the provided indices are within the expected range
     valid_indices = patch_indices < n_patches
     patch_indices = patch_indices[valid_indices]
+    print("valid", valid_indices.shape)
 
     # Set the labels for the patches with valid indices
     cluster_map.flat[patch_indices] = labels[start:end][valid_indices]
@@ -964,13 +965,32 @@ def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, l
 
 
 
+def remove_labels_from_size_thresholds(m, label1, label2, size_thr_1, size_thr_2):
 
+    if size_thr_1:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label1])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
 
+        # Loop through each region and check if the region size is below the thr
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_thr_1:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
+    if size_thr_2:
+        m_max = np.max(m)
+        binary_map = np.isin(m, [label2])
+        labeled_map, num_features = ndimage.label(binary_map)
+        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
 
+        # Loop through each region and check if the region size is below the thr
+        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+            if region_sizes[region_label] < size_thr_2:
+                # Set the pixels of this region to the maximum value of m
+                m[labeled_map == region_label] = m_max
 
-
-
-
+    return m
 
 
 def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None):
@@ -979,28 +999,7 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
     angles = []
 
 
-    if size_threshold_1:
-        m_max = np.max(m)
-        binary_map = np.isin(m, [label1])
-        labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
-
-        # Loop through each region and check if the region size is below the threshold
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
-            if region_sizes[region_label] < size_threshold_1:
-                # Set the pixels of this region to the maximum value of m
-                m[labeled_map == region_label] = m_max
-    if size_threshold_2:
-        m_max = np.max(m)
-        binary_map = np.isin(m, [label2])
-        labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
-
-        # Loop through each region and check if the region size is below the threshold
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
-            if region_sizes[region_label] < size_threshold_2:
-                # Set the pixels of this region to the maximum value of m
-                m[labeled_map == region_label] = m_max
+    m = remove_labels_from_size_thresholds(m, label1, label2, size_threshold_1, size_threshold_2)
 
 
 
