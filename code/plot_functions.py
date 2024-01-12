@@ -237,7 +237,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
 
 from scipy.spatial import distance_matrix
 
-def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, ds_sel=None, extent= [-15, 25, 58, 84], figsize=(14, 10)):
+def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, extent= [-15, 25, 58, 84], figsize=(14, 10)):
     fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=figsize, dpi=200)
     #ax.set_extent([-40, 40, 55, 85], crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
     ax.set_extent(extent, crs=ccrs.PlateCarree())  # Adjust depending on your lat/lon bounds
@@ -249,8 +249,7 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, 
     ax.scatter(lons, lats, color='red', s=2, alpha=1, transform=ccrs.PlateCarree())
 
     # Select data for the given time and level
-    u = ds_sel['U'].values
-    v = ds_sel['V'].values  
+
     #quiver = ax.quiver(ds_sel['lon'], ds_sel['lat'], u, v, transform=ccrs.PlateCarree(), scale=500)
 
     # distances = distance_matrix(np.column_stack([lons, lats]), np.column_stack([lons, lats]))

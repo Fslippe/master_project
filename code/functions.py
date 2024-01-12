@@ -9,8 +9,100 @@ import datetime
 import xarray as xr
 import pyproj
 from shapely.geometry import Point, Polygon
+from plot_functions import * 
 geodesic = pyproj.Geod(ellps='WGS84')
 
+def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False):
+    area_scores = []  # To store the area and border scores
+    border_scores = []  # To store the area and border scores
+
+    for (m_border, m_area, l_border, l_area) in zip(model_boundaries, model_areas, labeled_boundaries, labeled_areas):
+        area_score = 1 - np.nanmean(np.abs(m_area - l_area)) 
+        border_score = 1 - np.nanmean(np.abs(m_border - l_border)) 
+        area_scores.append(area_score)
+        border_scores.append(area_score)
+
+
+        if plot:
+            fig, axs = plt.subplots(1, 2)
+            axs[0].imshow(m_area)
+            axs[1].imshow(l_area)
+            plt.show()
+
+            fig, axs = plt.subplots(1, 2)
+            axs[0].imshow(m_border)
+            axs[1].imshow(l_border)
+            plt.show()
+
+            fig, axs = plt.subplots(1, 2)
+            cb1 = axs[0].imshow(np.abs(m_area - l_area))
+            plt.colorbar(cb1, ax=axs[0])
+            cb2 = axs[1].imshow(np.abs(m_border - l_border))
+            plt.colorbar(cb2, ax=axs[1])
+            plt.show()
+
+    return area_scores, border_scores
+
+
+def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=False):
+    brush = gaussian_brush(width=5, height=5, sigma=1.2, strength=1)
+    model_boundaries = []
+    model_areas = []
+
+    for i in index_list:
+        closest_indices = find_closest_indices(lon_map[i], lat_map[i], valid_lons, valid_lats)
+        boundary_mask = np.zeros_like(lon_map[i], dtype=np.float)  # Note we set the dtype to float
+
+        for (x, y) in closest_indices:
+            apply_brush(boundary_mask, y, x, brush)
+
+        valid_pos = indices_cao[i].numpy()  # This should be a flattened list or 1D np.ndarray of valid indices
+        valid_mask = np.full(boundary_mask.shape, False)  # Start with a mask of False (invalid) values
+        valid_mask.flat[valid_pos] = True  # Set positions defined by valid_pos to True (valid)
+        boundary_mask[~valid_mask] = np.nan  # Set invalid positions in boundary_mask to np.nan
+
+        area_mask = np.where((label_map[i] == label_1) | (label_map[i] == label_2), 1, 0).astype(np.float)
+        area_mask[~valid_mask] = np.nan
+
+        model_boundaries.append(boundary_mask)
+        model_areas.append(area_mask)
+
+        if plot:
+            fig, axs = plt.subplots(1, 2, figsize=[10, 10])
+            axs[0].imshow(area_mask)
+            axs[1].imshow(boundary_mask)
+            plt.show()
+
+    return model_boundaries, model_areas
+
+def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent= [-15, 25, 58, 84]):
+    print(date, time)
+    lons, lats, angles = compute_boundary_coordinates_between_labels_2(label_map, lon_map, lat_map, open_label, closed_label, size_threshold_1=size_threshold_1, size_threshold_2=size_threshold_2)
+    lons_full = lons
+    lats_full = lats
+
+    valid_lons = []
+    valid_lats = []
+    threshold = 90
+
+    for lon, lat, angle in zip(lons, lats, angles):
+        wind_dir = find_wind_dir_at_ll_time(lon, lat, p_level, date, time) 
+
+        check = check_angle_threshold(wind_dir, lons, lats, lon, lat, angle_thr, min_distance=0)
+        #lons, lats = check_angle_threshold_downwind(wind_dir, lons, lats, lon, lat, 5, min_distance=100000)
+        if not check:
+            if np.min([abs(angle - wind_dir), abs(angle - wind_dir - 360), abs(angle - wind_dir + 360)]) < threshold:
+                valid_lons.append(lon)# if angle==237.43814048068378 else 0)
+                valid_lats.append(lat)# if angle==237.43814048068378 else 70)
+                #valid_angles.append(angle)
+   
+    if plot:
+        ax = plot_map_with_nearest_neighbors(x_i, valid_lons, valid_lats, lon_lats_cao[0], lon_lats_cao[1], extent, figsize=(14, 10))
+        # plt.quiver(valid_lons, valid_lats, valid_angles, 300)
+        plt.show()
+    
+    return valid_lons, valid_lats
+    
 def find_closest_indices(grid_lons, grid_lats, lons_list, lats_list):
     index_list = []
 
