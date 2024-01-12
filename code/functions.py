@@ -12,12 +12,45 @@ from shapely.geometry import Point, Polygon
 from plot_functions import * 
 geodesic = pyproj.Geod(ellps='WGS84')
 
+
+def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, ends_cao, shapes_cao, indices_cao, global_max, n_patches_tot_cao, patch_size, strides, label_1, label_2, size_thr_1=20, size_thr_2=20):
+    def calculate_patch_mean(patches):
+        if patches.ndim == 2:
+            return np.mean(np.expand_dims(patches, axis=0), axis=(1, 2))
+        else:
+            return np.mean(patches, axis=(1, 2))
+   
+    pat_lon = [calculate_patch_mean(patch) for patch in all_lon_patches]
+    pat_lat = [calculate_patch_mean(patch) for patch in all_lat_patches]
+
+    pat_lon = np.concatenate(np.array(pat_lon), axis=0)
+    pat_lat = np.concatenate(np.array(pat_lat), axis=0)
+    
+    label_map = np.empty(len(starts_cao), dtype=object)
+    lon_map = np.empty(len(starts_cao), dtype=object)
+    lat_map = np.empty(len(starts_cao), dtype=object)
+    
+    index_list = range(len(starts_cao))
+    
+    for i in index_list:
+        label_map[i] = generate_map_from_labels(labels, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+        label_map[i] = remove_labels_from_size_thresholds(label_map[i], label_1, label_2, size_thr_1=size_thr_1, size_thr_2=size_thr_2)
+        lon_map[i] = generate_map_from_labels(pat_lon, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+        lat_map[i] = generate_map_from_labels(pat_lat, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+
+    return label_map, lon_map, lat_map
+
 def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False):
     area_scores = []  # To store the area and border scores
     border_scores = []  # To store the area and border scores
+    weighted_area_score
+    max_boundary = np.max(labeled_boundaries)
 
     for (m_border, m_area, l_border, l_area) in zip(model_boundaries, model_areas, labeled_boundaries, labeled_areas):
-        area_score = 1 - np.nanmean(np.abs(m_area - l_area)) 
+        area_diff = np.abs(m_area - l_area)
+        area_score = 1 - np.nanmean(area_diff) 
+        agreement = np.abs(l_area - 0.5)*10
+        weighted_area_score.append(np.nanmean(area_diff * l_area))
         border_score = 1 - np.nanmean(np.abs(m_border - l_border)) 
         area_scores.append(area_score)
         border_scores.append(area_score)
@@ -41,17 +74,19 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
             plt.colorbar(cb2, ax=axs[1])
             plt.show()
 
-    return area_scores, border_scores
+    weighted_border_score = [b * max_boundary for b in border_scores]
+    
+    return area_scores, border_scores, weighted_area_score, weighted_border_score
 
 
 def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=False):
     brush = gaussian_brush(width=5, height=5, sigma=1.2, strength=1)
     model_boundaries = []
     model_areas = []
-
+    
     for i in index_list:
+        boundary_mask = np.zeros_like(lon_map[i], dtype=np.float)
         closest_indices = find_closest_indices(lon_map[i], lat_map[i], valid_lons, valid_lats)
-        boundary_mask = np.zeros_like(lon_map[i], dtype=np.float)  # Note we set the dtype to float
 
         for (x, y) in closest_indices:
             apply_brush(boundary_mask, y, x, brush)
@@ -569,7 +604,6 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
     # Ensure the provided indices are within the expected range
     valid_indices = patch_indices < n_patches
     patch_indices = patch_indices[valid_indices]
-    print("valid", valid_indices.shape)
 
     # Set the labels for the patches with valid indices
     cluster_map.flat[patch_indices] = labels[start:end][valid_indices]

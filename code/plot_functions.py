@@ -24,6 +24,52 @@ plt.style.use("bmh")
 # Define the grid in projected coordinates
 
 
+def plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, dates):
+    """
+    Plots a filtered map based on latitude and longitude conditions.
+
+    :param label_map: Array of label maps.
+    :param lon_map: Array of longitude data associated with label_map.
+    :param lat_map: Array of latitude data associated with label_map.
+    :param idx: Index of the specific map to be plotted.
+    :param extent: List specifying the extent of the map [west, east, south, north].
+    :param global_max: The maximum value of label_map data to set the color scale.
+    :param dates: List or array containing the dates for each map.
+    """
+    # Create a new colormap
+    cmap_tab10 = plt.cm.tab10
+    cmap_tab20 = plt.cm.tab20
+    colors_tab20 = cmap_tab20(np.arange(cmap_tab20.N))[1::2]
+    colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
+    extra_colors = colors_tab20
+    black = np.array([0, 0, 0, 1])
+    colors_new = np.vstack((colors_tab10, colors_tab20))[:global_max-1]
+    colors_new = np.vstack((colors_new, black))
+
+    new_cmap = mcolors.ListedColormap(colors_new)
+    norm = Normalize(vmin=0, vmax=global_max)
+
+    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.NorthPolarStereo()}, figsize=(14, 10), dpi=200)
+    ax.set_extent(extent, crs=ccrs.PlateCarree())
+
+    lat_condition = (lat_map[idx] > 60) & (lat_map[idx] < 85)
+    lon_condition = (lon_map[idx] > -40) & (lon_map[idx] < 60)
+    mask = lat_condition & lon_condition
+
+    filtered_lon = lon_map[idx][mask]
+    filtered_lat = lat_map[idx][mask]
+    filtered_map = label_map[idx][mask]
+
+    sc = ax.scatter(filtered_lon, filtered_lat, c=filtered_map, cmap=new_cmap, s=50, alpha=0.2, norm=norm, transform=ccrs.PlateCarree())
+    sc_colorbar = ax.scatter(filtered_lon, filtered_lat, c=filtered_map, cmap=new_cmap, norm=norm, transform=ccrs.PlateCarree(), visible=False)
+    plt.colorbar(sc_colorbar, label='Cluster labels')
+
+    ax.coastlines()
+    ax.gridlines()
+
+    print(dates)
+
+    plt.show()
 
 def save_img_with_labels(x, lon_lats, n_patches_tot,
                       indices,
