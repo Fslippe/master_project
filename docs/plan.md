@@ -166,7 +166,6 @@ Patch size | filters |
    
 
 
-nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &
 
 
 idx_list = 
@@ -207,3 +206,12 @@ scp subset_M2I3NPASM_5.12.4_20240109_160927_.txt fslippe@login.nird.sigma2.no:/n
 rsync -av --progress /source/directory user@remote:/destination/directory
 
 rsync -av --progress /nird/projects/NS9600K/data/MERRA fslippe@mimi.uio.no:/scratch/fslippe/MERRA
+
+
+nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &
+
+
+nohup python3 read_tf_old.py > log_outs/output_ps128_f128_old.log 2>&1 &
+
+
+
