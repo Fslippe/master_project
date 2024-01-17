@@ -10,7 +10,41 @@ import xarray as xr
 import pyproj
 from shapely.geometry import Point, Polygon
 from plot_functions import * 
+import os
+import joblib
 geodesic = pyproj.Geod(ellps='WGS84')
+
+
+def get_cluster_and_label_lists(patch_load_name, patch_size, last_filter, n_K_list, encoded_patches_flat, encoded_patches_flat_cao ):
+    cluster_list = []
+    label_list = []
+    for n_K in [10, 11, 12, 13, 14, 15, 16]:
+        cluster = dump_clustering(patch_load_name, patch_size, last_filter, n_K, encoded_patches_flat)
+        labels = cluster.predict(encoded_patches_flat_cao)
+        cluster_list.append(cluster)
+        label_list.append(labels)
+
+    return cluster_list, label_list
+
+
+def dump_clustering(patch_load_name, patch_size, filter, n_K, encoded_patches_flat):
+    cluster = KMeans(n_K, init='k-means++', random_state=42).fit(encoded_patches_flat)
+    file_path = "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_%s_filter%s_K%s.pkl" % (patch_size, filter, patch_load_name, filter, n_K)
+    directory = os.path.dirname(file_path)
+
+    # Create the directory if it does not already exist
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    # Check if the file already existspatch_load_name
+    counter = 1
+    while os.path.exists(file_path):
+        # If the file exists, modify the file path by adding a suffix
+        file_path = "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_%s_filter%s_K%s_%d.pkl" % (patch_size, filter, patch_load_name, filter, n_K, counter)
+        counter += 1
+
+    # Save the model with the modified file path
+    joblib.dump(cluster, file_path)
+    return cluster
 
 
 def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, ends_cao, shapes_cao, indices_cao, global_max, n_patches_tot_cao, patch_size, strides, label_1, label_2, size_thr_1=20, size_thr_2=20):
