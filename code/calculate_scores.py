@@ -67,118 +67,245 @@ if "mimi" in hostname:
     folder = "/scratch/fslippe/modis/MOD02/daytime_1km/ /scratch/fslippe/modis/MOD02/boundary_1km/ /scratch/fslippe/modis/MOD02/night_1km/ /scratch/fslippe/modis/MOD02/may-nov_2021/ /scratch/fslippe/modis/MOD02/cao_test_data/"
 
 
-bands=[29]
-patch_size = 128
 
-dates_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_block.npy")
-times_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_block.npy")
-dates_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_rest.npy")
-times_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_rest.npy")
-dates = np.append(dates_block, dates_rest)
-times = np.append(times_block, times_rest)
 
-x_cao = []
-masks_cao = []
-lon_lats_cao = []
 
-dates, times = dates_block[10:12], times_block[10:12]
-s=0
-for (d, m) in zip(dates, times):
-    s+=1
-    arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A%s.%s.combined.npy" %(d, m))
-    x_cao.append(arr)
-    arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A%s.%s.combined.npy" %(d, m))
-    masks_cao.append(arr)
-    arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A%s.%s.combined.npy" %(d, m))
-    lon_lats_cao.append(arr)
-    #print("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A%s.%s_combined" %(d, m))
-    #idx = np.where((np.array(dates_cao) == d) & (np.array(mod_min_cao) == m))[0][0]
-    #np.save("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A%s.%s.combined.npy" %(d, m), masks_cao[idx])
-    #np.save("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A%s.%s.combined.npy" %(d, m), lon_lats_cao[idx])
-    #np.save("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/new_files/MOD021KM.A%s.%s.combined" %(d, m), arr)
+def import_label_data(label_data_file_path):
+    dates_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_block.npy")
+    times_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_block.npy")
+    # dates_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_rest.npy")
+    # times_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_rest.npy")
+    # dates = np.append(dates_block, dates_rest)
+    # times = np.append(times_block, times_rest)
+    dates = dates_block
+    times = times_block
+
+    x_cao = []
+    masks_cao = []
+    lon_lats_cao = []
+
+    #dates, times = dates_block[10:12], times_block[10:12]
+    s=0
+
+    for (d, m) in zip(dates, times):
+        s+=1
+        arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A%s.%s.combined.npy" %(d, m))
+        x_cao.append(arr)
+        arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A%s.%s.combined.npy" %(d, m))
+        masks_cao.append(arr)
+        arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A%s.%s.combined.npy" %(d, m))
+        lon_lats_cao.append(arr)
+        #print("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A%s.%s_combined" %(d, m))
+        #idx = np.where((np.array(dates_cao) == d) & (np.array(mod_min_cao) == m))[0][0]
+        #np.save("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A%s.%s.combined.npy" %(d, m), masks_cao[idx])
+        #np.save("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A%s.%s.combined.npy" %(d, m), lon_lats_cao[idx])
+        #np.save("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/new_files/MOD021KM.A%s.%s.combined" %(d, m), arr)
+        
+    max_vals = np.load("/uio/hume/student-u37/fslippe/data/models/patch_size128/max_val_dnb_l95_z50_ps128_band29_2018-2023.npy")
+    min_vals = np.load("/uio/hume/student-u37/fslippe/data/models/patch_size128/min_val_dnb_l95_z50_ps128_band29_2018-2023.npy")
+
+    with open(label_data_file_path, "r") as f:
+        data = json.load(f)["data"]["image_results"]
+
+    labeled_data = pd.json_normalize(data)
+    
+    return dates, times, labeled_data, x_cao, masks_cao, lon_lats_cao , max_vals, min_vals 
+
+
+def load_and_predict_encoder(patch_size, last_filter, patches_cao):
+    if last_filter == 128:
+        encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter128/encoder_dnb_l95_z50_ps128_f128_1e3_201812-202312.h5")
+    elif last_filter == 64:
+        encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter64/encoder_dnb_l95_z50_ps128_f64_1e3_201812-202312_epoch_500.h5")
+    elif last_filter == 32:
+        encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter32/encoder_dnb_l95_z50_ps128_f32_1e3_201812-202312.h5")
+
+    encoded_patches_cao = encoder.predict(patches_cao)
+    encoded_patches_flat_cao = encoded_patches_cao.reshape(encoded_patches_cao.shape[0], -1)
+
+    return encoded_patches_flat_cao
+
+
+def get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K):
+    cluster = joblib.load("/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_dnb_l95_z50_ps128_band29_filter%s_K%s.pkl" %(patch_size, last_filter, last_filter, n_K))
+    labels = cluster.predict(encoded_patches_flat_cao)
+
+    global_min = np.min([np.min(cm) for cm in cluster.labels_])
+    global_max = np.max([np.max(cm) for cm in cluster.labels_])+2
+    return labels, global_min, global_max
+
+def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_size, last_filter, n_K):
+    x_test1 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/radiance_2021080_1120_combined.npy")
+    x_test2 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/radiance_2023062_1100_combined.npy")
+    x_test3 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/radiance_2023065_1125_combined.npy")
+
+    x_test4 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A2019060.1030.combined.npy")
+    x_test5 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A2022347.1150.combined.npy")
+    x_test6 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A2022120.955.combined.npy")
+    x_test = ([x_test1, x_test2, x_test3, x_test4, x_test5, x_test6])
+
+
+    masks_test1 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/mask_2021080_1120_combined.npy")
+    masks_test2 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/mask_2023062_1100_combined.npy")
+    masks_test3 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/mask_2023065_1125_combined.npy")
+
+    masks_test4 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A2019060.1030.combined.npy")
+    masks_test5 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A2022347.1150.combined.npy")
+    masks_test6 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A2022120.955.combined.npy")
+    masks_test = ([masks_test1, masks_test2, masks_test3, masks_test4, masks_test5, masks_test6])
     
 
-max_vals = np.load("/uio/hume/student-u37/fslippe/data/models/patch_size128/max_val_dnb_l95_z50_ps128_band29_2018-2023.npy")
-min_vals = np.load("/uio/hume/student-u37/fslippe/data/models/patch_size128/min_val_dnb_l95_z50_ps128_band29_2018-2023.npy")
-autoencoder_predict = SimpleAutoencoder(len(bands), patch_size, patch_size)
-strides = 32    #patch_size
-idx = 0 
-index_list = [0]
-patches_cao, all_lon_patches_cao, all_lat_patches_cao, starts_cao, ends_cao, shapes_cao, n_patches_tot_cao, indices_cao = generate_patches([x_cao[idx][:,:,0]],
-                                                                                                                                            [masks_cao[idx]],
-                                                                                                                                            [lon_lats_cao[idx]],
+    lon_lats_test1 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lonlat_2021080_1120_combined.npy")
+    lon_lats_test2 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lonlat_2023062_1100_combined.npy")
+    lon_lats_test3 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lonlat_2023065_1125_combined.npy")
+
+    lon_lats_test4 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A2019060.1030.combined.npy")
+    lon_lats_test5 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A2022347.1150.combined.npy")
+    lon_lats_test6 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A2022120.955.combined.npy")
+    lon_lats_test = ([lon_lats_test1, lon_lats_test2, lon_lats_test3, lon_lats_test4, lon_lats_test5, lon_lats_test6])
+
+    patches_test, all_lon_patches_test, all_lat_patches_test, starts_test, ends_test, shapes_test, n_patches_tot_test, indices_test = generate_patches([x[:,:,0] for x in x_test],
+                                                                                                                                            masks_test,
+                                                                                                                                            lon_lats_test,
                                                                                                                                             max_vals,
                                                                                                                                             min_vals,
                                                                                                                                             autoencoder_predict,
-                                                                                                                                            strides=[1, strides, strides,1])
-# patches_cao, all_lon_patches_cao, all_lat_patches_cao, starts_cao, ends_cao, shapes_cao, n_patches_tot_cao, indices_cao = generate_patches([x[:,:,0] for x in x_cao],
-#                                                                                                                                             masks_cao,
-#                                                                                                                                             lon_lats_cao,
-#                                                                                                                                             max_vals,
-#                                                                                                                                             min_vals,
-#                                                                                                                                             autoencoder_predict,
-#                                                                                                                                             strides=[1, strides, strides,1])
+                                                                                                                                            strides=[1, patch_size, patch_size,1])
+    labels, global_min, global_max = load_and_predict_encoder(patch_size, last_filter, n_K, patches_test)
+                                                                                                                                            
+    plot_img_cluster_mask(x_test,
+                      labels,#, labels_64],
+                      masks_test,
+                      starts_test,
+                      ends_test,
+                      shapes_test,
+                      indices_test,
+                      ["1", "2", "3", "4", "5", "6"],
+                      n_patches_tot_test,
+                      patch_size,
+                      global_min,
+                      global_max,
+                      index_list=[0,1,2,3,4,5],
+                      chosen_label=3,
+                      one_fig=True,
+                      save=None)
 
-encoder_128 = load_model("/uio/hume/student-u37/fslippe/data/models/patch_size128/filter128/encoder_dnb_l95_z50_ps128_f128_1e3_201812-202312.h5")
-encoded_patches_128_cao = encoder_128.predict(patches_cao)
-encoded_patches_flat_128_cao = encoded_patches_128_cao.reshape(encoded_patches_128_cao.shape[0], -1)
-cluster = joblib.load("/uio/hume/student-u37/fslippe/data/models/cluster_dnb_l95_z50_ps128_band29_filter128_K12.pkl" )
-labels = cluster.predict(encoded_patches_flat_128_cao)
-label_1 = 8
-label_2 = 10
-
-global_min = np.min([np.min(cm) for cm in cluster.labels_])
-global_max = np.max([np.max(cm) for cm in cluster.labels_])+1
-
-# encoder_64 = load_model("/uio/hume/student-u37/fslippe/data/models/patch_size128/filter64/encoder_dnb_l95_z50_ps128_f64_201812-202312.h5")
-# encoded_patches_64_cao = encoder_64.predict(patches_cao)
-# encoded_patches_flat_64_cao = encoded_patches_64_cao.reshape(encoded_patches_64_cao.shape[0], -1)
-# cluster = joblib.load("/uio/hume/student-u37/fslippe/data/models/cluster_dnb_l95_z50_ps128_band29.pkl" )
-# labels_64 = cluster.predict(encoded_patches_flat_64_cao)
-
-label_map, lon_map, lat_map = process_label_maps(labels,all_lon_patches_cao, all_lat_patches_cao, starts_cao, ends_cao, shapes_cao, indices_cao, global_max, n_patches_tot_cao, patch_size, strides, label_1, label_2, size_thr_1=20, size_thr_2=20)
-
-# Example usage of the function
-extent = [-15, 25, 58, 84]
-plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, dates)
-plt.show()
-
-for i in index_list:
-    valid_lons, valid_lats = get_valid_lons_lats(x_cao[i][:,:,0],
-                                                lon_lats_cao[i],
-                                                label_map[i],
-                                                lon_map[i],
-                                                lat_map[i],
-                                                dates[i],
-                                                times[i],
-                                                open_label=label_1,
-                                                closed_label=label_2,
-                                                p_level=950,
-                                                angle_thr=5,
-                                                size_threshold_1=None,
-                                                size_threshold_2=None,
-                                                plot=False,
-                                                extent= [-15, 25, 58, 84])
+    plt.ion()
+                 
+    plt.show()
+    open_label = int(input("Open cell label: "))
+    # Prompt for closed cell label
+    closed_label = int(input("Closed cell label: "))
+    plt.ioff()
+    plt.close()
+    np.save(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_opencell_label", open_label)
+    np.save(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_closedcell_label", closed_label)
 
 
-model_boundaries, model_areas = process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=True)
 
-filepath = "/uio/hume/student-u37/fslippe/data/labeled_data/results_backup_20230105"
-with open(filepath, "r") as f:
-    data = json.load(f)["data"]["image_results"]
+def main():
+    bands=[29]
+    patch_size = 128
+    last_filter = 64
+    strides = 128    #patch_size
+    idx = 0 
+    index_list = [21, 0]
+    size_threshold = 10
+    dates, times, labeled_data, x_cao, masks_cao, lon_lats_cao , max_vals, min_vals  = import_label_data("/uio/hume/student-u37/fslippe/data/labeled_data/results_backup_20240118")  
+    autoencoder_predict = SimpleAutoencoder(len(bands), patch_size, patch_size)
+    
+    patches_cao, all_lon_patches_cao, all_lat_patches_cao, starts_cao, ends_cao, shapes_cao, n_patches_tot_cao, indices_cao = generate_patches([x[:,:,0] for x in x_cao],
+                                                                                                                                                masks_cao,
+                                                                                                                                                lon_lats_cao,
+                                                                                                                                                max_vals,
+                                                                                                                                                min_vals,
+                                                                                                                                                autoencoder_predict,
+                                                                                                                                                strides=[1, strides, strides,1])
 
-labeled_data = pd.json_normalize(data)
-dates_cao = dates
-mod_min_cao = times
+    encoded_patches_flat_cao = load_and_predict_encoder(patch_size, last_filter, patches_cao)
 
-labeled_areas, labeled_boundaries = get_area_and_border_mask(x_cao, dates, times, masks_cao, labeled_data, dates_cao, mod_min_cao, reduction=strides, plot=True)
-# fig, axs = plt.subplots(1,2, figsize=[10,10])
-# cb = axs[0].imshow(labeled_areas[0])
-# plt.colorbar(cb)
-# cb = axs[1].imshow(labeled_boundaries[0])
-# plt.colorbar(cb)
+    for n_K in [10, 11]:
+        if not os.path.exists(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_opencell_label.npy"):
+            manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_size, last_filter, n_K)
+        if not os.path.exists(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_closedcell_label.npy"):
+            manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_size, last_filter, n_K)
+    
+        open_label = np.load(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_opencell_label.npy")
+        closed_label = np.load(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_closedcell_label.npy")
+        
+
+        labels, global_min, global_max = get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K)
+        label_map, lon_map, lat_map = process_label_maps(labels,
+                                                        all_lon_patches_cao,
+                                                        all_lat_patches_cao,
+                                                        starts_cao,
+                                                        ends_cao,
+                                                        shapes_cao,
+                                                        indices_cao,
+                                                        global_max,
+                                                        n_patches_tot_cao,
+                                                        patch_size,
+                                                        strides,
+                                                        closed_label, 
+                                                        open_label, 
+                                                        size_thr_1=size_threshold, 
+                                                        size_thr_2=size_threshold)
+
+            # Example usage of the function
+        extent = [-15, 25, 58, 84]
+        # plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, dates)
+        # plt.show()
+
+        for i in index_list:
+            valid_lons, valid_lats = get_valid_lons_lats(x_cao[i][:,:,0],
+                                                        lon_lats_cao[i],
+                                                        label_map[i],
+                                                        lon_map[i],
+                                                        lat_map[i],
+                                                        dates[i],
+                                                        times[i],
+                                                        open_label=closed_label,
+                                                        closed_label=open_label,
+                                                        p_level=950,
+                                                        angle_thr=5,
+                                                        size_threshold_1=None,
+                                                        size_threshold_2=None,
+                                                        plot=False,
+                                                        extent= [-15, 25, 58, 84])
 
 
-area_scores, border_scores = calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=True)
+        model_boundaries, model_areas = process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, closed_label, open_label, plot=False)
+
+        labeled_areas, labeled_boundaries = get_area_and_border_mask(x_cao, dates, times, masks_cao, labeled_data, reduction=strides, index_list=index_list, plot=False)
+        plt.figure()
+        fig, axs = plt.subplots(1,2)
+        axs[0].imshow(model_areas[0])
+        axs[1].imshow(labeled_areas[0])
+        plt.show()
+        fig, axs = plt.subplots(1,2)
+        axs[0].imshow(model_areas[1])
+        axs[1].imshow(labeled_areas[1])
+        plt.show()
+        # fig, axs = plt.subplots(1,2, figsize=[10,10])
+        # cb = axs[0].imshow(labeled_areas[0])
+        # plt.colorbar(cb)
+        # cb = axs[1].imshow(labeled_boundaries[0])
+        # plt.colorbar(cb)
+
+
+        area_scores, border_scores, weighted_area_scores, weighted_border_scores = calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False)
+
+        folder = f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{last_filter}/clustering/scores/"
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        np.save(folder + f"area_scores_cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_res{strides}_thr{size_threshold}", area_scores)
+        np.save(folder + f"border_scores_cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_res{strides}_thr{size_threshold}", border_scores)
+        np.save(folder + f"weighted_area_scores_cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_res{strides}_thr{size_threshold}", weighted_area_scores)
+        np.save(folder + f"weighted_border_scores_cluster_dnb_l95_z50_ps{patch_size}_band29_filter{last_filter}_K{n_K}_res{strides}_thr{size_threshold}", weighted_border_scores)
+
+
+if __name__ == "__main__":
+    main()
 
 

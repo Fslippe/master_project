@@ -215,3 +215,4 @@ nohup python3 read_tf_old.py > log_outs/output_ps128_f128_old.log 2>&1 &
 
 
 
+10, 16, 19, 21, 24

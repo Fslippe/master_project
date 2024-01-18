@@ -220,7 +220,7 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
         
 
 
-def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, chosen_label=2, save=None):
+def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates, n_patches_tot, patch_size, global_min, global_max, index_list, chosen_label=2, one_fig=False, save=None):
     # Add black to the end of cmap
     norm_mask = Normalize(vmin=0, vmax=1)  
    
@@ -256,27 +256,69 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
 
 
     # Run through index_list corresponding to picture i
-    for i in index_list:
-        # Get cluster map i
+    if one_fig:
+        fig, axs = plt.subplots(len(index_list[:3]), 1 + n_bands + n_labels, figsize=(5*(n_bands + n_labels), 6*len(index_list[:3])))
 
-        # Plot each map        
-        fig, axs = plt.subplots(1, 1 + n_bands + n_labels, figsize=(15+ 5*(n_bands + n_labels) , 6))
-        for j in range(n_bands):
-            cb = axs[j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
-            plt.colorbar(cb)
-        for k in range(n_labels):
-            norm = Normalize(vmin=global_min[k], vmax=global_max[k])
-            map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
-            cb = axs[n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
-            plt.colorbar(cb)
-        fig.suptitle("idx:%s,  dates:%s,  max:%s,  min:%s,  mean:%s,  n_lab:%s" %(i, dates[i], np.max(map), np.min(map), np.mean(map), np.sum((map.ravel()==chosen_label))))
-        axs[-1].imshow(masks[i], norm=norm_mask)
-        plt.tight_layout()
-    
-    if save != None:
-        plt.savefig(save, dpi=200)
+        # Iterate over each index
+        for idx, i in enumerate(index_list[:3]):
+            # Get cluster map i
 
-    plt.show()
+            # Plot each map        
+            for j in range(n_bands):
+                cb = axs[idx, j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
+                plt.colorbar(cb)
+                
+            for k in range(n_labels):
+                norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+                map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
+                cb = axs[idx, n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
+                plt.colorbar(cb)
+            
+            axs[idx, -1].imshow(masks[i], norm=norm_mask)
+            plt.tight_layout()
+
+        fig, axs = plt.subplots(len(index_list[3:]), 1 + n_bands + n_labels, figsize=(5*(n_bands + n_labels), 6*len(index_list[3:])))
+
+        # Iterate over each index
+        for idx, i in enumerate(index_list[3:]):
+            # Get cluster map i
+
+            # Plot each map        
+            for j in range(n_bands):
+                cb = axs[idx, j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
+                plt.colorbar(cb)
+                
+            for k in range(n_labels):
+                norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+                map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
+                cb = axs[idx, n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
+                plt.colorbar(cb)
+            
+            axs[idx, -1].imshow(masks[i], norm=norm_mask)
+            plt.tight_layout()
+
+    else:
+        for i in index_list:
+            # Get cluster map i
+
+            # Plot each map        
+            fig, axs = plt.subplots(1, 1 + n_bands + n_labels, figsize=(15+ 5*(n_bands + n_labels) , 6))
+            for j in range(n_bands):
+                cb = axs[j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
+                plt.colorbar(cb)
+            for k in range(n_labels):
+                norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+                map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
+                cb = axs[n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
+                plt.colorbar(cb)
+            fig.suptitle("idx:%s,  dates:%s,  max:%s,  min:%s,  mean:%s,  n_lab:%s" %(i, dates[i], np.max(map), np.min(map), np.mean(map), np.sum((map.ravel()==chosen_label))))
+            axs[-1].imshow(masks[i], norm=norm_mask)
+            plt.tight_layout()
+        
+        if save != None:
+            plt.savefig(save, dpi=200)
+
+        plt.show()
 
 
 

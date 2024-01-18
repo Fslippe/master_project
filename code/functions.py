@@ -77,7 +77,7 @@ def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, end
 def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False):
     area_scores = []  # To store the area and border scores
     border_scores = []  # To store the area and border scores
-    weighted_area_score
+    weighted_area_score = []
     max_boundary = np.max(labeled_boundaries)
 
     for (m_border, m_area, l_border, l_area) in zip(model_boundaries, model_areas, labeled_boundaries, labeled_areas):
@@ -217,12 +217,14 @@ def get_area_mask(boundary_coordinates, mask_shape):
 
     
 
-def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_min_cao, reduction, patch_size=128, plot=False):
+def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patch_size=128, index_list=None, plot=False):
     downscaled_areas = []
     downscaled_borders = []
-    for d, t in zip(dates, times):
-        extracted_rows = df[df["image_id"].str.split("/").str[1].str.split("_").str[0] == f"MOD021KM.A{d}.{t}"]
-        if len(extracted_rows) > 6:
+
+
+    for idx in index_list:
+        extracted_rows = df[df["image_id"].str.split("/").str[1].str.split("_").str[0] == f"MOD021KM.A{dates[idx]}.{times[idx]}"]
+        if len(extracted_rows) > 1:
             if plot:
                 fig, axs = plt.subplots(1,3, figsize=[35, 20])
 
@@ -234,8 +236,6 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
                 di = extracted_rows.iloc[i]
                 date_img = str(di["image_id"].split("/")[1].split(".")[1][1:])
                 time_img = int(di["image_id"].split("/")[1].split(".")[2].split("_")[0])
-                idx = np.where((np.array(dates_cao) == date_img) & (np.array(mod_min_cao) == time_img))[0][0]
-
                 area_lines = np.array(di["data.areaLines"])
                 border_lines = np.array(di["data.borderLines"], dtype=object)
                 reduced_height = (x_cao[idx].shape[0] - patch_size) // reduction + 1
@@ -243,8 +243,8 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
                 scale_factor_y = reduced_height / x_cao[idx].shape[0]
                 scale_factor_x = reduced_width / x_cao[idx].shape[1]
 
-
                 n_areas = len(area_lines)
+
                 if n_areas > 0:
                     for j in range(n_areas):
                         area = np.array(area_lines[j])
@@ -252,9 +252,9 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
                         scaled_boundary_coordinates = np.copy(interpolated_area_boundary.astype(float))
                         scaled_boundary_coordinates[:, 0] *= scale_factor_x
                         scaled_boundary_coordinates[:, 1] *= scale_factor_y
+                        print((reduced_height, reduced_width))
                         area_mask = get_area_mask(scaled_boundary_coordinates, (reduced_height, reduced_width))
 
-                        #area_mask = get_area_mask(interpolated_area_boundary // reduction, (x_cao[idx].shape[0] // reduction, x_cao[idx].shape[1] // reduction))
 
                         interpolated_area.append(interpolated_area_boundary)
                         interpolated_area_mask.append(area_mask)
@@ -276,7 +276,6 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
                         interpolated_border.append(interpolate_coords(border.astype(float), connect_first_last=False))
             
                 
-                idx = np.where((np.array(dates_cao) == date_img) & (np.array(mod_min_cao) == time_img))[0][0]
                 if plot:
                     axs[1].imshow(x_cao[idx], cmap="gray_r")
                     for k in range(len(interpolated_border)):
@@ -310,7 +309,7 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, dates_cao, mod_
                 cb = axs[2].imshow(tot_border_reduced, vmin=0, vmax=1)
                 plt.colorbar(cb)
                 plt.show()
-
+        plt.show()
         return downscaled_areas, downscaled_borders
 
 
