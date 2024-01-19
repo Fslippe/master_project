@@ -77,18 +77,22 @@ def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, end
 def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False):
     area_scores = []  # To store the area and border scores
     border_scores = []  # To store the area and border scores
-    weighted_area_score = []
-    max_boundary = np.max(labeled_boundaries)
+    weighted_area_scores = []
+    weighted_border_scores = []
 
     for (m_border, m_area, l_border, l_area) in zip(model_boundaries, model_areas, labeled_boundaries, labeled_areas):
         area_diff = np.abs(m_area - l_area)
         area_score = 1 - np.nanmean(area_diff) 
-        agreement = np.abs(l_area - 0.5)*10
-        weighted_area_score.append(np.nanmean(area_diff * l_area))
-        border_score = 1 - np.nanmean(np.abs(m_border - l_border)) 
+        area_agreement = np.abs(l_area - 0.5)*10
         area_scores.append(area_score)
-        border_scores.append(area_score)
+        weighted_area_scores.append(1 - np.nanmean(area_diff * area_agreement))
 
+        max_boundary = np.max(l_border)
+        border_diff = np.abs(m_border - l_border)
+        border_score = 1 - np.nanmean(border_diff) 
+        border_scores.append(border_score)
+        border_agreement = np.abs(l_border - 0.5)*10
+        weighted_border_scores.append(1 - np.nanmean(border_diff * border_score))
 
         if plot:
             fig, axs = plt.subplots(1, 2)
@@ -108,9 +112,8 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
             plt.colorbar(cb2, ax=axs[1])
             plt.show()
 
-    weighted_border_score = [b * max_boundary for b in border_scores]
     
-    return area_scores, border_scores, weighted_area_score, weighted_border_score
+    return area_scores, border_scores, weighted_area_scores, weighted_border_scores
 
 
 def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=False):
@@ -261,7 +264,8 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
 
                     interpolated_sum = np.sum(interpolated_area_mask, axis=0)
                     interpolated_area_i.append(np.where(interpolated_sum > 1, 1, interpolated_sum))
-
+                else:
+                    interpolated_area_i.append(np.zeros((reduced_height, reduced_width)))
                 if plot:
                     axs[0].imshow(x_cao[idx], cmap="gray_r")
                     for k in range(len(interpolated_area)):
@@ -310,7 +314,7 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
                 plt.colorbar(cb)
                 plt.show()
         plt.show()
-        return downscaled_areas, downscaled_borders
+    return downscaled_areas, downscaled_borders
 
 
 def gaussian_brush(width=5, height=5, sigma=1.0, strength=1):
