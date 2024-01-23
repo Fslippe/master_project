@@ -123,7 +123,7 @@ def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, in
     
     for i in index_list:
         boundary_mask = np.zeros_like(lon_map[i], dtype=np.float)
-        closest_indices = find_closest_indices(lon_map[i], lat_map[i], valid_lons, valid_lats)
+        closest_indices = find_closest_indices(lon_map[i], lat_map[i], valid_lons[i], valid_lats[i])
 
         for (x, y) in closest_indices:
             apply_brush(boundary_mask, y, x, brush)

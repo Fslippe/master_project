@@ -200,8 +200,8 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
   wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
 
 
-scp subset_M2I3NPASM_5.12.4_20240109_160927_.txt fslippe@login.nird.sigma2.no:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240109_160927_.txt
-
+scp subset_M2I3NPASM_5.12.4_20240119_154434_.txt fslippe@login.nird.sigma2.no:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240119_154434_.txt
+wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NPASM_5.12.4_20240119_154434_.txt
 
 rsync -av --progress /source/directory user@remote:/destination/directory
 
@@ -215,4 +215,5 @@ nohup python3 read_tf_old.py > log_outs/output_ps128_f128_old.log 2>&1 &
 
 
 
-10, 16, 19, 21, 24
+
+rsync -av --progress /scratch/fslippe/modis/MOD02/training_data/tf_data/dnb_l95_z50_ps128_band29  fslippe@login.nird.sigma2.no:/nird/projects/NS9600K/fslippe/mimi_backup/ 

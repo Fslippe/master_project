@@ -1,4 +1,5 @@
 import os
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 os.environ["OPENBLAS_NUM_THREADS"] = "16"
 os.environ["NUM_THREADS"] = "16"
 os.environ["OMP_NUM_THREADS"] = "16"
@@ -127,11 +128,12 @@ def load_and_predict_encoder(patch_size, last_filter, patches_cao):
 
 
 def get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K):
+    print("cluster load loc:", "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_dnb_l95_z50_ps128_band29_filter%s_K%s.pkl"  %(patch_size, last_filter, last_filter, n_K))
     cluster = joblib.load("/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_dnb_l95_z50_ps128_band29_filter%s_K%s.pkl" %(patch_size, last_filter, last_filter, n_K))
     labels = cluster.predict(encoded_patches_flat_cao)
 
-    global_min = np.min([np.min(cm) for cm in cluster.labels_])
-    global_max = np.max([np.max(cm) for cm in cluster.labels_])+2
+    global_min = 0
+    global_max = n_K 
     return labels, global_min, global_max
 
 def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_size, last_filter, n_K):
@@ -171,7 +173,8 @@ def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_si
                                                                                                                                             min_vals,
                                                                                                                                             autoencoder_predict,
                                                                                                                                             strides=[1, patch_size, patch_size,1])
-    labels, global_min, global_max = load_and_predict_encoder(patch_size, last_filter, n_K, patches_test)
+    encoded_patches_flat_cao = load_and_predict_encoder(patch_size, last_filter, patches_test)
+    labels, global_min, global_max = get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K)
                                                                                                                                             
     plot_img_cluster_mask(x_test,
                       labels,#, labels_64],
