@@ -141,13 +141,17 @@
   - Solution: Cluster metric algorithm 
   - Use ex 12 Clusters for all tests, to see performance - Of cource very limited - Could use 11, 12, 13 
 
-Patch size | filters |  
-    64     |   32    |     
-    64     |   64    |     
-    64     |   128   |     
-    128    |   32    |     
-    128    |   64    |     
-    128    |   128   |     
+______________________________
+|__n_K__|_______Filters_______|
+|_______|__32__|__64__|__128__|  
+|  10   |      |      |       |
+|  11   |      |      |       |
+|  12   |      |      |       |
+|  13   |      |      |       |
+|  14   |      |      |       |
+|  15   |      |      |       |
+|__16___|______|______|_______|
+
 
   
 #### Calculate scores
@@ -197,11 +201,22 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
     -# Save counts for each year by month, to see evolution of the maps
 
 
-  wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
+
+#### DOWNLOADED MERRA PARAMETERS
+CLDTMP = cloud top temperature
+TQI = total precipitable ice water
+TQL = total precipitable liquid water
+TQV = total precipitable water vapor
+TS = surface skin temperature
+so4 = sulfate 
 
 
-scp subset_M2I3NPASM_5.12.4_20240119_154434_.txt fslippe@login.nird.sigma2.no:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240119_154434_.txt
-wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NPASM_5.12.4_20240119_154434_.txt
+wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
+
+
+scp subset_M2I3NVAER_5.12.4_20240124_155519_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2I3NVAER_5.12.4_20240124_155519_.txt
+
+wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NVAER_5.12.4_20240124_155519_.txt
 
 rsync -av --progress /source/directory user@remote:/destination/directory
 
@@ -212,7 +227,6 @@ nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &
 
 
 nohup python3 read_tf_old.py > log_outs/output_ps128_f128_old.log 2>&1 &
-
 
 
 

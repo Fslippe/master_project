@@ -75,24 +75,98 @@ def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, end
     return label_map, lon_map, lat_map
 
 def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False):
-    area_scores = []  # To store the area and border scores
-    border_scores = []  # To store the area and border scores
-    weighted_area_scores = []
-    weighted_border_scores = []
+    tot_points_list = []
 
+    area_scores = []  # To store the area and border scores
+    weighted_area_scores = []
+    area_true_positive_scores = []
+    area_false_positive_scores = []
+    area_true_negative_scores = []
+    area_false_negative_scores = []
+    area_true_prediction_scores = []
+    area_false_prediction_scores = []
+    area_tot_labeled_list = []
+
+    border_scores = []  # To store the area and border scores
+    weighted_border_scores = []
+    border_true_positive_scores = []
+    border_false_positive_scores = []
+    border_true_negative_scores = []
+    border_false_negative_scores = []
+    border_true_prediction_scores = []
+    border_false_prediction_scores = []
+    border_tot_labeled_list = []
     for (m_border, m_area, l_border, l_area) in zip(model_boundaries, model_areas, labeled_boundaries, labeled_areas):
+        tot_labeled_area_points = np.where(l_area > 0, 1, 0)
+        tot_nonlabeled_area_points = np.where(l_area == 0, 1, 0)
+        masked_m_area = m_area
+        masked_l_area = np.where(np.isnan(m_area), np.nan, l_area)
+
+
+        tot_area_points = np.sum(~np.isnan(m_area)) 
+        tot_points_list.append(tot_area_points)
+        area_tot_labeled = np.nansum(np.where(masked_l_area > 0, 1, 0))
+        area_tot_labeled_list.append(area_tot_labeled)
+        
+
+        area_false_positives = np.nansum(np.where((masked_m_area == 1) & (masked_l_area == 0), 1, 0))
+        area_false_positive_scores.append(area_false_positives)
+        
+        area_true_positives = np.nansum(np.where((masked_m_area == 1) & (masked_l_area > 0), 1, 0))
+
+        area_true_positive_scores.append(area_true_positives)
+
+        area_true_negatives = np.nansum(np.where((masked_m_area == 0) & (masked_l_area == 0), 1, 0))
+        area_true_negative_scores.append(area_true_negatives)
+
+        area_false_negatives = np.nansum(np.where((masked_m_area == 0) & (masked_l_area > 0), 1, 0))
+        area_false_negative_scores.append(area_false_negatives)
+
+        area_true_predictions = np.nansum(np.where(((masked_m_area == 1) & (masked_l_area > 0)) | ((masked_m_area == 0) & (masked_l_area == 0)), 1, 0))
+        area_true_prediction_scores.append(area_true_predictions)
+
+        area_false_predictions = np.nansum(np.where(((masked_m_area == 1) & (masked_l_area == 0)) | ((masked_m_area == 0) & (masked_l_area > 0)), 1, 0))
+        area_false_prediction_scores.append(area_false_predictions)
+
         area_diff = np.abs(m_area - l_area)
         area_score = 1 - np.nanmean(area_diff) 
+
         area_agreement = np.abs(l_area - 0.5)*10
         area_scores.append(area_score)
         weighted_area_scores.append(1 - np.nanmean(area_diff * area_agreement))
+
+        masked_m_border = m_border
+        masked_l_border = np.where(np.isnan(m_border), np.nan, l_border)
+
+        border_false_positives = np.nansum(np.where((masked_m_border > 0) & (masked_l_border == 0), 1, 0))
+        border_false_positive_scores.append(border_false_positives)
+        
+        border_true_positives = np.nansum(np.where((masked_m_border > 0) & (masked_l_border > 0), 1, 0))
+        border_true_positive_scores.append(border_true_positives)
+        
+        border_true_negatives = np.nansum(np.where((masked_m_border == 0) & (masked_l_border == 0), 1, 0))
+        border_true_negative_scores.append(border_true_negatives)
+        
+        border_false_negatives = np.nansum(np.where((masked_m_border == 0) & (masked_l_border > 0), 1, 0))
+        border_false_negative_scores.append(border_false_negatives)
+        
+        border_true_predictions = np.nansum(np.where(((masked_m_border > 0) & (masked_l_border > 0)) | ((masked_m_border == 0) & (masked_l_border == 0)), 1, 0))
+        border_true_prediction_scores.append(border_true_predictions)
+        
+        border_false_predictions = np.nansum(np.where(((masked_m_border > 0) & (masked_l_border == 0)) | ((masked_m_border == 0) & (masked_l_border > 0)), 1, 0))
+        border_false_prediction_scores.append(border_false_predictions)
+
+        border_tot_labeled = np.nansum(np.where(masked_l_border > 0, 1, 0))
+        border_tot_labeled_list.append(border_tot_labeled)
 
         max_boundary = np.max(l_border)
         border_diff = np.abs(m_border - l_border)
         border_score = 1 - np.nanmean(border_diff) 
         border_scores.append(border_score)
+
         border_agreement = np.abs(l_border - 0.5)*10
         weighted_border_scores.append(1 - np.nanmean(border_diff * border_score))
+
 
         if plot:
             fig, axs = plt.subplots(1, 2)
@@ -113,7 +187,32 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
             plt.show()
 
     
-    return area_scores, border_scores, weighted_area_scores, weighted_border_scores
+    all_area_scores = {"tot_points": tot_points_list,
+                       "area_tot_labeled": area_tot_labeled_list,
+                       "area_scores": area_scores,
+                       "weighted_area_scores": weighted_area_scores,
+                       "area_true_positive_scores": area_true_positive_scores,
+                       "area_false_positive_scores": area_false_positive_scores,
+                       "area_true_negative_scores": area_true_negative_scores,
+                       "area_false_negative_scores": area_false_negative_scores,
+                       "area_true_prediction_scores": area_true_prediction_scores,
+                       "area_false_prediction_scores": area_false_prediction_scores
+                        }
+
+    all_border_scores = {"tot_points": tot_points_list,
+                        "border_tot_labeled": border_tot_labeled_list,
+                        "border_scores": border_scores,
+                        "weighted_border_scores": weighted_border_scores,
+                        "border_true_positive_scores": border_true_positive_scores,
+                        "border_false_positive_scores": border_false_positive_scores,
+                        "border_true_negative_scores": border_true_negative_scores,
+                        "border_false_negative_scores": border_false_negative_scores,
+                        "border_true_prediction_scores": border_true_prediction_scores,
+                        "border_false_prediction_scores": border_false_prediction_scores
+                        }
+
+    return all_area_scores, all_border_scores
+
 
 
 def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=False):

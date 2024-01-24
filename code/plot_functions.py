@@ -230,7 +230,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
     colors_tab10 = cmap_tab10(np.arange(cmap_tab10.N))
     extra_colors = colors_tab20
     black = np.array([0, 0, 0, 1])
-    colors_new = np.vstack((colors_tab10, colors_tab20))[:np.max(global_max)-1]
+    colors_new = np.vstack((colors_tab10, colors_tab20))[:np.max(global_max)]
     colors_new = np.vstack((colors_new, black))
 
     new_cmap = mcolors.ListedColormap(colors_new)
@@ -269,7 +269,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
                 plt.colorbar(cb)
                 
             for k in range(n_labels):
-                norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+                norm = Normalize(vmin=global_min[k], vmax=global_max[k]+1)
                 map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
                 cb = axs[idx, n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
                 plt.colorbar(cb)
@@ -289,7 +289,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
                 plt.colorbar(cb)
                 
             for k in range(n_labels):
-                norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+                norm = Normalize(vmin=global_min[k], vmax=global_max[k]+1)
                 map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
                 cb = axs[idx, n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
                 plt.colorbar(cb)
@@ -307,7 +307,7 @@ def plot_img_cluster_mask(x, labels, masks, starts, ends, shapes, indices, dates
                 cb = axs[j].imshow(x[i][:,:,j], cmap="gray", vmin=0, vmax=max_bands[j])
                 plt.colorbar(cb)
             for k in range(n_labels):
-                norm = Normalize(vmin=global_min[k], vmax=global_max[k])
+                norm = Normalize(vmin=global_min[k], vmax=global_max[k]+1)
                 map = generate_map_from_labels(labels[k], starts[i], ends[i], shapes[i], indices[i], global_max[k], n_patches_tot[i], patch_size)
                 cb = axs[n_bands+k].imshow(map, cmap=new_cmap, norm=norm)
                 plt.colorbar(cb)
