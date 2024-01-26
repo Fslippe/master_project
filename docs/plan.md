@@ -202,6 +202,11 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
 
 
 
+
+
+
+
+
 #### DOWNLOADED MERRA PARAMETERS
 CLDTMP = cloud top temperature
 TQI = total precipitable ice water
@@ -211,16 +216,26 @@ TS = surface skin temperature
 so4 = sulfate 
 
 
+
+
+#### FIND CAO cases to use
+- run clustering on all years, and save times for those with more than threshold cao labels
+- run on these again with a stride of 16 or 32
+- get closest locations to open and closed cell labels on MERRA grid and save
+- get closest locations to boundary on MERRA grid and save
+- use indexes to extract  
+
+
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
 
 
-scp subset_M2I3NVAER_5.12.4_20240124_155519_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2I3NVAER_5.12.4_20240124_155519_.txt
+scp subset_M2I3NPASM_5.12.4_20240126_144741_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240126_144741_.txt
 
-wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NVAER_5.12.4_20240124_155519_.txt
+wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NPASM_5.12.4_20240126_144741_.txt
 
 rsync -av --progress /source/directory user@remote:/destination/directory
 
-rsync -av --progress /nird/projects/NS9600K/data/MERRA fslippe@mimi.uio.no:/scratch/fslippe/MERRA
+rsync -av --progress /nird/projects/NS9600K/data/MERRA/ fslippe@mimi.uio.no:/scratch/fslippe/MERRA/
 
 
 nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &

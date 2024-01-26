@@ -71,23 +71,28 @@ def plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, date
 
     plt.show()
 
-def save_img_with_labels(x, lon_lats, n_patches_tot,
-                      indices,
-                      labels,
-                      starts,
-                      ends,  
-                      shapes,
-                      dates,
-                      mod_min,
-                      desired_label,
-                      size_threshold,
-                      less_than,
-                      patch_size,
-                      global_max,
-                      max_pics = 50,
-                      shuffle=False,
-                      save_np="", plot=True):
-    
+def save_img_with_labels(x, 
+                        lon_lats, 
+                        n_patches_tot,
+                        indices,
+                        labels,
+                        starts,
+                        ends,  
+                        shapes,
+                        dates,
+                        mod_min,
+                        desired_label,
+                        size_threshold,
+                        less_than,
+                        patch_size,
+                        global_max,
+                        time_start=None,
+                        time_end=None,
+                        max_pics = 50,
+                        shuffle=False,
+                        save_np="",
+                        plot=True):
+        
     cmap_tab10 = plt.cm.tab10
     cmap_tab20 = plt.cm.tab20
     colors_tab20 = cmap_tab20(np.arange(cmap_tab20.N))[1::2]
@@ -96,7 +101,7 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
     black = np.array([0, 0, 0, 1])
     colors_new = np.vstack((colors_tab10, colors_tab20))[:global_max]
     colors_new = np.vstack((colors_new, black))
-    norm = colors.Normalize(vmin=0, vmax=global_max)
+    norm = colors.Normalize(vmin=0, vmax=global_max+1)
     new_cmap = mcolors.ListedColormap(colors_new)
     if shuffle:
       # Create an index array
@@ -166,7 +171,13 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
                         plt.colorbar(cb)
                         plt.show()
-                    if (mod_min[i] > 800) and (mod_min[i] < 1400):
+
+                    if time_start and time_end:
+                        if (mod_min[i] > time_start) and (mod_min[i] < time_end):
+                            dates_in_thr.append(dates[i])
+                            time_in_thr.append(mod_min[i])
+                            tot_pics +=1
+                    else:
                         dates_in_thr.append(dates[i])
                         time_in_thr.append(mod_min[i])
                         tot_pics +=1
@@ -182,17 +193,20 @@ def save_img_with_labels(x, lon_lats, n_patches_tot,
 
                     plt.colorbar(cb)
                     plt.show()
-                if (mod_min[i] > 800) and (mod_min[i] < 1400):
+                if time_start and time_end:
+                    if (mod_min[i] > time_start) and (mod_min[i] < time_end):
+                        dates_in_thr.append(dates[i])
+                        time_in_thr.append(mod_min[i])
+                        tot_pics +=1
+                else:
                     dates_in_thr.append(dates[i])
                     time_in_thr.append(mod_min[i])
                     tot_pics +=1
 
 
-    print(len(dates_in_thr))
-
-    np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_dates" %(save_np), dates_in_thr)
-    np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_times" %(save_np), time_in_thr)
-
+    # np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_dates" %(save_np), dates_in_thr)
+    # np.save("/uio/hume/student-u37/fslippe/data/dates_for_labeling/%s_times" %(save_np), time_in_thr)
+    return dates_in_thr, time_in_thr
 
     
 

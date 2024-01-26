@@ -46,6 +46,10 @@
 ++++ STRATOCUMULUS +++++
 Stratocumulus Clouds Robert Wood (2015), https://climate-dynamics.org/wp-content/uploads/2015/05/wood12a.pdf
 
+
+++++ AEROSOLS +++++
+P. Zieger et al 2017 Revising the hygroscopicity of inorganic sea salt particles (https://www.nature.com/articles/ncomms15883)
+
 ++++ General on data analysis ++++
 - Test of float16 against float32 (https://mxnet.apache.org/versions/1.9.1/api/faq/float16)
 - Tensorfloat32 documentation (https://www.tensorflow.org/api_docs/python/tf/config/experimental/enable_tensor_float_32_execution)

@@ -175,7 +175,6 @@ def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_si
                                                                                                                                             strides=[1, patch_size, patch_size,1])
     encoded_patches_flat_cao = load_and_predict_encoder(patch_size, last_filter, patches_test)
     labels, global_min, global_max = get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K)
-    print(global_max)                                                                                                                                    
     plot_img_cluster_mask(x_test,
                       labels,#, labels_64],
                       masks_test,

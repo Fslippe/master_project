@@ -1260,8 +1260,9 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
     lats = []
     angles = []
 
-
-    m = remove_labels_from_size_thresholds(m, label1, label2, size_threshold_1, size_threshold_2)
+    if  size_threshold_1 or size_threshold_2:
+        m = remove_labels_from_size_thresholds(m, label1, label2, size_threshold_1, size_threshold_2)
+        
 
 
 
