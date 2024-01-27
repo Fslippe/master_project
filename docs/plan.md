@@ -229,9 +229,9 @@ so4 = sulfate
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
 
 
-scp subset_M2I3NPASM_5.12.4_20240126_144741_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240126_144741_.txt
+scp subset_M2I3NPASM_5.12.4_20240126_162951_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2I3NPASM_5.12.4_20240126_162951_.txt
 
-wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NPASM_5.12.4_20240126_144741_.txt
+wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2I3NPASM_5.12.4_20240126_162951_.txt
 
 rsync -av --progress /source/directory user@remote:/destination/directory
 
