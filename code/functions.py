@@ -14,6 +14,23 @@ import os
 import joblib
 geodesic = pyproj.Geod(ellps='WGS84')
 
+def find_closest_indices_merra(lon, lat, lon_mesh, lat_mesh):
+    # Initialize empty lists for the closest indices
+    unique_indices = set()
+
+    # Iterate over the values in lon and lat
+    for lon, lat in zip(lon, lat):
+        # Calculate the Euclidean distance between the current point and all the points in lon_mesh and lat_mesh
+        distances = np.sqrt((lon_mesh - lon)**2 + (lat_mesh - lat)**2)
+        
+        # Find the minimum distance and its index
+        min_distance_index = np.unravel_index(distances.argmin(), distances.shape)
+
+        # Append the indices to the respective lists
+        unique_indices.add(min_distance_index)
+
+    return np.array(list(unique_indices))
+
 
 def get_cluster_and_label_lists(patch_load_name, patch_size, last_filter, n_K_list, encoded_patches_flat, encoded_patches_flat_cao ):
     cluster_list = []
@@ -47,7 +64,7 @@ def dump_clustering(patch_load_name, patch_size, filter, n_K, encoded_patches_fl
     return cluster
 
 
-def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, ends_cao, shapes_cao, indices_cao, global_max, n_patches_tot_cao, patch_size, strides, label_1, label_2, size_thr_1=20, size_thr_2=20):
+def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, ends_cao, shapes_cao, indices_cao, global_max, n_patches_tot_cao, patch_size, strides, label_1, label_2, size_thr_1=0, size_thr_2=0):
     def calculate_patch_mean(patches):
         if patches.ndim == 2:
             return np.mean(np.expand_dims(patches, axis=0), axis=(1, 2))
@@ -68,9 +85,11 @@ def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, end
     
     for i in index_list:
         label_map[i] = generate_map_from_labels(labels, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
-        label_map[i] = remove_labels_from_size_thresholds(label_map[i], label_1, label_2, size_thr_1=size_thr_1, size_thr_2=size_thr_2)
-        lon_map[i] = generate_map_from_labels(pat_lon, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
-        lat_map[i] = generate_map_from_labels(pat_lat, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+        if size_thr_1 and size_thr_2:
+            label_map[i] = remove_labels_from_size_thresholds(label_map[i], label_1, label_2, size_thr_1=size_thr_1, size_thr_2=size_thr_2)
+        
+        lon_map[i] = generate_map_from_lon_lats(pat_lon, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+        lat_map[i] = generate_map_from_lon_lats(pat_lat, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
 
     return label_map, lon_map, lat_map
 
@@ -617,7 +636,7 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
     datetime_obj = datetime.datetime.strptime("%s%s" %(date, time), "%Y%j%H%M")
     formatted_date = datetime_obj.strftime("%Y%m%d")
     year = str(date)[:4]
-    ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2_400.inst3_3d_asm_Np.%s.SUB.nc" % (year, formatted_date))
+    ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, formatted_date))
     ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
     wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
     
@@ -695,6 +714,20 @@ def convert_to_day_of_year(date_str):
     # Return in the desired format
     return f"{year}{day_of_year:03d}"  # Using :03d to ensure it's a 3-digit number
 
+def convert_to_date(day_of_year_str):
+    # Parse the day of the year
+    year = int(day_of_year_str[:4])
+    day_of_year = int(day_of_year_str[4:])
+
+    # Convert to datetime object
+    date_obj = datetime.datetime(year, 1, 1) + datetime.timedelta(day_of_year - 1)
+
+    # Format the date as "YYYYMMDD"
+    date_str = date_obj.strftime("%Y%m%d")
+
+    # Return the formatted date
+    return date_str
+
 
 def generate_date_list(start, end):
     start_date = datetime.datetime.strptime(start, '%Y%m%d')
@@ -746,7 +779,31 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
 
     return cluster_map
 
+def generate_map_from_lon_lats(lon_lats, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
+    # Calculate the dimensions of the reduced resolution array
+    height, width = shape
+    
+    if stride is None or stride == patch_size:
+        reduced_height = height // patch_size
+        reduced_width = width // patch_size 
+    else:
+        reduced_height = (height - patch_size) // stride + 1
+        reduced_width = (width - patch_size) // stride + 1    
 
+    # Generate an empty map with all values set to global_max + 1
+    lon_lats_map = np.full((reduced_height, reduced_width), np.nan , dtype=lon_lats.dtype)
+
+    # Get the indices corresponding to the patches
+    patch_indices = np.squeeze(idx.numpy())
+
+    # Ensure the provided indices are within the expected range
+    valid_indices = patch_indices < n_patches
+    patch_indices = patch_indices[valid_indices]
+
+    # Set the labels for the patches with valid indices
+    lon_lats_map.flat[patch_indices] = lon_lats[start:end][valid_indices]
+
+    return lon_lats_map
 
 import numpy as np
 

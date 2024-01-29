@@ -11,7 +11,9 @@ for n_k in [10, 11, 12, 13, 14, 15, 16]:
     for file in files:
         if file.endswith(".npy"):
             # Generate the new file name by adding "_2019" before ".npy"
-            new_file_name = file.replace(".npy", "_2019.npy")
+            new_file_name = file.replace("__2019.npy", "_2019.npy")
             
             # Rename the file
             os.rename(os.path.join(directory, file), os.path.join(directory, new_file_name))
+
+
