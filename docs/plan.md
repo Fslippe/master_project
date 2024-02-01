@@ -230,15 +230,15 @@ so4 = sulfate
 - Plot histograms 
 - Perform significance tests - H0: data from same distribtutions?
 - Perform random forest with prediction labels of 0/1/2 closed/border/open
-- Accurate model can be used to find most important predictors for border 
-
+- Accurate model can be used to find most important predictors for border and if of interest open/closed
+- Using EIS 
 
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
 
 
-scp subset_M2T1NXFLX_5.12.4_20240130_171133_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2T1NXFLX_5.12.4_20240130_171133_.txt
+scp subset_M2T1NXSLV_5.12.4_20240201_124036_.txt nird:/nird/projects/NS9600K/data/MERRA/subset_M2T1NXSLV_5.12.4_20240201_124036_.txt
 
-wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2T1NXFLX_5.12.4_20240130_171133_.txt
+wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --content-disposition -i subset_M2T1NXSLV_5.12.4_20240201_124036_.txt
 
 rsync -av --progress /source/directory user@remote:/destination/directory
 

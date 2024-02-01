@@ -12,7 +12,6 @@
 - Goren et al., 2019: influence of anthropogenic air pollution on the breakup from closed to open cell (modelling and satellite study)
 - Rebecca et al., 2023: Investigating the development of clouds within marine cold-air outbreaks https://acp.copernicus.org/articles/23/9365/2023/
 
-
 ++++ Remote sensing of clouds ++++
 - Mace et al. 2021: nice paper on remote sensing of mixed-phase clouds in high latitudes (Southern Ocean), which gives you a good introduction to satellite observations as well
 - Mioche et al. 2015: similar than the Mace 2021 paper, but for the Arctic (Svalbard region)
@@ -44,11 +43,22 @@
 
 
 ++++ STRATOCUMULUS +++++
-Stratocumulus Clouds Robert Wood (2015), https://climate-dynamics.org/wp-content/uploads/2015/05/wood12a.pdf
+- Stratocumulus Clouds Robert Wood (2015), https://climate-dynamics.org/wp-content/uploads/2015/05/wood12a.pdf
+- Francisco Lang et al., 2024 On the relationship between mesoscale cellular convection and meteorological forcing: comparing the Southern Ocean against the North Pacific
+
+++++ DATA PRODUCTS +++++
+Investigation of near-global daytime boundary layer height using high-resolution radiosondes: first results and comparison with ERA5, MERRA-2, JRA-55, and NCEP-2 reanalyses (https://acp.copernicus.org/articles/21/17079/2021/#section5)
+
+++++ OTHER ABOUT CLOUDS +++++
+Robert Wood and Christopher S. Bretherton On the Relationship between Stratiform Low Cloud Cover and Lower-Tropospheric Stability (2006) https://journals.ametsoc.org/view/journals/clim/19/24/jcli3988.1.xml
+
 
 
 ++++ AEROSOLS +++++
 P. Zieger et al 2017 Revising the hygroscopicity of inorganic sea salt particles (https://www.nature.com/articles/ncomms15883)
+
+
+
 
 ++++ General on data analysis ++++
 - Test of float16 against float32 (https://mxnet.apache.org/versions/1.9.1/api/faq/float16)

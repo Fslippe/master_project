@@ -24,6 +24,63 @@ plt.style.use("bmh")
 # Define the grid in projected coordinates
 
 
+
+
+def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name, bin_size, min_bin=None, max_bin=None, scale=None):
+    # Extract the data from the datasets
+    if var_name:
+        var_closed = var_closed_ds[var_name].values
+        var_open = var_open_ds[var_name].values
+        var_border = var_border_ds[var_name].values
+        long_name = var_closed_ds[var_name].attrs["long_name"].replace("_", " ")
+        unit = var_closed_ds[var_name].attrs["units"]
+    else:
+        var_closed = var_closed_ds.values
+        var_open = var_open_ds.values
+        var_border = var_border_ds.values
+        long_name = var_closed_ds.attrs["long_name"].replace("_", " ")
+        unit = var_closed_ds.attrs["units"]
+    # Find min and max across all datasets if they are not provided
+    if min_bin is None:
+        min_bin = np.nanmin([np.nanmin(var_closed), np.nanmin(var_open), np.nanmin(var_border)])
+    if max_bin is None:
+        max_bin = np.nanmax([np.nanmax(var_closed), np.nanmax(var_open), np.nanmax(var_border)])
+
+    if scale == 'log':
+        if min_bin <= 0:
+            raise ValueError("min_bin must be > 0 for logarithmic scale.")
+        # Generate bins in log space between min_bin and max_bin with a logarithmic binsize.
+        bins = np.logspace(np.log10(min_bin), np.log10(max_bin), num=bin_size)
+    else:
+        # Generate linearly spaced bins as before.
+        bins = np.arange(min_bin, max_bin, bin_size)
+    
+    plt.figure(figsize=(10, 7),dpi=250)
+
+    print()
+    plt.title("Histogram of " + long_name)
+    
+    # Plot Histogram for var_closed
+    plt.hist(var_closed, bins=bins, edgecolor='black', alpha=0.7, 
+             weights=np.ones(len(var_closed)) / len(var_closed), label="closed")
+    
+    # Plot Histogram for var_open
+    plt.hist(var_open, bins=bins, edgecolor='black', alpha=0.7, 
+             weights=np.ones(len(var_open)) / len(var_open), label="open")
+
+    # Plot Histogram for var_border
+    plt.hist(var_border, bins=bins, edgecolor='black', alpha=0.7, 
+             weights=np.ones(len(var_border)) / len(var_border), label="border")
+
+    # Set the y-axis label to be a percentage
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
+    if scale:
+        plt.xscale(scale)
+    plt.xlabel(long_name + f" [{unit}]")
+    plt.ylabel('Percentage')
+    plt.legend()
+    plt.show()
+
 def plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, dates):
     """
     Plots a filtered map based on latitude and longitude conditions.
