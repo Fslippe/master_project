@@ -12,6 +12,7 @@ from shapely.geometry import Point, Polygon
 from plot_functions import * 
 import os
 import joblib
+from concurrent.futures import ProcessPoolExecutor
 geodesic = pyproj.Geod(ellps='WGS84')
 
 def find_closest_indices_merra(lon, lat, lon_mesh, lat_mesh):
@@ -860,7 +861,42 @@ def shuffle_in_unison(*args):
         np.random.set_state(rng_state)
         np.random.shuffle(array)
 
-        
+
+
+def process_image(args):
+    image, mask, lon_lat, autoencoder, strides, lon_lat_min_max, min_vals, max_vals = args
+    patches, idx, n_patches, lon, lat = autoencoder.extract_patches(image,
+                                                                    mask,
+                                                                    mask_threshold=0.9,
+                                                                    lon_lat=lon_lat,
+                                                                    extract_lon_lat=True,
+                                                                    strides=strides,
+                                                                    lon_lat_min_max=lon_lat_min_max)
+    patches = (patches - min_vals) / (max_vals - min_vals)
+    return patches, lon, lat, len(patches), n_patches, idx
+
+
+def generate_patches_parallel(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82], workers=1):
+    starts = []
+    ends =[]
+    shapes = []
+    start = 0 
+
+    args = [(image, mask, lon_lat, autoencoder, strides, lon_lat_min_max, min_vals, max_vals) for image, mask, lon_lat in zip(x, masks, lon_lats)]
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        results = list(executor.map(process_image, args))
+
+    all_patches, all_lon_patches, all_lat_patches, lens, n_patches_tot, indices = zip(*results)
+
+    patches = np.concatenate(all_patches, axis=0)
+    starts = np.cumsum([0] + list(lens[:-1]))
+    ends = np.cumsum(lens)
+
+    return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
+
+
+
 def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
     all_patches = []
     all_lon_patches = []
