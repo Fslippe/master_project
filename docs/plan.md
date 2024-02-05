@@ -187,22 +187,6 @@ nohup wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.
   - Download data 
 
 
-### Weekly plan
-- #Find out way of removing downwind boundaries 
-- Make Histogram maps
-- Prepare model tests by running with different simulations
-  - Use only 2019-2023 or download more data?
-
-
-
-#### TODAYS PLAN
-- #Try to perform histograms on new data
-  - #Histogram maps is of most interest
-    -# Save counts for each year by month, to see evolution of the maps
-
-
-
-
 
 
 
@@ -232,6 +216,13 @@ so4 = sulfate
 - Perform random forest with prediction labels of 0/1/2 closed/border/open
 - Accurate model can be used to find most important predictors for border and if of interest open/closed
 - Using EIS 
+
+### GENERAL PLANS
+- Plots of labeled dataset to gether with model  
+- t
+
+
+
 
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
 

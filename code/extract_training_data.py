@@ -66,8 +66,17 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             file_layers[band-1] = {"EV_1KM_RefSB": i}
         for i, (band) in enumerate(list4):
             file_layers[band-1] = {"EV_1KM_Emissive": i}
+    elif data_type == "mod06":
+        hdf = SD(all_files[0], SDC.READ)
 
-    else:
+        file_layers[0] = {"EV_250_Aggr1km_RefSB": 0}
+        for i, (band) in enumerate(list2):
+            file_layers[band-1] = {"EV_500_Aggr1km_RefSB": i}    
+        for i, (band) in enumerate(list3):
+            file_layers[band-1] = {"EV_1KM_RefSB": i}
+        for i, (band) in enumerate(list4):
+            file_layers[band-1] = {"EV_1KM_Emissive": i}
+    elif data_type == "npy":
         file_layers = None
 
     file_groups = defaultdict(list)
@@ -396,6 +405,8 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     current_data_list = []
 
     hdf = SD(file, SDC.READ)
+
+    #### IF FILE LAYER IS A STRING DO NOT INDEX ....
     key = list(file_layers[bands[0]-1].keys())[0]
     idx = list(file_layers[bands[0]-1].values())[0]
     data = hdf.select(key)[:][idx]
