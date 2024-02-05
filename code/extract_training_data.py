@@ -47,7 +47,7 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     print(folders)
 
     for f in folders:
-        all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith(data_type)])
+        all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith(data_type if data_type != "mod06" else "hdf")])
 
     if data_type == "hdf":
         hdf = SD(all_files[0], SDC.READ)
@@ -68,14 +68,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             file_layers[band-1] = {"EV_1KM_Emissive": i}
     elif data_type == "mod06":
         hdf = SD(all_files[0], SDC.READ)
-
-        file_layers[0] = {"EV_250_Aggr1km_RefSB": 0}
-        for i, (band) in enumerate(list2):
-            file_layers[band-1] = {"EV_500_Aggr1km_RefSB": i}    
-        for i, (band) in enumerate(list3):
-            file_layers[band-1] = {"EV_1KM_RefSB": i}
-        for i, (band) in enumerate(list4):
-            file_layers[band-1] = {"EV_1KM_Emissive": i}
+        file_layers = "Cloud_Water_Path"
+        bands = None
     elif data_type == "npy":
         file_layers = None
 
@@ -407,9 +401,21 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     hdf = SD(file, SDC.READ)
 
     #### IF FILE LAYER IS A STRING DO NOT INDEX ....
-    key = list(file_layers[bands[0]-1].keys())[0]
-    idx = list(file_layers[bands[0]-1].values())[0]
-    data = hdf.select(key)[:][idx]
+
+    try:
+        dty = file_layers.get("dtype")
+    except:
+        dty = "mod06"
+    if dty != "mod06":
+        key = list(file_layers[bands[0]-1].keys())[0]
+        idx = list(file_layers[bands[0]-1].values())[0]
+        data = hdf.select(key)[:][idx]
+        mod06 = False
+    else:
+        key = file_layers 
+        data = hdf.select(key)[:]
+        mod06 = True
+    
     lat = hdf.select("Latitude")[:]
     lon = hdf.select("Longitude")[:]
 
@@ -444,40 +450,43 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     mask = full_water_mask[indices].reshape(data.shape)
     attrs = hdf.select(key).attributes()
     is_nan = data == attrs["_FillValue"]
-       
-    valid_rows = ~np.all(is_nan, axis=1)
-    valid_cols = ~np.all(is_nan, axis=0)
-    data = data[valid_rows][:, valid_cols]
-    mask = mask[valid_rows][:, valid_cols]
-    lon_highres = lon_highres[valid_rows][:, valid_cols]
-    lat_highres = lat_highres[valid_rows][:, valid_cols]
+    
+    if not mod06:
+        valid_rows = ~np.all(is_nan, axis=1)
+        valid_cols = ~np.all(is_nan, axis=0)
+        data = data[valid_rows][:, valid_cols]
+        mask = mask[valid_rows][:, valid_cols]
+        lon_highres = lon_highres[valid_rows][:, valid_cols]
+        lat_highres = lat_highres[valid_rows][:, valid_cols]
     
 
 
     data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
     if data_shape_bool:
         data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
-        data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+        if not mod06:
+            data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
         current_data_list.append(data)
     else:
         current_data_list.append(np.empty((0,0)))
 
-    for j, (band) in enumerate(bands[1:]):
-        key = list(file_layers[band-1].keys())[0]
-        idx = list(file_layers[band-1].values())[0]
+    if not mod06:
+        for j, (band) in enumerate(bands[1:]):
+            key = list(file_layers[band-1].keys())[0]
+            idx = list(file_layers[band-1].values())[0]
 
-        attrs = hdf.select(key).attributes()
-        data = hdf.select(key)[:][idx]
-        data = data[valid_rows_ll][:, valid_cols_ll]
+            attrs = hdf.select(key).attributes()
+            data = hdf.select(key)[:][idx]
+            data = data[valid_rows_ll][:, valid_cols_ll]
 
-        data = data[valid_rows][:, valid_cols]
-        data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
+            data = data[valid_rows][:, valid_cols]
+            data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
 
-        data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
-                    
-        current_data_list.append(data)
-    
-    
+            data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+                        
+            current_data_list.append(data)
+        
+        
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
    

@@ -28,10 +28,12 @@ plt.style.use("bmh")
 
 def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name, bin_size, min_bin=None, max_bin=None, scale=None):
     # Extract the data from the datasets
+    print(var_closed_ds)
+    
     if var_name:
         var_closed = var_closed_ds[var_name].values
         var_open = var_open_ds[var_name].values
-        var_border = var_border_ds[var_name].values
+        var_border = var_border_ds[var_name].values 
         long_name = var_closed_ds[var_name].attrs["long_name"].replace("_", " ")
         unit = var_closed_ds[var_name].attrs["units"]
     else:
