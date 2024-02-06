@@ -22,6 +22,7 @@
 - Stephens et al., 2002: Overview of the CloudSat mission, from which you will use data
 - Winker et al., 2010: Overview of the Calipso mission, from which you will use data
 - MODIS Cloud User Guide: Overview of MODIS cloud retrievals, from which you will use data, gives a good overview of passive satellite measurements, but again: can become quite technical, don't feel the need to understand all at once, use it as an introduction and skip difficult parts or just pick what you find interesting
+- Sujan Khanal, Zhien Wang 2018: Uncertainties in MODIS-Based Cloud Liquid Water Path Retrievals at High Latitudes Due to Mixed-Phase Clouds and Cloud Top Height Inhomogeneity(https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2018JD028558)
 
 
 ++++ IPCC overview chapters ++++

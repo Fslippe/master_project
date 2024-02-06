@@ -216,6 +216,8 @@ so4 = sulfate
 - Perform random forest with prediction labels of 0/1/2 closed/border/open
 - Accurate model can be used to find most important predictors for border and if of interest open/closed
 - Using EIS 
+- modis LWP closed - open cell mean / std
+  - Comment: this is really cool and great that you checked Filip. Quick question on the LWP retrieval, is this based on emissivity or primarily on reflected solar? I ask as in my mind, at higher latitudes, even though you would effectively be seeing a longer cloud path, you would also expect more sunlight to be forward scattered and thus modis would see less solar radiation and a lower albedo. If this is the case, then you would register a lower  LWP for closed cells/ more north clouds, as you seem to be seeing
 
 ### GENERAL PLANS
 - Plots of labeled dataset to gether with model  

@@ -430,7 +430,7 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     zoom_factor_x = data.shape[1] / lat.shape[1]
     zoom_factors = (zoom_factor_y, zoom_factor_x)  # Now considering only 2 dimensions
     
-
+        
     mask_highres = zoom(mask_lowres, zoom_factors, order=0)  # nearest neighbor interpolation
     lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
     lon_highres = zoom(lon, zoom_factors, order=1) 
@@ -439,6 +439,14 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     valid_cols_ll = zenith_mask
     valid_cols_lon = np.any(mask_highres[valid_rows_ll][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
     data = data[valid_rows_ll][:, valid_cols_ll]
+    if mod06:
+        SolarZenith = hdf.select("Solar_Zenith")[:]
+        SolarZenith_attrs = hdf.select("Solar_Zenith").attributes()
+        SolarZenith = np.where((SolarZenith > SolarZenith_attrs["valid_range"][1]) | (SolarZenith < SolarZenith_attrs["valid_range"][0]), 99999, SolarZenith)
+        SolarZenith = zoom(SolarZenith, zoom_factors, order=0)  
+        SolarZenith = SolarZenith*SolarZenith_attrs["scale_factor"]
+        SolarZenith = SolarZenith[valid_rows_ll][:, valid_cols_ll]
+
     lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
     lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 
 
@@ -458,7 +466,7 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
         mask = mask[valid_rows][:, valid_cols]
         lon_highres = lon_highres[valid_rows][:, valid_cols]
         lat_highres = lat_highres[valid_rows][:, valid_cols]
-    
+      
 
 
     data_shape_bool = data.shape[0] !=0 and data.shape[1] != 0
@@ -466,6 +474,9 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
         data = np.where(data > attrs["valid_range"][1], np.mean(data), data)
         if not mod06:
             data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
+        else:
+            data = np.where(SolarZenith > 90, np.nan, data)
+
         current_data_list.append(data)
     else:
         current_data_list.append(np.empty((0,0)))
@@ -485,7 +496,8 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
             data = np.float32((data - attrs["radiance_offsets"][idx])*attrs["radiance_scales"][idx])
                         
             current_data_list.append(data)
-        
+
+      
         
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)

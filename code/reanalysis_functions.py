@@ -1,6 +1,11 @@
 import numpy as np 
 import xarray as xr 
 import pandas as pd 
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+from itertools import product
+from sklearn.ensemble import RandomForestClassifier  # or RandomForestRegressor for regression tasks
+from sklearn.model_selection import train_test_split
 
 def get_potential_temperature(T, P, P0=1000):
     theta = T.values * (P0 / P[:, np.newaxis]) ** (0.286)
@@ -140,8 +145,6 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
                     "PRECTOTCORR": "MERRA2_400.tavg1_2d_flx_Nx"
                     }
     
-    # Initialize empty lists for data arrays
-    # Create empty lists
     var_closed_list = []
     var_open_list = []
     var_border_list = []
@@ -149,7 +152,42 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
     times_closed = []
     times_open = []
     times_border = []
-    if var == "SSTOT":
+    if var == "WIND10M":
+        U10M_closed, U10M_open, U10M_border  = extract_var_at_idx(dict_list, "U10M")
+        V10M_closed, V10M_open, V10M_border  = extract_var_at_idx(dict_list, "V10M")
+        var_closed_ds = U10M_closed.copy()
+        var_open_ds = U10M_open.copy()
+        var_border_ds = U10M_border.copy()
+        wind10m_closed = np.sqrt(U10M_closed.U10M.values**2 +V10M_closed.V10M.values**2)
+        wind10m_open = np.sqrt(U10M_open.U10M.values**2 +V10M_open.V10M.values**2)
+        wind10m_border = np.sqrt(U10M_border.U10M.values**2 +V10M_border.V10M.values**2)
+
+        wind10m_closed_da = xr.DataArray(wind10m_closed, coords=U10M_closed.coords, dims=U10M_closed.dims)
+        wind10m_open_da = xr.DataArray(wind10m_open, coords=U10M_open.coords, dims=U10M_open.dims)
+        wind10m_border_da = xr.DataArray(wind10m_border, coords=U10M_border.coords, dims=U10M_border.dims)
+
+        var_closed_ds["WIND10M"] = wind10m_closed_da.copy()
+        var_open_ds["WIND10M"] = wind10m_open_da.copy()
+        var_border_ds["WIND10M"] = wind10m_border_da.copy()
+
+        var_closed_ds = var_closed_ds.drop_vars('U10M')
+        var_open_ds = var_open_ds.drop_vars('U10M')
+        var_border_ds = var_border_ds.drop_vars('U10M')
+
+        var_closed_ds.WIND10M.attrs["standard_name"] = "10-meter_wind"
+        var_closed_ds.WIND10M.attrs["long_name"] = "10-meter_wind"
+        var_closed_ds.WIND10M.attrs["units"] = "m s-1"
+
+        var_open_ds.WIND10M.attrs["standard_name"] = "10-meter_wind"
+        var_open_ds.WIND10M.attrs["long_name"] = "10-meter_wind"
+        var_open_ds.WIND10M.attrs["units"] = "m s-1"
+
+        var_border_ds.WIND10M.attrs["standard_name"] = "10-meter_wind"
+        var_border_ds.WIND10M.attrs["long_name"] = "10-meter_wind"
+        var_border_ds.WIND10M.attrs["units"] = "m s-1"
+        
+
+    elif var == "SSTOT":
         ss001_closed, ss001_open, ss001_border  = extract_var_at_idx(dict_list, "SS001")
         ss002_closed, ss002_open, ss002_border  = extract_var_at_idx(dict_list, "SS002")
         ss003_closed, ss003_open, ss003_border  = extract_var_at_idx(dict_list, "SS003")
@@ -276,7 +314,7 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
                     [var_closed_list, var_open_list, var_border_list],
                     [times_closed, times_open, times_border]):
 
-                if condition in dic and len(dic[condition]) > 0:  # Ensure the idx array is not empty
+                if condition in dic and len(dic[condition]) > 0: 
                     if "lev" in ds:
                         var_list.append(time_sel.values[:, dic[condition][:, 0], dic[condition][:, 1]])
 
@@ -292,8 +330,6 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
             var_open = np.concatenate(var_open_list, axis=1)
             var_border = np.concatenate(var_border_list, axis=1)
             
-            # You now need to make sure that 'lev' is the first axis (dimension) if it isn't already
-            # We assume here that 'lev' exists and has the same index/length in all three datasets
             
             # Create the dataset with the 'lev' coordinate
             var_closed_ds = xr.Dataset({var: (('lev', 'time'), var_closed)},
@@ -310,8 +346,6 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
             var_open = np.concatenate(var_open_list, axis=1)
             var_border = np.concatenate(var_border_list, axis=1)
             
-            # You now need to make sure that 'lev' is the first axis (dimension) if it isn't already
-            # We assume here that 'lev' exists and has the same index/length in all three datasets
             
             # Create the dataset with the 'lev' coordinate
             var_closed_ds = xr.Dataset({var: (('lev', 'time'), var_closed)},

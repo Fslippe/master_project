@@ -28,25 +28,33 @@ plt.style.use("bmh")
 
 def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name, bin_size, min_bin=None, max_bin=None, scale=None):
     # Extract the data from the datasets
-    print(var_closed_ds)
     
     if var_name:
         var_closed = var_closed_ds[var_name].values
         var_open = var_open_ds[var_name].values
-        var_border = var_border_ds[var_name].values 
+        if var_border_ds:
+            var_border = var_border_ds[var_name].values 
         long_name = var_closed_ds[var_name].attrs["long_name"].replace("_", " ")
         unit = var_closed_ds[var_name].attrs["units"]
     else:
         var_closed = var_closed_ds.values
         var_open = var_open_ds.values
-        var_border = var_border_ds.values
+        if var_border_ds:
+            var_border = var_border_ds.values
         long_name = var_closed_ds.attrs["long_name"].replace("_", " ")
         unit = var_closed_ds.attrs["units"]
     # Find min and max across all datasets if they are not provided
     if min_bin is None:
-        min_bin = np.nanmin([np.nanmin(var_closed), np.nanmin(var_open), np.nanmin(var_border)])
+        if var_border_ds:
+            min_bin = np.nanmin([np.nanmin(var_closed), np.nanmin(var_open), np.nanmin(var_border)])
+        else:
+            min_bin = np.nanmin([np.nanmin(var_closed), np.nanmin(var_open)])
+
     if max_bin is None:
-        max_bin = np.nanmax([np.nanmax(var_closed), np.nanmax(var_open), np.nanmax(var_border)])
+        if var_border_ds:
+            max_bin = np.nanmax([np.nanmax(var_closed), np.nanmax(var_open), np.nanmax(var_border)])
+        else:
+            max_bin = np.nanmax([np.nanmax(var_closed), np.nanmax(var_open)])
 
     if scale == 'log':
         if min_bin <= 0:
@@ -59,7 +67,6 @@ def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name,
     
     plt.figure(figsize=(10, 7),dpi=250)
 
-    print()
     plt.title("Histogram of " + long_name)
     
     # Plot Histogram for var_closed
@@ -71,8 +78,9 @@ def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name,
              weights=np.ones(len(var_open)) / len(var_open), label="open")
 
     # Plot Histogram for var_border
-    plt.hist(var_border, bins=bins, edgecolor='black', alpha=0.7, 
-             weights=np.ones(len(var_border)) / len(var_border), label="border")
+    if var_border_ds:
+        plt.hist(var_border, bins=bins, edgecolor='black', alpha=0.7, 
+                weights=np.ones(len(var_border)) / len(var_border), label="border")
 
     # Set the y-axis label to be a percentage
     plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
