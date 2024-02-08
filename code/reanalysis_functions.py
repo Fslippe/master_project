@@ -152,6 +152,7 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
     times_closed = []
     times_open = []
     times_border = []
+    
     if var == "WIND10M":
         U10M_closed, U10M_open, U10M_border  = extract_var_at_idx(dict_list, "U10M")
         V10M_closed, V10M_open, V10M_border  = extract_var_at_idx(dict_list, "V10M")
