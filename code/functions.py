@@ -15,7 +15,7 @@ import joblib
 from concurrent.futures import ProcessPoolExecutor
 geodesic = pyproj.Geod(ellps='WGS84')
 
-def step_forward_from_border(dict_list, tot_steps, lon, lat):
+def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False):
     ix_arr_forward_list = []
     iy_arr_forward_list = []
 
@@ -50,8 +50,18 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat):
                         print("ERROR")
             ix_arr_forward[i, 0] = ix 
             iy_arr_forward[i, 0] = iy 
-            ix_arr_forward[i, 1] = new_ix 
-            iy_arr_forward[i, 1] = new_iy 
+
+            if not only_cao_cases:
+                ix_arr_forward[i, 1] = new_ix 
+                iy_arr_forward[i, 1] = new_iy 
+            else:
+                if (new_ix, new_iy) in dict_list[k]["idx_open"]:
+                    ix_arr_forward[i, 1] = new_ix 
+                    iy_arr_forward[i, 1] = new_iy 
+                else:
+                    ix_arr_forward[i, 1] = -9999
+                    iy_arr_forward[i, 1] = -9999
+
 
             for j in range(2, tot_steps+1):
                 wind_direction = wind_dir.isel(lon=new_iy, lat=new_ix).values
@@ -73,14 +83,22 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat):
                         if new_iy == iy and new_ix == ix:
                             print("ERROR")
                             
-                ix_arr_forward[i, j] = new_ix 
-                iy_arr_forward[i, j] = new_iy 
+                if not only_cao_cases:
+                    ix_arr_forward[i, j] = new_ix 
+                    iy_arr_forward[i, j] = new_iy 
+                else:
+                    if (new_ix, new_iy) in dict_list[k]["idx_open"]:
+                        ix_arr_forward[i, j] = new_ix 
+                        iy_arr_forward[i, j] = new_iy 
+                    else:
+                        ix_arr_forward[i, j] = -9999
+                        iy_arr_forward[i, j] = -9999
         ix_arr_forward_list.append(ix_arr_forward)
         iy_arr_forward_list.append(iy_arr_forward)
     
     return ix_arr_forward_list, iy_arr_forward_list
 
-def step_backward_from_border(dict_list, tot_steps, lon, lat):
+def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False):
     ix_arr_backward_list = []
     iy_arr_backward_list = []
 
@@ -113,9 +131,16 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat):
                     if new_iy == iy and new_ix == ix:
 
                         print("ERROR")
-
-            ix_arr_backward[i, -1] = new_ix 
-            iy_arr_backward[i, -1] = new_iy 
+            if not only_cao_cases:
+                ix_arr_backward[i, -1] = new_ix 
+                iy_arr_backward[i, -1] = new_iy 
+            else:
+                if (new_ix, new_iy) in dict_list[k]["idx_closed"]:
+                    ix_arr_backward[i, -1] = new_ix 
+                    iy_arr_backward[i, -1] = new_iy 
+                else:
+                    ix_arr_backward[i, -1] = -9999 
+                    iy_arr_backward[i, -1] = -9999 
 
             for j in range(tot_steps-1, -1, -1):
                 wind_direction = wind_dir.isel(lon=new_iy, lat=new_ix).values
@@ -137,15 +162,25 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat):
                         if new_iy == iy and new_ix == ix:
                             print("ERROR")
                             
-                ix_arr_backward[i, j] = new_ix 
-                iy_arr_backward[i, j] = new_iy 
+     
+                if not only_cao_cases:
+                    ix_arr_backward[i, j] = new_ix 
+                    iy_arr_backward[i, j] = new_iy 
+                else:
+                    if (new_ix, new_iy) in dict_list[k]["idx_closed"]:
+                        ix_arr_backward[i, j] = new_ix 
+                        iy_arr_backward[i, j] = new_iy 
+                    else:
+                        ix_arr_backward[i, j] = -9999 
+                        iy_arr_backward[i, j] = -9999 
+
         ix_arr_backward_list.append(ix_arr_backward)
         iy_arr_backward_list.append(iy_arr_backward)
     
     return ix_arr_backward_list, iy_arr_backward_list
 
 
-def process_lollat_wind_check(args):
+def process_lon_lat_wind_check(args):
     i, date_cao, mod_min_cao, lon_map, lat_map, label_map, closed_label, open_label, lon_mesh, lat_mesh = args
     
     datetime_obj = datetime.datetime.strptime(date_cao + str(mod_min_cao).zfill(4), "%Y%j%H%M")
@@ -826,7 +861,9 @@ def find_wind_dir_at_idx_time(ix, iy, p_level, date, datetime_obj):
     return np.float32(wind_dir)
 
 def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_distance):
-    new_lon, new_lat = step_against_wind(lon, lat, (wind_direction+180) % 360, step_distance = 100)
+    new_lon, new_lat = step_against_wind(lon, lat, (wind_direction) % 360, step_distance = 100)
+    # new_lon = lon
+    # new_lat = lat
     for lon_i, lat_i in zip(lons, lats):
         # Calculate vector angle for the current pair of longitude and latitude
 
@@ -836,8 +873,8 @@ def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_d
             # Check if the angle difference is within the threshold range of the wind direction
             if abs((vector_angle - wind_direction + 180) % 360 - 180) <= threshold:
                 return True  # Return True if any angle is within the threshold
-
-    return False # Return False if no angles are within the threshold
+            else:
+                return False # Return False if no angles are within the threshold
 
 
 def check_angle_threshold_downwind(wind_direction, lons, lats, lon, lat, threshold, min_distance):
