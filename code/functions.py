@@ -200,14 +200,16 @@ def process_lon_lat_wind_check(args):
     lat_border = []
     wind_threshold = 90
 
+    
     for lon, lat, angle in zip(lons, lats, angles):
         wind_dir = find_wind_dir_at_ll_time(lon, lat, 950, date_cao, mod_min_cao) 
+        if wind_dir is not None:
+            check = check_angle_threshold(wind_dir, lons, lats, lon, lat, 10, min_distance=0, step_distance=200)
+            if not check:
+                if np.min([abs(angle - wind_dir), abs(angle - wind_dir - 360), abs(angle - wind_dir + 360)]) < wind_threshold:
+                    lon_border.append(lon)
+                    lat_border.append(lat)
 
-        check = check_angle_threshold(wind_dir, lons, lats, lon, lat, 5, min_distance=0)
-        if not check:
-            if np.min([abs(angle - wind_dir), abs(angle - wind_dir - 360), abs(angle - wind_dir + 360)]) < wind_threshold:
-                lon_border.append(lon)
-                lat_border.append(lat)
 
     idx_border = find_closest_indices_merra(lon_border, lat_border, lon_mesh, lat_mesh)
 
@@ -844,12 +846,26 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
     datetime_obj = datetime.datetime.strptime("%s%s" %(date, time), "%Y%j%H%M")
     formatted_date = datetime_obj.strftime("%Y%m%d")
     year = str(date)[:4]
-    ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, formatted_date))
-    ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
-    wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
-    
-    wind_dir = (wind_dir +270) % 360
-    return np.float32(wind_dir)
+    ds = None
+    wind_dir = None
+    try:
+        ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, formatted_date))
+    except Exception as e:
+        print(f"An exception occurred while opening the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc: {e}")
+    if ds is not None:
+        ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
+        try:
+            wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
+        except Exception as e:
+            print(f"An exception occurred while extracting U and V for the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
+
+        if wind_dir:
+            wind_dir = (wind_dir +270) % 360
+            return np.float32(wind_dir)
+        else:
+            return None
+    else:
+        return None
 
 def find_wind_dir_at_idx_time(ix, iy, p_level, date, datetime_obj):
     year = str(date)[:4]
@@ -860,8 +876,8 @@ def find_wind_dir_at_idx_time(ix, iy, p_level, date, datetime_obj):
     wind_dir = (wind_dir +270) % 360
     return np.float32(wind_dir)
 
-def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_distance):
-    new_lon, new_lat = step_against_wind(lon, lat, (wind_direction) % 360, step_distance = 100)
+def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_distance, step_distance=100):
+    new_lon, new_lat = step_against_wind(lon, lat, (wind_direction) % 360, step_distance)
     # new_lon = lon
     # new_lat = lat
     for lon_i, lat_i in zip(lons, lats):
@@ -873,8 +889,7 @@ def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_d
             # Check if the angle difference is within the threshold range of the wind direction
             if abs((vector_angle - wind_direction + 180) % 360 - 180) <= threshold:
                 return True  # Return True if any angle is within the threshold
-            else:
-                return False # Return False if no angles are within the threshold
+    return False # Return False if no angles are within the threshold
 
 
 def check_angle_threshold_downwind(wind_direction, lons, lats, lon, lat, threshold, min_distance):

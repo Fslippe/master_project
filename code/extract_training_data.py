@@ -35,7 +35,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
                      max_zenith=50,
                      combine_pics=True,
                      data_loc="/uio/hume/student-u37/fslippe/data/",
-                     data_type="hdf"):
+                     data_type="hdf",
+                     specified_date_min_zip=None):
     
     date_list = np.unique(np.array(date_list))
     if ds_water_mask==None:
@@ -79,10 +80,19 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
     # Loop through all files and group them by date
     for file in all_files:
+        minute = int(file.split(".")[2])
+        date = str(file.split('.')[1][1:])  # This will give e.g., '2021120' for 'MOD02QKM.A2021120'
+        print(date," ",  minute)
+        
         # Extract date from the filename (assuming the pattern is consistent)
-        date = file.split('.')[1][1:]  # This will give e.g., '2021120' for 'MOD02QKM.A2021120'
-        file_groups[date].append(file)
-        mod_mins[date].append(int(file.split(".")[2]))
+        if specified_date_min_zip:
+            print(date)
+            if (date, minute) in specified_date_min_zip:
+                file_groups[date].append(file)
+                mod_mins[date].append(minute)
+        else:
+            file_groups[date].append(file)
+            mod_mins[date].append(minute)
 
 
     sorted_keys = sorted(file_groups.keys(), key=int)  # Convert keys to integers for sorting

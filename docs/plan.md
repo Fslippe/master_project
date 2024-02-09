@@ -224,8 +224,12 @@ so4 = sulfate
 - t
 
 
+### Possible research questions and analysis
+- 
 
 
+
+### COMMANDS
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I  https://filip-master.vercel.app/results
 
 
