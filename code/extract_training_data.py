@@ -67,13 +67,16 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
             file_layers[band-1] = {"EV_1KM_RefSB": i}
         for i, (band) in enumerate(list4):
             file_layers[band-1] = {"EV_1KM_Emissive": i}
+        hdf.end()
+        
     elif data_type == "mod06":
         hdf = SD(all_files[0], SDC.READ)
         file_layers = "Cloud_Water_Path"
         bands = None
+        hdf.end()
+
     elif data_type == "npy":
         file_layers = None
-
     file_groups = defaultdict(list)
     mod_mins = defaultdict(list)
 
@@ -507,7 +510,7 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
                         
             current_data_list.append(data)
 
-      
+    hdf.end()
         
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
@@ -683,7 +686,7 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
                         
             current_data_list.append(data)
     
-    
+    hdf.end()
     ##### ALGORITHM LOOKS ONLY AT NEAREST LAT LON AND NOT THE EXACT DISTANCE IN DETERMINATION   
     x_bands = np.stack(current_data_list, axis=-1)
    

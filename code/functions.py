@@ -160,7 +160,11 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
                         new_iy = np.argmin(abs(lon-new_lon))
                         new_ix = np.argmin(abs(lat-new_lat))
                         if new_iy == iy and new_ix == ix:
-                            print("ERROR")
+                            new_lon, new_lat = step_against_wind(lon_tmp, lat_tmp, wind_direction, step_distance = 60)
+                            new_iy = np.argmin(abs(lon-new_lon))
+                            new_ix = np.argmin(abs(lat-new_lat))
+                            if new_iy == iy and new_ix == ix:
+                                print("ERROR")
                             
      
                 if not only_cao_cases:

@@ -1,4 +1,4 @@
-dict_list_year = 2021#input("YEAR:  ")
+dict_list_year = input("YEAR:  ")
 import os
 os.environ["OPENBLAS_NUM_THREADS"] = "8"
 os.environ["NUM_THREADS"] = "8"
