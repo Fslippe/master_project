@@ -1,19 +1,24 @@
-import numpy as np 
+from scipy.interpolate import CubicSpline
+import matplotlib.pyplot as plt
+from shapely.geometry import LineString
+from skimage import measure
+import numpy as np
 from scipy import ndimage
 from scipy.stats import linregress
 import cartopy.crs as ccrs
 import pyproj
 from scipy.spatial import cKDTree
-from autoencoder import * 
+from autoencoder import *
 import datetime
 import xarray as xr
 import pyproj
 from shapely.geometry import Point, Polygon
-from plot_functions import * 
+from plot_functions import *
 import os
 import joblib
 from concurrent.futures import ProcessPoolExecutor
 geodesic = pyproj.Geod(ellps='WGS84')
+
 
 def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False):
     ix_arr_forward_list = []
@@ -26,77 +31,84 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
         ix_arr_forward = np.zeros((size, tot_steps+1))
         iy_arr_forward = np.zeros((size, tot_steps+1))
 
-        ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
-        ds_time = ds.sel(time=datetime_obj, lev=950, method='nearest')#.isel(lon=iy, lat=ix)
+        ds = xr.open_dataset(
+            "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
+        ds_time = ds.sel(time=datetime_obj, lev=950,
+                         method='nearest')  # .isel(lon=iy, lat=ix)
         wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
-        wind_dir = (wind_dir +270) % 360
+        wind_dir = (wind_dir + 270) % 360
 
         for i, (ix, iy) in enumerate(np.unique(dict_list[k]["idx_border"], axis=0)):
             wind_direction = wind_dir.isel(lon=iy, lat=ix).values
-            new_lon, new_lat = step_with_wind(lon[iy], lat[ix], wind_direction, step_distance = 32)
+            new_lon, new_lat = step_with_wind(
+                lon[iy], lat[ix], wind_direction, step_distance=32)
             new_iy = np.argmin(abs(lon-new_lon))
             new_ix = np.argmin(abs(lat-new_lat))
 
             if new_iy == iy and new_ix == ix:
-                new_lon, new_lat = step_with_wind(lon[iy], lat[ix], wind_direction, step_distance = 40)
+                new_lon, new_lat = step_with_wind(
+                    lon[iy], lat[ix], wind_direction, step_distance=40)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
                 if new_iy == iy and new_ix == ix:
-                    new_lon, new_lat = step_with_wind(lon[iy], lat[ix], wind_direction, step_distance = 50)
+                    new_lon, new_lat = step_with_wind(
+                        lon[iy], lat[ix], wind_direction, step_distance=50)
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
                     if new_iy == iy and new_ix == ix:
 
                         print("ERROR")
-            ix_arr_forward[i, 0] = ix 
-            iy_arr_forward[i, 0] = iy 
+            ix_arr_forward[i, 0] = ix
+            iy_arr_forward[i, 0] = iy
 
             if not only_cao_cases:
-                ix_arr_forward[i, 1] = new_ix 
-                iy_arr_forward[i, 1] = new_iy 
+                ix_arr_forward[i, 1] = new_ix
+                iy_arr_forward[i, 1] = new_iy
             else:
                 if (new_ix, new_iy) in dict_list[k]["idx_open"]:
-                    ix_arr_forward[i, 1] = new_ix 
-                    iy_arr_forward[i, 1] = new_iy 
+                    ix_arr_forward[i, 1] = new_ix
+                    iy_arr_forward[i, 1] = new_iy
                 else:
                     ix_arr_forward[i, 1] = -9999
                     iy_arr_forward[i, 1] = -9999
 
-
             for j in range(2, tot_steps+1):
                 wind_direction = wind_dir.isel(lon=new_iy, lat=new_ix).values
-                lon_tmp = new_lon 
-                lat_tmp = new_lat 
-                new_lon, new_lat = step_with_wind(new_lon, new_lat, wind_direction, step_distance = 32)
+                lon_tmp = new_lon
+                lat_tmp = new_lat
+                new_lon, new_lat = step_with_wind(
+                    new_lon, new_lat, wind_direction, step_distance=32)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
 
-
                 if new_iy == iy and new_ix == ix:
-                    new_lon, new_lat = step_with_wind(lon_tmp, lat_tmp, wind_direction, step_distance = 40)
+                    new_lon, new_lat = step_with_wind(
+                        lon_tmp, lat_tmp, wind_direction, step_distance=40)
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
                     if new_iy == iy and new_ix == ix:
-                        new_lon, new_lat = step_with_wind(lon_tmp, lat_tmp, wind_direction, step_distance = 50)
+                        new_lon, new_lat = step_with_wind(
+                            lon_tmp, lat_tmp, wind_direction, step_distance=50)
                         new_iy = np.argmin(abs(lon-new_lon))
                         new_ix = np.argmin(abs(lat-new_lat))
                         if new_iy == iy and new_ix == ix:
                             print("ERROR")
-                            
+
                 if not only_cao_cases:
-                    ix_arr_forward[i, j] = new_ix 
-                    iy_arr_forward[i, j] = new_iy 
+                    ix_arr_forward[i, j] = new_ix
+                    iy_arr_forward[i, j] = new_iy
                 else:
                     if (new_ix, new_iy) in dict_list[k]["idx_open"]:
-                        ix_arr_forward[i, j] = new_ix 
-                        iy_arr_forward[i, j] = new_iy 
+                        ix_arr_forward[i, j] = new_ix
+                        iy_arr_forward[i, j] = new_iy
                     else:
                         ix_arr_forward[i, j] = -9999
                         iy_arr_forward[i, j] = -9999
         ix_arr_forward_list.append(ix_arr_forward)
         iy_arr_forward_list.append(iy_arr_forward)
-    
+
     return ix_arr_forward_list, iy_arr_forward_list
+
 
 def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False):
     ix_arr_backward_list = []
@@ -109,113 +121,125 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
         ix_arr_backward = np.zeros((size, tot_steps))
         iy_arr_backward = np.zeros((size, tot_steps))
 
-        ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
-        ds_time = ds.sel(time=datetime_obj, lev=950, method='nearest')#.isel(lon=iy, lat=ix)
+        ds = xr.open_dataset(
+            "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
+        ds_time = ds.sel(time=datetime_obj, lev=950,
+                         method='nearest')  # .isel(lon=iy, lat=ix)
         wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
-        wind_dir = (wind_dir +270) % 360
+        wind_dir = (wind_dir + 270) % 360
 
         for i, (ix, iy) in enumerate(np.unique(dict_list[k]["idx_border"], axis=0)):
-            wind_direction = wind_dir.isel(lon=iy, lat=ix).values 
-            new_lon, new_lat = step_against_wind(lon[iy], lat[ix], wind_direction, step_distance = 32)
+            wind_direction = wind_dir.isel(lon=iy, lat=ix).values
+            new_lon, new_lat = step_against_wind(
+                lon[iy], lat[ix], wind_direction, step_distance=32)
             new_iy = np.argmin(abs(lon-new_lon))
             new_ix = np.argmin(abs(lat-new_lat))
 
             if new_iy == iy and new_ix == ix:
-                new_lon, new_lat = step_against_wind(lon[iy], lat[ix], wind_direction, step_distance = 40)
+                new_lon, new_lat = step_against_wind(
+                    lon[iy], lat[ix], wind_direction, step_distance=40)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
                 if new_iy == iy and new_ix == ix:
-                    new_lon, new_lat = step_against_wind(lon[iy], lat[ix], wind_direction, step_distance = 50)
+                    new_lon, new_lat = step_against_wind(
+                        lon[iy], lat[ix], wind_direction, step_distance=50)
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
                     if new_iy == iy and new_ix == ix:
 
                         print("ERROR")
             if not only_cao_cases:
-                ix_arr_backward[i, -1] = new_ix 
-                iy_arr_backward[i, -1] = new_iy 
+                ix_arr_backward[i, -1] = new_ix
+                iy_arr_backward[i, -1] = new_iy
             else:
                 if (new_ix, new_iy) in dict_list[k]["idx_closed"]:
-                    ix_arr_backward[i, -1] = new_ix 
-                    iy_arr_backward[i, -1] = new_iy 
+                    ix_arr_backward[i, -1] = new_ix
+                    iy_arr_backward[i, -1] = new_iy
                 else:
-                    ix_arr_backward[i, -1] = -9999 
-                    iy_arr_backward[i, -1] = -9999 
+                    ix_arr_backward[i, -1] = -9999
+                    iy_arr_backward[i, -1] = -9999
 
             for j in range(tot_steps-1, -1, -1):
                 wind_direction = wind_dir.isel(lon=new_iy, lat=new_ix).values
-                lon_tmp = new_lon 
-                lat_tmp = new_lat 
-                new_lon, new_lat = step_against_wind(new_lon, new_lat, wind_direction, step_distance = 32)
+                lon_tmp = new_lon
+                lat_tmp = new_lat
+                new_lon, new_lat = step_against_wind(
+                    new_lon, new_lat, wind_direction, step_distance=32)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
 
-
                 if new_iy == iy and new_ix == ix:
-                    new_lon, new_lat = step_against_wind(lon_tmp, lat_tmp, wind_direction, step_distance = 40)
+                    new_lon, new_lat = step_against_wind(
+                        lon_tmp, lat_tmp, wind_direction, step_distance=40)
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
                     if new_iy == iy and new_ix == ix:
-                        new_lon, new_lat = step_against_wind(lon_tmp, lat_tmp, wind_direction, step_distance = 50)
+                        new_lon, new_lat = step_against_wind(
+                            lon_tmp, lat_tmp, wind_direction, step_distance=50)
                         new_iy = np.argmin(abs(lon-new_lon))
                         new_ix = np.argmin(abs(lat-new_lat))
                         if new_iy == iy and new_ix == ix:
-                            new_lon, new_lat = step_against_wind(lon_tmp, lat_tmp, wind_direction, step_distance = 60)
+                            new_lon, new_lat = step_against_wind(
+                                lon_tmp, lat_tmp, wind_direction, step_distance=60)
                             new_iy = np.argmin(abs(lon-new_lon))
                             new_ix = np.argmin(abs(lat-new_lat))
                             if new_iy == iy and new_ix == ix:
                                 print("ERROR")
-                            
-     
+
                 if not only_cao_cases:
-                    ix_arr_backward[i, j] = new_ix 
-                    iy_arr_backward[i, j] = new_iy 
+                    ix_arr_backward[i, j] = new_ix
+                    iy_arr_backward[i, j] = new_iy
                 else:
                     if (new_ix, new_iy) in dict_list[k]["idx_closed"]:
-                        ix_arr_backward[i, j] = new_ix 
-                        iy_arr_backward[i, j] = new_iy 
+                        ix_arr_backward[i, j] = new_ix
+                        iy_arr_backward[i, j] = new_iy
                     else:
-                        ix_arr_backward[i, j] = -9999 
-                        iy_arr_backward[i, j] = -9999 
+                        ix_arr_backward[i, j] = -9999
+                        iy_arr_backward[i, j] = -9999
 
         ix_arr_backward_list.append(ix_arr_backward)
         iy_arr_backward_list.append(iy_arr_backward)
-    
+
     return ix_arr_backward_list, iy_arr_backward_list
 
 
 def process_lon_lat_wind_check(args):
     i, date_cao, mod_min_cao, lon_map, lat_map, label_map, closed_label, open_label, lon_mesh, lat_mesh = args
-    
-    datetime_obj = datetime.datetime.strptime(date_cao + str(mod_min_cao).zfill(4), "%Y%j%H%M")
+
+    datetime_obj = datetime.datetime.strptime(
+        date_cao + str(mod_min_cao).zfill(4), "%Y%j%H%M")
     formatted_datetime_str = datetime_obj.strftime('%Y-%m-%dT%H:%M')
 
     lon_closed = lon_map[np.where(label_map == closed_label)]
     lat_closed = lat_map[np.where(label_map == closed_label)]
-    idx_closed = find_closest_indices_merra(lon_closed, lat_closed, lon_mesh, lat_mesh)
+    idx_closed = find_closest_indices_merra(
+        lon_closed, lat_closed, lon_mesh, lat_mesh)
 
     lon_open = lon_map[np.where(label_map == open_label)]
     lat_open = lat_map[np.where(label_map == open_label)]
-    idx_open = find_closest_indices_merra(lon_open, lat_open, lon_mesh, lat_mesh)
+    idx_open = find_closest_indices_merra(
+        lon_open, lat_open, lon_mesh, lat_mesh)
 
-    lons, lats, angles = compute_boundary_coordinates_between_labels_2(label_map, lon_map, lat_map, open_label, closed_label, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None)
-    
+    lons, lats, angles = compute_boundary_coordinates_between_labels_2(
+        label_map, lon_map, lat_map, open_label, closed_label, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None)
+
     lon_border = []
     lat_border = []
     wind_threshold = 90
 
-    
     for lon, lat, angle in zip(lons, lats, angles):
-        wind_dir = find_wind_dir_at_ll_time(lon, lat, 950, date_cao, mod_min_cao) 
+        wind_dir = find_wind_dir_at_ll_time(
+            lon, lat, 950, date_cao, mod_min_cao)
         if wind_dir is not None:
-            check = check_angle_threshold(wind_dir, lons, lats, lon, lat, 10, min_distance=0, step_distance=200)
+            check = check_angle_threshold(
+                wind_dir, lons, lats, lon, lat, 10, min_distance=0, step_distance=200)
             if not check:
                 if np.min([abs(angle - wind_dir), abs(angle - wind_dir - 360), abs(angle - wind_dir + 360)]) < wind_threshold:
                     lon_border.append(lon)
                     lat_border.append(lat)
 
-
-    idx_border = find_closest_indices_merra(lon_border, lat_border, lon_mesh, lat_mesh)
+    idx_border = find_closest_indices_merra(
+        lon_border, lat_border, lon_mesh, lat_mesh)
 
     return {
         "date": convert_to_date(date_cao),
@@ -227,7 +251,6 @@ def process_lon_lat_wind_check(args):
     }
 
 
-
 def find_closest_indices_merra(lon, lat, lon_mesh, lat_mesh):
     # Initialize empty lists for the closest indices
     unique_indices = set()
@@ -236,9 +259,10 @@ def find_closest_indices_merra(lon, lat, lon_mesh, lat_mesh):
     for lon, lat in zip(lon, lat):
         # Calculate the Euclidean distance between the current point and all the points in lon_mesh and lat_mesh
         distances = np.sqrt((lon_mesh - lon)**2 + (lat_mesh - lat)**2)
-        
+
         # Find the minimum distance and its index
-        min_distance_index = np.unravel_index(distances.argmin(), distances.shape)
+        min_distance_index = np.unravel_index(
+            distances.argmin(), distances.shape)
 
         # Append the indices to the respective lists
         unique_indices.add(min_distance_index)
@@ -246,11 +270,12 @@ def find_closest_indices_merra(lon, lat, lon_mesh, lat_mesh):
     return np.array(list(unique_indices))
 
 
-def get_cluster_and_label_lists(patch_load_name, patch_size, last_filter, n_K_list, encoded_patches_flat, encoded_patches_flat_cao ):
+def get_cluster_and_label_lists(patch_load_name, patch_size, last_filter, n_K_list, encoded_patches_flat, encoded_patches_flat_cao):
     cluster_list = []
     label_list = []
     for n_K in [10, 11, 12, 13, 14, 15, 16]:
-        cluster = dump_clustering(patch_load_name, patch_size, last_filter, n_K, encoded_patches_flat)
+        cluster = dump_clustering(
+            patch_load_name, patch_size, last_filter, n_K, encoded_patches_flat)
         labels = cluster.predict(encoded_patches_flat_cao)
         cluster_list.append(cluster)
         label_list.append(labels)
@@ -259,8 +284,10 @@ def get_cluster_and_label_lists(patch_load_name, patch_size, last_filter, n_K_li
 
 
 def dump_clustering(patch_load_name, patch_size, filter, n_K, encoded_patches_flat):
-    cluster = KMeans(n_K, init='k-means++', random_state=42).fit(encoded_patches_flat)
-    file_path = "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_%s_filter%s_K%s.pkl" % (patch_size, filter, patch_load_name, filter, n_K)
+    cluster = KMeans(n_K, init='k-means++',
+                     random_state=42).fit(encoded_patches_flat)
+    file_path = "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_%s_filter%s_K%s.pkl" % (
+        patch_size, filter, patch_load_name, filter, n_K)
     directory = os.path.dirname(file_path)
 
     # Create the directory if it does not already exist
@@ -270,7 +297,8 @@ def dump_clustering(patch_load_name, patch_size, filter, n_K, encoded_patches_fl
     counter = 1
     while os.path.exists(file_path):
         # If the file exists, modify the file path by adding a suffix
-        file_path = "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_%s_filter%s_K%s_%d.pkl" % (patch_size, filter, patch_load_name, filter, n_K, counter)
+        file_path = "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_%s_filter%s_K%s_%d.pkl" % (
+            patch_size, filter, patch_load_name, filter, n_K, counter)
         counter += 1
 
     # Save the model with the modified file path
@@ -284,28 +312,33 @@ def process_label_maps(labels, all_lon_patches, all_lat_patches, starts_cao, end
             return np.mean(np.expand_dims(patches, axis=0), axis=(1, 2))
         else:
             return np.mean(patches, axis=(1, 2))
-   
+
     pat_lon = [calculate_patch_mean(patch) for patch in all_lon_patches]
     pat_lat = [calculate_patch_mean(patch) for patch in all_lat_patches]
 
     pat_lon = np.concatenate(np.array(pat_lon), axis=0)
     pat_lat = np.concatenate(np.array(pat_lat), axis=0)
-    
+
     label_map = np.empty(len(starts_cao), dtype=object)
     lon_map = np.empty(len(starts_cao), dtype=object)
     lat_map = np.empty(len(starts_cao), dtype=object)
-    
+
     index_list = range(len(starts_cao))
-    
+
     for i in index_list:
-        label_map[i] = generate_map_from_labels(labels, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+        label_map[i] = generate_map_from_labels(
+            labels, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
         if size_thr_1 and size_thr_2:
-            label_map[i] = remove_labels_from_size_thresholds(label_map[i], label_1, label_2, size_thr_1=size_thr_1, size_thr_2=size_thr_2)
-        
-        lon_map[i] = generate_map_from_lon_lats(pat_lon, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
-        lat_map[i] = generate_map_from_lon_lats(pat_lat, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+            label_map[i] = remove_labels_from_size_thresholds(
+                label_map[i], label_1, label_2, size_thr_1=size_thr_1, size_thr_2=size_thr_2)
+
+        lon_map[i] = generate_map_from_lon_lats(
+            pat_lon, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
+        lat_map[i] = generate_map_from_lon_lats(
+            pat_lat, starts_cao[i], ends_cao[i], shapes_cao[i], indices_cao[i], global_max, n_patches_tot_cao[i], patch_size, strides)
 
     return label_map, lon_map, lat_map
+
 
 def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries, labeled_areas, plot=False):
     tot_points_list = []
@@ -335,34 +368,38 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
         masked_m_area = m_area
         masked_l_area = np.where(np.isnan(m_area), np.nan, l_area)
 
-
-        tot_area_points = np.sum(~np.isnan(m_area)) 
+        tot_area_points = np.sum(~np.isnan(m_area))
         tot_points_list.append(tot_area_points)
         area_tot_labeled = np.nansum(np.where(masked_l_area > 0, 1, 0))
         area_tot_labeled_list.append(area_tot_labeled)
-        
 
-        area_false_positives = np.nansum(np.where((masked_m_area == 1) & (masked_l_area == 0), 1, 0))
+        area_false_positives = np.nansum(
+            np.where((masked_m_area == 1) & (masked_l_area == 0), 1, 0))
         area_false_positive_scores.append(area_false_positives)
-        
-        area_true_positives = np.nansum(np.where((masked_m_area == 1) & (masked_l_area > 0), 1, 0))
+
+        area_true_positives = np.nansum(
+            np.where((masked_m_area == 1) & (masked_l_area > 0), 1, 0))
 
         area_true_positive_scores.append(area_true_positives)
 
-        area_true_negatives = np.nansum(np.where((masked_m_area == 0) & (masked_l_area == 0), 1, 0))
+        area_true_negatives = np.nansum(
+            np.where((masked_m_area == 0) & (masked_l_area == 0), 1, 0))
         area_true_negative_scores.append(area_true_negatives)
 
-        area_false_negatives = np.nansum(np.where((masked_m_area == 0) & (masked_l_area > 0), 1, 0))
+        area_false_negatives = np.nansum(
+            np.where((masked_m_area == 0) & (masked_l_area > 0), 1, 0))
         area_false_negative_scores.append(area_false_negatives)
 
-        area_true_predictions = np.nansum(np.where(((masked_m_area == 1) & (masked_l_area > 0)) | ((masked_m_area == 0) & (masked_l_area == 0)), 1, 0))
+        area_true_predictions = np.nansum(np.where(((masked_m_area == 1) & (
+            masked_l_area > 0)) | ((masked_m_area == 0) & (masked_l_area == 0)), 1, 0))
         area_true_prediction_scores.append(area_true_predictions)
 
-        area_false_predictions = np.nansum(np.where(((masked_m_area == 1) & (masked_l_area == 0)) | ((masked_m_area == 0) & (masked_l_area > 0)), 1, 0))
+        area_false_predictions = np.nansum(np.where(((masked_m_area == 1) & (
+            masked_l_area == 0)) | ((masked_m_area == 0) & (masked_l_area > 0)), 1, 0))
         area_false_prediction_scores.append(area_false_predictions)
 
         area_diff = np.abs(m_area - l_area)
-        area_score = 1 - np.nanmean(area_diff) 
+        area_score = 1 - np.nanmean(area_diff)
 
         area_agreement = np.abs(l_area - 0.5)*10
         area_scores.append(area_score)
@@ -371,22 +408,28 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
         masked_m_border = m_border
         masked_l_border = np.where(np.isnan(m_border), np.nan, l_border)
 
-        border_false_positives = np.nansum(np.where((masked_m_border > 0) & (masked_l_border == 0), 1, 0))
+        border_false_positives = np.nansum(
+            np.where((masked_m_border > 0) & (masked_l_border == 0), 1, 0))
         border_false_positive_scores.append(border_false_positives)
-        
-        border_true_positives = np.nansum(np.where((masked_m_border > 0) & (masked_l_border > 0), 1, 0))
+
+        border_true_positives = np.nansum(
+            np.where((masked_m_border > 0) & (masked_l_border > 0), 1, 0))
         border_true_positive_scores.append(border_true_positives)
-        
-        border_true_negatives = np.nansum(np.where((masked_m_border == 0) & (masked_l_border == 0), 1, 0))
+
+        border_true_negatives = np.nansum(
+            np.where((masked_m_border == 0) & (masked_l_border == 0), 1, 0))
         border_true_negative_scores.append(border_true_negatives)
-        
-        border_false_negatives = np.nansum(np.where((masked_m_border == 0) & (masked_l_border > 0), 1, 0))
+
+        border_false_negatives = np.nansum(
+            np.where((masked_m_border == 0) & (masked_l_border > 0), 1, 0))
         border_false_negative_scores.append(border_false_negatives)
-        
-        border_true_predictions = np.nansum(np.where(((masked_m_border > 0) & (masked_l_border > 0)) | ((masked_m_border == 0) & (masked_l_border == 0)), 1, 0))
+
+        border_true_predictions = np.nansum(np.where(((masked_m_border > 0) & (
+            masked_l_border > 0)) | ((masked_m_border == 0) & (masked_l_border == 0)), 1, 0))
         border_true_prediction_scores.append(border_true_predictions)
-        
-        border_false_predictions = np.nansum(np.where(((masked_m_border > 0) & (masked_l_border == 0)) | ((masked_m_border == 0) & (masked_l_border > 0)), 1, 0))
+
+        border_false_predictions = np.nansum(np.where(((masked_m_border > 0) & (
+            masked_l_border == 0)) | ((masked_m_border == 0) & (masked_l_border > 0)), 1, 0))
         border_false_prediction_scores.append(border_false_predictions)
 
         border_tot_labeled = np.nansum(np.where(masked_l_border > 0, 1, 0))
@@ -394,12 +437,12 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
 
         max_boundary = np.max(l_border)
         border_diff = np.abs(m_border - l_border)
-        border_score = 1 - np.nanmean(border_diff) 
+        border_score = 1 - np.nanmean(border_diff)
         border_scores.append(border_score)
 
         border_agreement = np.abs(l_border - 0.5)*10
-        weighted_border_scores.append(1 - np.nanmean(border_diff * border_score))
-
+        weighted_border_scores.append(
+            1 - np.nanmean(border_diff * border_score))
 
         if plot:
             fig, axs = plt.subplots(1, 2)
@@ -419,7 +462,6 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
             plt.colorbar(cb2, ax=axs[1])
             plt.show()
 
-    
     all_area_scores = {"tot_points": tot_points_list,
                        "area_tot_labeled": area_tot_labeled_list,
                        "area_scores": area_scores,
@@ -430,42 +472,47 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
                        "area_false_negative_scores": area_false_negative_scores,
                        "area_true_prediction_scores": area_true_prediction_scores,
                        "area_false_prediction_scores": area_false_prediction_scores
-                        }
+                       }
 
     all_border_scores = {"tot_points": tot_points_list,
-                        "border_tot_labeled": border_tot_labeled_list,
-                        "border_scores": border_scores,
-                        "weighted_border_scores": weighted_border_scores,
-                        "border_true_positive_scores": border_true_positive_scores,
-                        "border_false_positive_scores": border_false_positive_scores,
-                        "border_true_negative_scores": border_true_negative_scores,
-                        "border_false_negative_scores": border_false_negative_scores,
-                        "border_true_prediction_scores": border_true_prediction_scores,
-                        "border_false_prediction_scores": border_false_prediction_scores
-                        }
+                         "border_tot_labeled": border_tot_labeled_list,
+                         "border_scores": border_scores,
+                         "weighted_border_scores": weighted_border_scores,
+                         "border_true_positive_scores": border_true_positive_scores,
+                         "border_false_positive_scores": border_false_positive_scores,
+                         "border_true_negative_scores": border_true_negative_scores,
+                         "border_false_negative_scores": border_false_negative_scores,
+                         "border_true_prediction_scores": border_true_prediction_scores,
+                         "border_false_prediction_scores": border_false_prediction_scores
+                         }
 
     return all_area_scores, all_border_scores
-
 
 
 def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=False):
     brush = gaussian_brush(width=5, height=5, sigma=1.2, strength=1)
     model_boundaries = []
     model_areas = []
-    
+
     for i in index_list:
         boundary_mask = np.zeros_like(lon_map[i], dtype=np.float)
-        closest_indices = find_closest_indices(lon_map[i], lat_map[i], valid_lons[i], valid_lats[i])
+        closest_indices = find_closest_indices(
+            lon_map[i], lat_map[i], valid_lons[i], valid_lats[i])
 
         for (x, y) in closest_indices:
             apply_brush(boundary_mask, y, x, brush)
 
-        valid_pos = indices_cao[i].numpy()  # This should be a flattened list or 1D np.ndarray of valid indices
-        valid_mask = np.full(boundary_mask.shape, False)  # Start with a mask of False (invalid) values
-        valid_mask.flat[valid_pos] = True  # Set positions defined by valid_pos to True (valid)
-        boundary_mask[~valid_mask] = np.nan  # Set invalid positions in boundary_mask to np.nan
+        # This should be a flattened list or 1D np.ndarray of valid indices
+        valid_pos = indices_cao[i].numpy()
+        # Start with a mask of False (invalid) values
+        valid_mask = np.full(boundary_mask.shape, False)
+        # Set positions defined by valid_pos to True (valid)
+        valid_mask.flat[valid_pos] = True
+        # Set invalid positions in boundary_mask to np.nan
+        boundary_mask[~valid_mask] = np.nan
 
-        area_mask = np.where((label_map[i] == label_1) | (label_map[i] == label_2), 1, 0).astype(np.float)
+        area_mask = np.where((label_map[i] == label_1) | (
+            label_map[i] == label_2), 1, 0).astype(np.float)
         area_mask[~valid_mask] = np.nan
 
         model_boundaries.append(boundary_mask)
@@ -479,9 +526,11 @@ def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, in
 
     return model_boundaries, model_areas
 
-def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent= [-15, 25, 58, 84]):
+
+def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent=[-15, 25, 58, 84]):
     print(date, time)
-    lons, lats, angles = compute_boundary_coordinates_between_labels_2(label_map, lon_map, lat_map, open_label, closed_label, size_threshold_1=size_threshold_1, size_threshold_2=size_threshold_2)
+    lons, lats, angles = compute_boundary_coordinates_between_labels_2(
+        label_map, lon_map, lat_map, open_label, closed_label, size_threshold_1=size_threshold_1, size_threshold_2=size_threshold_2)
     lons_full = lons
     lats_full = lats
 
@@ -490,23 +539,26 @@ def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, ti
     threshold = 90
 
     for lon, lat, angle in zip(lons, lats, angles):
-        wind_dir = find_wind_dir_at_ll_time(lon, lat, p_level, date, time) 
+        wind_dir = find_wind_dir_at_ll_time(lon, lat, p_level, date, time)
 
-        check = check_angle_threshold(wind_dir, lons, lats, lon, lat, angle_thr, min_distance=0)
-        #lons, lats = check_angle_threshold_downwind(wind_dir, lons, lats, lon, lat, 5, min_distance=100000)
+        check = check_angle_threshold(
+            wind_dir, lons, lats, lon, lat, angle_thr, min_distance=0)
+        # lons, lats = check_angle_threshold_downwind(wind_dir, lons, lats, lon, lat, 5, min_distance=100000)
         if not check:
             if np.min([abs(angle - wind_dir), abs(angle - wind_dir - 360), abs(angle - wind_dir + 360)]) < threshold:
-                valid_lons.append(lon)# if angle==237.43814048068378 else 0)
-                valid_lats.append(lat)# if angle==237.43814048068378 else 70)
-                #valid_angles.append(angle)
-   
+                valid_lons.append(lon)  # if angle==237.43814048068378 else 0)
+                valid_lats.append(lat)  # if angle==237.43814048068378 else 70)
+                # valid_angles.append(angle)
+
     if plot:
-        ax = plot_map_with_nearest_neighbors(x_i, valid_lons, valid_lats, lon_lats_cao[0], lon_lats_cao[1], extent, figsize=(14, 10))
+        ax = plot_map_with_nearest_neighbors(
+            x_i, valid_lons, valid_lats, lon_lats_cao[0], lon_lats_cao[1], extent, figsize=(14, 10))
         # plt.quiver(valid_lons, valid_lats, valid_angles, 300)
         plt.show()
-    
+
     return valid_lons, valid_lats
-    
+
+
 def find_closest_indices(grid_lons, grid_lats, lons_list, lats_list):
     index_list = []
 
@@ -516,8 +568,9 @@ def find_closest_indices(grid_lons, grid_lats, lons_list, lats_list):
 
         for i in range(grid_lons.shape[0]):
             for j in range(grid_lons.shape[1]):
-                _, _, distance = geodesic.inv(lon, lat, grid_lons[i,j], grid_lats[i,j])
-                
+                _, _, distance = geodesic.inv(
+                    lon, lat, grid_lons[i, j], grid_lats[i, j])
+
                 if min_distance is None or distance < min_distance:
                     min_distance = distance
                     closest_index = (i, j)
@@ -540,7 +593,7 @@ def get_area_mask(boundary_coordinates, mask_shape):
             # Check if the current point is inside the polygon
             if polygon.contains(point):
                 points_inside.append((x, y))
-    
+
     # Create a mask of the specified shape and set points inside the polygon to True (or 1)
     mask = np.full(mask_shape, False)  # or np.zeros(mask_shape, dtype=bool)
     for x, y in points_inside:
@@ -550,18 +603,17 @@ def get_area_mask(boundary_coordinates, mask_shape):
 
     return mask
 
-    
 
 def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patch_size=128, index_list=None, plot=False):
     downscaled_areas = []
     downscaled_borders = []
 
-
     for idx in index_list:
-        extracted_rows = df[df["image_id"].str.split("/").str[1].str.split("_").str[0] == f"MOD021KM.A{dates[idx]}.{times[idx]}"]
+        extracted_rows = df[df["image_id"].str.split(
+            "/").str[1].str.split("_").str[0] == f"MOD021KM.A{dates[idx]}.{times[idx]}"]
         if len(extracted_rows) > 1:
             if plot:
-                fig, axs = plt.subplots(1,3, figsize=[35, 20])
+                fig, axs = plt.subplots(1, 3, figsize=[35, 20])
 
             interpolated_border = []
             interpolated_area_i = []
@@ -570,11 +622,14 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
                 interpolated_area_mask = []
                 di = extracted_rows.iloc[i]
                 date_img = str(di["image_id"].split("/")[1].split(".")[1][1:])
-                time_img = int(di["image_id"].split("/")[1].split(".")[2].split("_")[0])
+                time_img = int(di["image_id"].split(
+                    "/")[1].split(".")[2].split("_")[0])
                 area_lines = np.array(di["data.areaLines"])
                 border_lines = np.array(di["data.borderLines"], dtype=object)
-                reduced_height = (x_cao[idx].shape[0] - patch_size) // reduction + 1
-                reduced_width = (x_cao[idx].shape[1] - patch_size) // reduction + 1
+                reduced_height = (x_cao[idx].shape[0] -
+                                  patch_size) // reduction + 1
+                reduced_width = (x_cao[idx].shape[1] -
+                                 patch_size) // reduction + 1
                 scale_factor_y = reduced_height / x_cao[idx].shape[0]
                 scale_factor_x = reduced_width / x_cao[idx].shape[1]
 
@@ -583,62 +638,69 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
                 if n_areas > 0:
                     for j in range(n_areas):
                         area = np.array(area_lines[j])
-                        interpolated_area_boundary = interpolate_coords(area, connect_first_last=True)
-                        scaled_boundary_coordinates = np.copy(interpolated_area_boundary.astype(float))
+                        interpolated_area_boundary = interpolate_coords(
+                            area, connect_first_last=True)
+                        scaled_boundary_coordinates = np.copy(
+                            interpolated_area_boundary.astype(float))
                         scaled_boundary_coordinates[:, 0] *= scale_factor_x
                         scaled_boundary_coordinates[:, 1] *= scale_factor_y
                         print((reduced_height, reduced_width))
-                        area_mask = get_area_mask(scaled_boundary_coordinates, (reduced_height, reduced_width))
-
+                        area_mask = get_area_mask(
+                            scaled_boundary_coordinates, (reduced_height, reduced_width))
 
                         interpolated_area.append(interpolated_area_boundary)
                         interpolated_area_mask.append(area_mask)
 
                     interpolated_sum = np.sum(interpolated_area_mask, axis=0)
-                    interpolated_area_i.append(np.where(interpolated_sum > 1, 1, interpolated_sum))
+                    interpolated_area_i.append(
+                        np.where(interpolated_sum > 1, 1, interpolated_sum))
                 else:
-                    interpolated_area_i.append(np.zeros((reduced_height, reduced_width)))
+                    interpolated_area_i.append(
+                        np.zeros((reduced_height, reduced_width)))
                 if plot:
                     axs[0].imshow(x_cao[idx], cmap="gray_r")
                     for k in range(len(interpolated_area)):
-                        #axs[0].scatter(interpolated_area[k].T[0] // reduction, interpolated_area[k].T[1] // reduction, s=0.05, color="r")
-                        #axs[0].imshow(interpolated_area[k], alpha=0.8/len(extracted_rows), cmap="Reds")
-                        axs[0].fill(interpolated_area[k].T[0], interpolated_area[k].T[1], alpha=0.8/len(extracted_rows), color="r")
+                        # axs[0].scatter(interpolated_area[k].T[0] // reduction, interpolated_area[k].T[1] // reduction, s=0.05, color="r")
+                        # axs[0].imshow(interpolated_area[k], alpha=0.8/len(extracted_rows), cmap="Reds")
+                        axs[0].fill(interpolated_area[k].T[0], interpolated_area[k].T[1],
+                                    alpha=0.8/len(extracted_rows), color="r")
 
                 n_borders = len(border_lines)
                 if n_borders > 0:
                     for j in range(n_borders):
                         border = np.array(border_lines[j])
-                        interpolated_border.append(interpolate_coords(border.astype(float), connect_first_last=False))
-            
-                
+                        interpolated_border.append(interpolate_coords(
+                            border.astype(float), connect_first_last=False))
+
                 if plot:
                     axs[1].imshow(x_cao[idx], cmap="gray_r")
                     for k in range(len(interpolated_border)):
-                        axs[1].scatter(interpolated_border[k].T[0], interpolated_border[k].T[1], s=0.5, color="r")
+                        axs[1].scatter(interpolated_border[k].T[0],
+                                       interpolated_border[k].T[1], s=0.5, color="r")
 
             # Final areas
-            interpolated_sum_i = np.sum(interpolated_area_i, axis=0) / len(extracted_rows)
+            interpolated_sum_i = np.sum(
+                interpolated_area_i, axis=0) / len(extracted_rows)
             downscaled_areas.append(interpolated_sum_i)
 
-            
-
             # Generate the Gaussian brush (adjust width, height, and sigma as needed)
-            brush = gaussian_brush(width=65, height=65, sigma=16, strength=1/len(extracted_rows))
+            brush = gaussian_brush(width=65, height=65,
+                                   sigma=16, strength=1/len(extracted_rows))
 
             tot_border = np.zeros(x_cao[idx].shape[:2])
             tot_border_reduced = np.zeros((reduced_height, reduced_width))
-            
+
             # Iterate through your border coordinates and apply the brush
             for border_coords in interpolated_border:
                 border_mask = np.zeros(x_cao[idx].shape[:2])
                 for x, y in border_coords:
                     apply_brush(border_mask, int(x), int(y), brush)
-                tot_border += border_mask 
+                tot_border += border_mask
 
             for i in range(reduced_height):
                 for j in range(reduced_width):
-                    tot_border_reduced[i, j] = np.mean(tot_border[i * reduction: (i + 1) * reduction, j * reduction: (j + 1) * reduction])
+                    tot_border_reduced[i, j] = np.mean(
+                        tot_border[i * reduction: (i + 1) * reduction, j * reduction: (j + 1) * reduction])
             downscaled_borders.append(tot_border_reduced)
 
             if plot:
@@ -683,7 +745,7 @@ def apply_brush(mask, x, y, brush):
 
     mask[row_start:row_end, col_start:col_end] = np.where(
         mask[row_start:row_end, col_start:col_end] < brush, brush, mask[row_start:row_end, col_start:col_end])
-    #mask[row_start:row_end, col_start:col_end] = mask[row_start:row_end, col_start:col_end] + brush
+    # mask[row_start:row_end, col_start:col_end] = mask[row_start:row_end, col_start:col_end] + brush
    # mask[row_start:row_end, col_start:col_end] = brush
 
     return mask
@@ -712,20 +774,21 @@ def bresenham_line(x0, y0, x1, y1):
 
     return points
 
+
 def interpolate_coords(coords, connect_first_last):
     """Interpolate between points in coords if they are not neighbors."""
     interpolated = []
     for i in range(len(coords) - 1):
-        start = coords[i] 
+        start = coords[i]
         end = coords[i + 1]
         if start[0] < 0:
-            start[0] = 0 
+            start[0] = 0
         if start[1] < 0:
             start[1] = 0
         if end[0] < 0:
-            end[0] = 0 
+            end[0] = 0
         if end[1] < 0:
-            end[1] = 0            
+            end[1] = 0
 
         # Check if points are neighbors
         if max(abs(round(start[0]) - round(end[0])), abs(round(start[1]) - round(end[1]))) > 1:
@@ -743,41 +806,40 @@ def interpolate_coords(coords, connect_first_last):
         if max(abs(round(start[0]) - round(end[0])), abs(round(start[1]) - round(end[1]))) > 1:
             interpolated.extend(bresenham_line(
                 round((start[0])), round((start[1])), round((end[0])), round((end[1]))))
-        else:            
+        else:
             interpolated.append((round(start[0]), round(start[1])))
 
-    
-    return np.array(interpolated)  
+    return np.array(interpolated)
 
 
-
-def generate_xy_grid(x_extent = [-2.2e6, 2.2e6], y_extent = [-3.6e6, -0.5e6], grid_resolution=128e3):
+def generate_xy_grid(x_extent=[-2.2e6, 2.2e6], y_extent=[-3.6e6, -0.5e6], grid_resolution=128e3):
     x_grid, y_grid = np.meshgrid(np.arange(x_extent[0], x_extent[1], grid_resolution),
-                                np.arange(y_extent[0], y_extent[1], grid_resolution))
+                                 np.arange(y_extent[0], y_extent[1], grid_resolution))
     return x_grid, y_grid
-    
+
+
 def generate_hist_map(n_patches_tot,
                       indices,
                       labels,
                       starts,
-                      ends,  
+                      ends,
                       shapes,
                       all_lon_patches,
-                      all_lat_patches,  
+                      all_lat_patches,
                       dates,
                       desired_label,
                       size_threshold,
                       patch_size,
                       global_max,
-                      projection = ccrs.Stereographic(central_latitude=90),
-                      grid_resolution = 128e3):
-    
+                      projection=ccrs.Stereographic(central_latitude=90),
+                      grid_resolution=128e3):
+
     # Generate grid to add counts on
-   
+
     x_grid, y_grid = generate_xy_grid(grid_resolution=grid_resolution)
     # Initialize the count matrix
     counts = np.zeros_like(x_grid)
-        
+
     # Create a KDTree for faster nearest neighbor search
     tree = cKDTree(list(zip(x_grid.ravel(), y_grid.ravel())))
 
@@ -785,54 +847,58 @@ def generate_hist_map(n_patches_tot,
     dates_counted = {}
 
     s = 0
-    # Run through all images 
+    # Run through all images
     for i in range(len(dates)):
         # Generate lon lat maps
         height, width = shapes[i]
         reduced_height = height // patch_size
-        reduced_width = width //patch_size
+        reduced_width = width // patch_size
 
         current_lon = np.empty((n_patches_tot[i], patch_size, patch_size))
         current_lon[np.squeeze(indices[i].numpy())] = all_lon_patches[i]
-        lon_map = np.reshape(current_lon, (reduced_height, reduced_width, patch_size, patch_size))
+        lon_map = np.reshape(current_lon, (reduced_height,
+                             reduced_width, patch_size, patch_size))
 
         current_lat = np.empty((n_patches_tot[i], patch_size, patch_size))
         current_lat[np.squeeze(indices[i].numpy())] = all_lat_patches[i]
-        lat_map = np.reshape(current_lat, (reduced_height, reduced_width, patch_size, patch_size))
+        lat_map = np.reshape(current_lat, (reduced_height,
+                             reduced_width, patch_size, patch_size))
 
         # Get label map
 
-        label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
+        label_map = generate_map_from_labels(
+            labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
 
-        
         binary_map = np.isin(label_map, desired_label)
 
         # Label connected components, considering diagonal connections
         """USE OF DIAGONAL CONNECTIONS"""
         structure = ndimage.generate_binary_structure(2, 2)
-        labeled_map, num_features = ndimage.label(binary_map, structure=structure)
-        
+        labeled_map, num_features = ndimage.label(
+            binary_map, structure=structure)
+
         """NO DIAGONAL CONNECTIONS:"""
-        #labeled_map, num_features = ndimage.label(binary_map)
+        # labeled_map, num_features = ndimage.label(binary_map)
 
         # Measure sizes of connected components
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
-      
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Iterate through each region and check if its size exceeds the threshold
         for region_idx, region_size in enumerate(region_sizes):
             if region_size >= size_threshold:
                 # Get the indices of the region
                 region_coordinates = np.where(labeled_map == region_idx)
-                
+
                 # Convert to projected coordinates
-                x_proj, y_proj = projection.transform_points(ccrs.PlateCarree(), 
-                                                            lon_map[region_coordinates].ravel(), 
-                                                            lat_map[region_coordinates].ravel())[:, :2].T
-                s+=1
+                x_proj, y_proj = projection.transform_points(ccrs.PlateCarree(),
+                                                             lon_map[region_coordinates].ravel(
+                ),
+                    lat_map[region_coordinates].ravel())[:, :2].T
+                s += 1
 
                 # Query the KDTree for nearest grid points
-                _, idxs = tree.query(list(zip(x_proj, y_proj)))  
+                _, idxs = tree.query(list(zip(x_proj, y_proj)))
 
                 # Check and Increment the counts based on date condition
                 for idx in idxs:
@@ -841,47 +907,56 @@ def generate_hist_map(n_patches_tot,
                     if dates[i] not in dates_counted[idx]:
                         counts.ravel()[idx] += 1
                         dates_counted[idx].add(dates[i])
-            
 
     return x_grid, y_grid, counts
 
 
 def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
-    datetime_obj = datetime.datetime.strptime("%s%s" %(date, time), "%Y%j%H%M")
+    datetime_obj = datetime.datetime.strptime(
+        "%s%s" % (date, time), "%Y%j%H%M")
     formatted_date = datetime_obj.strftime("%Y%m%d")
     year = str(date)[:4]
     ds = None
     wind_dir = None
     try:
-        ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, formatted_date))
+        ds = xr.open_dataset(
+            "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, formatted_date))
     except Exception as e:
-        print(f"An exception occurred while opening the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc: {e}")
+        print(
+            f"An exception occurred while opening the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc: {e}")
     if ds is not None:
-        ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat, lev=p_level, method='nearest')
+        ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat,
+                         lev=p_level, method='nearest')
         try:
             wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
         except Exception as e:
-            print(f"An exception occurred while extracting U and V for the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
+            print(
+                f"An exception occurred while extracting U and V for the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
 
         if wind_dir:
-            wind_dir = (wind_dir +270) % 360
+            wind_dir = (wind_dir + 270) % 360
             return np.float32(wind_dir)
         else:
             return None
     else:
         return None
 
+
 def find_wind_dir_at_idx_time(ix, iy, p_level, date, datetime_obj):
     year = str(date)[:4]
-    ds = xr.open_dataset("/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, date))
-    ds_time = ds.sel(time=datetime_obj, lev=p_level, method='nearest').isel(lon=iy, lat=ix)
+    ds = xr.open_dataset(
+        "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, date))
+    ds_time = ds.sel(time=datetime_obj, lev=p_level,
+                     method='nearest').isel(lon=iy, lat=ix)
     wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
-    
-    wind_dir = (wind_dir +270) % 360
+
+    wind_dir = (wind_dir + 270) % 360
     return np.float32(wind_dir)
 
+
 def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_distance, step_distance=100):
-    new_lon, new_lat = step_against_wind(lon, lat, (wind_direction) % 360, step_distance)
+    new_lon, new_lat = step_against_wind(
+        lon, lat, (wind_direction) % 360, step_distance)
     # new_lon = lon
     # new_lat = lat
     for lon_i, lat_i in zip(lons, lats):
@@ -893,7 +968,7 @@ def check_angle_threshold(wind_direction, lons, lats, lon, lat, threshold, min_d
             # Check if the angle difference is within the threshold range of the wind direction
             if abs((vector_angle - wind_direction + 180) % 360 - 180) <= threshold:
                 return True  # Return True if any angle is within the threshold
-    return False # Return False if no angles are within the threshold
+    return False  # Return False if no angles are within the threshold
 
 
 def check_angle_threshold_downwind(wind_direction, lons, lats, lon, lat, threshold, min_distance):
@@ -910,33 +985,39 @@ def check_angle_threshold_downwind(wind_direction, lons, lats, lon, lat, thresho
                 filtered_lons.append(lon_i)
                 filtered_lats.append(lat_i)
 
-
         else:
             filtered_lons.append(lon_i)
             filtered_lats.append(lat_i)
 
-    return filtered_lons, filtered_lats  
+    return filtered_lons, filtered_lats
 
-def step_against_wind(lon, lat, wind_direction, step_distance = 32):
+
+def step_against_wind(lon, lat, wind_direction, step_distance=32):
     step_lon = step_distance / (111.111 * np.cos(np.radians(lat)))
 
     new_lon = lon + step_lon * np.sin(np.radians(wind_direction-180))
-    new_lat = lat + step_distance / 111.111 * np.cos(np.radians(wind_direction-180))
+    new_lat = lat + step_distance / 111.111 * \
+        np.cos(np.radians(wind_direction-180))
     return new_lon, new_lat
 
-def step_with_wind(lon, lat, wind_direction, step_distance = 32):
+
+def step_with_wind(lon, lat, wind_direction, step_distance=32):
     step_lon = step_distance / (111.111 * np.cos(np.radians(lat)))
 
     new_lon = lon + step_lon * np.sin(np.radians(wind_direction))
-    new_lat = lat + step_distance / 111.111 * np.cos(np.radians(wind_direction))
+    new_lat = lat + step_distance / 111.111 * \
+        np.cos(np.radians(wind_direction))
     return new_lon, new_lat
+
 
 def is_closer_to_any_point(original_lon, original_lat, new_lon, new_lat, existing_lons, existing_lats):
     # Check if the new point is closer to any existing point
-    original_distance = geodesic.inv(new_lon, new_lat, original_lon, original_lat)[2]
+    original_distance = geodesic.inv(
+        new_lon, new_lat, original_lon, original_lat)[2]
 
     for (existing_lon, existing_lat) in zip(existing_lons, existing_lats):
-        distance = geodesic.inv(new_lon, new_lat, existing_lon, existing_lat)[2]
+        distance = geodesic.inv(
+            new_lon, new_lat, existing_lon, existing_lat)[2]
         # Extract the distance from the result
         if distance < original_distance:  # You may adjust this threshold
             return True
@@ -956,7 +1037,9 @@ def convert_to_day_of_year(date_str):
     day_of_year = date_obj.timetuple().tm_yday
 
     # Return in the desired format
-    return f"{year}{day_of_year:03d}"  # Using :03d to ensure it's a 3-digit number
+    # Using :03d to ensure it's a 3-digit number
+    return f"{year}{day_of_year:03d}"
+
 
 def convert_to_date(day_of_year_str):
     # Parse the day of the year
@@ -964,7 +1047,8 @@ def convert_to_date(day_of_year_str):
     day_of_year = int(day_of_year_str[4:])
 
     # Convert to datetime object
-    date_obj = datetime.datetime(year, 1, 1) + datetime.timedelta(day_of_year - 1)
+    date_obj = datetime.datetime(year, 1, 1) + \
+        datetime.timedelta(day_of_year - 1)
 
     # Format the date as "YYYYMMDD"
     date_str = date_obj.strftime("%Y%m%d")
@@ -976,13 +1060,15 @@ def convert_to_date(day_of_year_str):
 def generate_date_list(start, end):
     start_date = datetime.datetime.strptime(start, '%Y%m%d')
     end_date = datetime.datetime.strptime(end, '%Y%m%d')
-    
+
     date_list = []
     current_date = start_date
     while current_date <= end_date:
-        date_list.append(convert_to_day_of_year(current_date.strftime('%Y%m%d')))
+        date_list.append(convert_to_day_of_year(
+            current_date.strftime('%Y%m%d')))
         current_date += datetime.timedelta(days=1)
     return date_list
+
 
 def convert_to_standard_date(date_str):
     # Parse the date
@@ -990,26 +1076,28 @@ def convert_to_standard_date(date_str):
     day_of_year = int(date_str[4:])
 
     # Convert to datetime.datetime object
-    date_obj = datetime.datetime(year, 1, 1) + datetime.timedelta(days=day_of_year - 1)  # Using day_of_year - 1 because datetime.timedelta is 0-indexed
+    # Using day_of_year - 1 because datetime.timedelta is 0-indexed
+    date_obj = datetime.datetime(year, 1, 1) + \
+        datetime.timedelta(days=day_of_year - 1)
 
     # Return in the desired format
     return date_obj.strftime('%Y%m%d')
 
 
-
 def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
     # Calculate the dimensions of the reduced resolution array
     height, width = shape
-    
+
     if stride is None or stride == patch_size:
         reduced_height = height // patch_size
-        reduced_width = width // patch_size 
+        reduced_width = width // patch_size
     else:
         reduced_height = (height - patch_size) // stride + 1
-        reduced_width = (width - patch_size) // stride + 1    
+        reduced_width = (width - patch_size) // stride + 1
 
     # Generate an empty map with all values set to global_max + 1
-    cluster_map = np.full((reduced_height, reduced_width), global_max , dtype=labels.dtype)
+    cluster_map = np.full((reduced_height, reduced_width),
+                          global_max, dtype=labels.dtype)
 
     # Get the indices corresponding to the patches
     patch_indices = np.squeeze(idx.numpy())
@@ -1023,19 +1111,21 @@ def generate_map_from_labels(labels, start, end, shape, idx, global_max, n_patch
 
     return cluster_map
 
+
 def generate_map_from_lon_lats(lon_lats, start, end, shape, idx, global_max, n_patches, patch_size, stride=None):
     # Calculate the dimensions of the reduced resolution array
     height, width = shape
-    
+
     if stride is None or stride == patch_size:
         reduced_height = height // patch_size
-        reduced_width = width // patch_size 
+        reduced_width = width // patch_size
     else:
         reduced_height = (height - patch_size) // stride + 1
-        reduced_width = (width - patch_size) // stride + 1    
+        reduced_width = (width - patch_size) // stride + 1
 
     # Generate an empty map with all values set to global_max + 1
-    lon_lats_map = np.full((reduced_height, reduced_width), np.nan , dtype=lon_lats.dtype)
+    lon_lats_map = np.full((reduced_height, reduced_width),
+                           np.nan, dtype=lon_lats.dtype)
 
     # Get the indices corresponding to the patches
     patch_indices = np.squeeze(idx.numpy())
@@ -1049,11 +1139,11 @@ def generate_map_from_lon_lats(lon_lats, start, end, shape, idx, global_max, n_p
 
     return lon_lats_map
 
-import numpy as np
 
 def generate_map_from_patches(patches, start, end, shape, patch_size, idx):
     num_patches_y, num_patches_x = shape[0] // patch_size, shape[1] // patch_size
-    reduced_height, reduced_width = num_patches_y * patch_size, num_patches_x * patch_size
+    reduced_height, reduced_width = num_patches_y * \
+        patch_size, num_patches_x * patch_size
 
     # Create an empty map of the reduced resolution
     reconstructed_image = np.zeros((reduced_height, reduced_width))
@@ -1074,36 +1164,36 @@ def generate_map_from_patches(patches, start, end, shape, patch_size, idx):
     return reconstructed_image
 
 
-
-
 def reconstruct_from_patches(patches, shapes, starts, ends, patch_size):
     reconstructed_images = []
-    
+
     for i, shape in enumerate(shapes):
         # Create an empty image of the shape
-        reconstructed_image = np.zeros((shape[0], shape[1], patches[0].shape[2]))
-        
+        reconstructed_image = np.zeros(
+            (shape[0], shape[1], patches[0].shape[2]))
+
         # Extract the patches corresponding to this image
         image_patches = patches[starts[i]:ends[i]]
-        
+
         # Place each patch into the empty image
         patch_idx = 0
         for y in range(0, shape[0], patch_size):
             for x in range(0, shape[1], patch_size):
-                reconstructed_image[y:y+patch_size, x:x+patch_size, :] = image_patches[patch_idx]
+                reconstructed_image[y:y+patch_size, x:x +
+                                    patch_size, :] = image_patches[patch_idx]
                 patch_idx += 1
-        
+
         # Append the reconstructed image to the list
         reconstructed_images.append(reconstructed_image)
-    
+
     return reconstructed_images
+
 
 def shuffle_in_unison(*args):
     rng_state = np.random.get_state()
     for array in args:
         np.random.set_state(rng_state)
         np.random.shuffle(array)
-
 
 
 def process_image(args):
@@ -1119,18 +1209,20 @@ def process_image(args):
     return patches, lon, lat, len(patches), n_patches, idx
 
 
-def generate_patches_parallel(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82], workers=1):
+def generate_patches_parallel(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides=[None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82], workers=1):
     starts = []
-    ends =[]
+    ends = []
     shapes = []
-    start = 0 
+    start = 0
 
-    args = [(image, mask, lon_lat, autoencoder, strides, lon_lat_min_max, min_vals, max_vals) for image, mask, lon_lat in zip(x, masks, lon_lats)]
+    args = [(image, mask, lon_lat, autoencoder, strides, lon_lat_min_max,
+             min_vals, max_vals) for image, mask, lon_lat in zip(x, masks, lon_lats)]
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
         results = list(executor.map(process_image, args))
 
-    all_patches, all_lon_patches, all_lat_patches, lens, n_patches_tot, indices = zip(*results)
+    all_patches, all_lon_patches, all_lat_patches, lens, n_patches_tot, indices = zip(
+        *results)
 
     patches = np.concatenate(all_patches, axis=0)
     starts = np.cumsum([0] + list(lens[:-1]))
@@ -1139,52 +1231,49 @@ def generate_patches_parallel(x, masks, lon_lats, max_vals, min_vals, autoencode
     return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
 
 
-
-def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides = [None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
+def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides=[None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
     all_patches = []
     all_lon_patches = []
     all_lat_patches = []
 
     starts = []
-    ends =[]
+    ends = []
     shapes = []
-    start = 0 
-    n_patches_tot = [] 
+    start = 0
+    n_patches_tot = []
     indices = []
 
+    # encoder = load_model("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(6,20,29)_encoder")
+    # normalized_patches = np.concatenate([autoencoder.extract_patches(n_d) for n_d in normalized_data], axis=0)
 
-    #encoder = load_model("/uio/hume/student-u37/fslippe/data/models/winter_2020_21_band(6,20,29)_encoder")
-    #normalized_patches = np.concatenate([autoencoder.extract_patches(n_d) for n_d in normalized_data], axis=0)
-
-    i=0
+    i = 0
     tot = len(x)
     for (image, mask, lon_lat) in zip(x, masks, lon_lats):
         print(f"{i}/{tot}", end="\r")
         shapes.append(image.shape[0:2])
         patches, idx, n_patches, lon, lat = autoencoder.extract_patches(image,
-                                                                            mask,
-                                                                            mask_threshold=0.9,
-                                                                            lon_lat=lon_lat,
-                                                                            extract_lon_lat=True,
-                                                                            strides=strides,
-                                                                            lon_lat_min_max=lon_lat_min_max)  # Assuming this function extracts and reshapes patches for a single image
-        #patches = autoencoder_predict.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
-        #n_patches = len(patches)
-        
+                                                                        mask,
+                                                                        mask_threshold=0.9,
+                                                                        lon_lat=lon_lat,
+                                                                        extract_lon_lat=True,
+                                                                        strides=strides,
+                                                                        lon_lat_min_max=lon_lat_min_max)  # Assuming this function extracts and reshapes patches for a single image
+        # patches = autoencoder_predict.extract_patches(image)  # Assuming this function extracts and reshapes patches for a single image
+        # n_patches = len(patches)
 
         all_patches.append(patches)
         all_lon_patches.append(lon)
         all_lat_patches.append(lat)
-    
 
         starts.append(start)
         ends.append(start + len(patches))
         n_patches_tot.append(n_patches)
         indices.append(idx)
         start += len(patches)
-        i+=1
+        i += 1
     # Stack filtered patches from all images
-    patches = (np.concatenate(all_patches, axis=0) - min_vals) / (max_vals - min_vals)
+    patches = (np.concatenate(all_patches, axis=0) -
+               min_vals) / (max_vals - min_vals)
 
     return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
 
@@ -1196,15 +1285,17 @@ def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, globa
     patches_w = []
 
     for i in range(n):
-        label_map = generate_map_from_labels(labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
-        
+        label_map = generate_map_from_labels(
+            labels, starts[i], ends[i], shapes[i], indices[i], global_max, n_patches_tot[i], patch_size)
+
         binary_map = (label_map == desired_label)
-        
+
         # Label connected components
         labeled_map, num_features = ndimage.label(binary_map)
 
         # Measure sizes of connected components
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
         # Iterate through each region and check if its size exceeds the threshold
 
         for region_idx, region_size in enumerate(region_sizes):
@@ -1212,14 +1303,6 @@ def get_patches_of_img_cao(labels, patches, starts, ends, shapes, indices, globa
                 patches_w.append(patches[starts[i]:ends[i]])
     patches_w = np.concatenate(patches_w)
     return patches_w
-
-
-import numpy as np
-import pyproj
-from skimage import measure
-from shapely.geometry import LineString
-import matplotlib.pyplot as plt
-
 
 
 def perpendicular_distance(point, line_start, line_end):
@@ -1235,6 +1318,7 @@ def perpendicular_distance(point, line_start, line_end):
 
     return numerator / denominator if denominator != 0 else 0
 
+
 def douglas_peucker(point_list, epsilon):
     """
     Douglas-Peucker algorithm for line simplification.
@@ -1245,18 +1329,20 @@ def douglas_peucker(point_list, epsilon):
     end = len(point_list)
     tot_indices = []
     for i in range(2, end - 1):
-        d = perpendicular_distance(point_list[i], point_list[0], point_list[end - 1])
+        d = perpendicular_distance(
+            point_list[i], point_list[0], point_list[end - 1])
         if d > dmax:
             index = i
             dmax = d
-        
 
     result_list = []
     indices_inside_epsilon = [False] * len(point_list)
 
     if dmax > epsilon:
-        rec_results1, rec_indices1 = douglas_peucker(point_list[:index + 1], epsilon)
-        rec_results2, rec_indices2 = douglas_peucker(point_list[index:], epsilon)
+        rec_results1, rec_indices1 = douglas_peucker(
+            point_list[:index + 1], epsilon)
+        rec_results2, rec_indices2 = douglas_peucker(
+            point_list[index:], epsilon)
 
         # Build the result list
         result_list = rec_results1[:-1] + rec_results2
@@ -1268,12 +1354,11 @@ def douglas_peucker(point_list, epsilon):
     return result_list, indices_inside_epsilon
 
 
-from scipy.interpolate import CubicSpline
-
 def simplify_line(coords, tolerance):
     line = LineString(coords)
     simplified_line = line.simplify(tolerance, preserve_topology=False)
     return np.array(simplified_line.xy).T
+
 
 def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2, max_distance_to_avg=None, size_threshold_1=None, size_threshold_2=None, simplification_tolerance=0.1):
     lons = []
@@ -1287,10 +1372,12 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
         m_max = np.max(m)
         binary_map = np.isin(m, [label1])
         labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Loop through each region and check if the region size is below the threshold
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+        # Skipping background (label 0)
+        for region_label in range(1, num_features + 1):
             if region_sizes[region_label] < size_threshold_1:
                 # Set the pixels of this region to the maximum value of m
                 m[labeled_map == region_label] = m_max
@@ -1298,10 +1385,12 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
         m_max = np.max(m)
         binary_map = np.isin(m, [label2])
         labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Loop through each region and check if the region size is below the threshold
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+        # Skipping background (label 0)
+        for region_label in range(1, num_features + 1):
             if region_sizes[region_label] < size_threshold_2:
                 # Set the pixels of this region to the maximum value of m
                 m[labeled_map == region_label] = m_max
@@ -1314,7 +1403,6 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                     (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
                 ]
 
-
                 for ni, nj in neighbors:
                     if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
                         if m[ni, nj] == label2:
@@ -1323,63 +1411,63 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                             interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
 
                             # Calculate relative positions of label1 and label2
-                            label_position = (lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
+                            label_position = (
+                                lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
                             orientations.append(label_position)
-                            #_, angle, _ = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
-                            #orientations.append((angle +360 ) % 360)
+                            # _, angle, _ = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
+                            # orientations.append((angle +360 ) % 360)
 
                             lons.append(interp_lon)
                             lats.append(interp_lat)
 
-
-    
     # Combine lon and lat coordinates into a single array
-    
+
     coords = np.column_stack((lons, lats))
-    
+
     # Simplify the boundary using the Ramer–Douglas–Peucker algorithm
     simplified_coords = simplify_line(coords, simplification_tolerance)
-    #simplified_coords, indices_inside = douglas_peucker(coords, simplification_tolerance)
-    #print(indices_inside)
-    #print(np.array(simplified_coords))
-    #print(len(simplified_coords))
-    #print(len(coords))
-    plt.figure(figsize=[10,10])
-    plt.scatter(coords[:,0], coords[:,1])
+    # simplified_coords, indices_inside = douglas_peucker(coords, simplification_tolerance)
+    # print(indices_inside)
+    # print(np.array(simplified_coords))
+    # print(len(simplified_coords))
+    # print(len(coords))
+    plt.figure(figsize=[10, 10])
+    plt.scatter(coords[:, 0], coords[:, 1])
     for i in range(len(np.array(simplified_coords))):
-        plt.scatter(np.array(simplified_coords)[i,0], np.array(simplified_coords)[ i,1], s=100, label="%s" %(i+1))
+        plt.scatter(np.array(simplified_coords)[i, 0], np.array(
+            simplified_coords)[i, 1], s=100, label="%s" % (i+1))
 
     plt.legend()
     # Calculate angles for the simplified coordinates
     for i in range(1, len(simplified_coords)):
         lon1, lat1 = simplified_coords[i - 1]
         lon2, lat2 = simplified_coords[i]
-        plt.plot([lon1, lon2], [lat1,lat2])
+        plt.plot([lon1, lon2], [lat1, lat2])
         # Calculate the angle
         _, angle, _ = geodesic.inv(lon1, lat1, lon2, lat2)
 
         angle = (angle + 360) % 360
-        
+
         # Find indices of points in the original coordinates that match the simplified coordinates
         indices = np.where(np.logical_and(lons == lon1, lats == lat1))
         idx1 = indices[0][0] if len(indices[0]) > 0 else None
-        
+
         indices = np.where(np.logical_and(lons == lon2, lats == lat2))
         idx2 = indices[0][0] if len(indices[0]) > 0 else None
-        
+
         # Fill angles for points between idx1 and idx2
         if idx1 is not None and idx2 is not None:
             linear_vec = (lon2-lon1, lat2-lat1)
             avg_orientation = np.mean(orientations[idx1:idx2], axis=0)
             # avg_orientation = mean_angle(orientations[idx1:idx2])
-            cross_product = linear_vec[0] * avg_orientation[1] - linear_vec[1] * avg_orientation[0] 
+            cross_product = linear_vec[0] * avg_orientation[1] - \
+                linear_vec[1] * avg_orientation[0]
             angle_right = True if cross_product < 0 else False
             for j in range(idx1, idx2):
-                angles.append((angle-90) % 360 if angle_right else (angle +90) % 360)
+                angles.append((angle-90) %
+                              360 if angle_right else (angle + 90) % 360)
     plt.show()
 
-
-        
     print(len(angles))
     return lons, lats, angles
 
@@ -1399,14 +1487,13 @@ def calculate_angle(slope):
     return np.degrees(np.arctan(slope))
 
 # Function to fit linear regression and calculate angle
+
+
 def fit_linear_regression(coords):
     x, y = coords[:, 0], coords[:, 1]
     slope, _, _, _, _ = linregress(x, y)
     vec = (slope, 1)
     return vec
-
-
-
 
 
 def rotate_vector(vector, angle):
@@ -1422,22 +1509,27 @@ def rotate_vector(vector, angle):
 
     return rotated_vector
 
+
 def find_closest_angle(initial_angle, avg_orientation):
     # Convert initial_angle and avg_orientation to radians
     initial_angle_rad = np.radians(initial_angle)
     avg_orientation_rad = np.radians(avg_orientation)
 
     # Create unit vectors in the direction of initial_angle and avg_orientation
-    initial_vector = np.array([np.cos(initial_angle_rad), np.sin(initial_angle_rad)])
-    avg_orientation_vector = np.array([np.cos(avg_orientation_rad), np.sin(avg_orientation_rad)])
+    initial_vector = np.array(
+        [np.cos(initial_angle_rad), np.sin(initial_angle_rad)])
+    avg_orientation_vector = np.array(
+        [np.cos(avg_orientation_rad), np.sin(avg_orientation_rad)])
 
     # Rotate the initial vector both left and right
     rotated_left = rotate_vector(initial_vector, 90)  # Rotate left
     rotated_right = rotate_vector(initial_vector, -90)  # Rotate right
 
     # Calculate the angular differences between the rotated vectors and avg_orientation
-    diff_left = np.abs(np.degrees(np.arccos(np.dot(rotated_left, avg_orientation_vector))))
-    diff_right = np.abs(np.degrees(np.arccos(np.dot(rotated_right, avg_orientation_vector))))
+    diff_left = np.abs(np.degrees(
+        np.arccos(np.dot(rotated_left, avg_orientation_vector))))
+    diff_right = np.abs(np.degrees(
+        np.arccos(np.dot(rotated_right, avg_orientation_vector))))
 
     # Choose the rotation direction that gives the minimum angular difference
     if np.min(diff_left) < np.min(diff_right):
@@ -1458,10 +1550,12 @@ def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, l
         m_max = np.max(m)
         binary_map = np.isin(m, [label1])
         labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Loop through each region and check if the region size is below the threshold
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+        # Skipping background (label 0)
+        for region_label in range(1, num_features + 1):
             if region_sizes[region_label] < size_threshold_1:
                 # Set the pixels of this region to the maximum value of m
                 m[labeled_map == region_label] = m_max
@@ -1470,10 +1564,12 @@ def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, l
         m_max = np.max(m)
         binary_map = np.isin(m, [label2])
         labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Loop through each region and check if the region size is below the threshold
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+        # Skipping background (label 0)
+        for region_label in range(1, num_features + 1):
             if region_sizes[region_label] < size_threshold_2:
                 # Set the pixels of this region to the maximum value of m
                 m[labeled_map == region_label] = m_max
@@ -1486,7 +1582,6 @@ def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, l
                     (i - 1, j - 1), (i - 1, j + 1), (i + 1, j - 1), (i + 1, j + 1)
                 ]
 
-
                 for ni, nj in neighbors:
                     if 0 <= ni < m.shape[0] and 0 <= nj < m.shape[1]:
                         if m[ni, nj] == label2:
@@ -1495,72 +1590,56 @@ def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, l
                             interp_lat = (lat_map[i, j] + lat_map[ni, nj]) / 2
 
                             # Calculate relative positions of label1 and label2
-                            label_position = (lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
+                            label_position = (
+                                lon_map[i, j] - lon_map[ni, nj], lat_map[i, j] - lat_map[ni, nj])
                             orientations.append(label_position)
-                            #_, angle, _ = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
-                            #orientations.append((angle +360 ) % 360)
+                            # _, angle, _ = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
+                            # orientations.append((angle +360 ) % 360)
 
                             lons.append(interp_lon)
                             lats.append(interp_lat)
 
-
-    
     # Combine lon and lat coordinates into a single array
     lons = np.array(lons)
     lats = np.array(lats)
     orientations = np.array(orientations)
-
 
     coords = np.column_stack((lons, lats))
     all_vecs = []
 
     for i in range(len(lons)):
         # Calculate distances to all other points
-        distances = [geodesic.inv(lons[i], lats[i], lon2, lat2)[2] for lon2, lat2 in zip(lons, lats)]
-        #_, _, distance = geodesic.inv(lons, lats, lons[i], lats[i])
-        #distances = np.sqrt((lons - lons[i])**2 + (lats - lats[i])**2)
+        distances = [geodesic.inv(lons[i], lats[i], lon2, lat2)[2]
+                     for lon2, lat2 in zip(lons, lats)]
+        # _, _, distance = geodesic.inv(lons, lats, lons[i], lats[i])
+        # distances = np.sqrt((lons - lons[i])**2 + (lats - lats[i])**2)
         closest_indices = np.argsort(distances)[1:n_closest+1]
-        closest_coords = np.column_stack((lons[closest_indices], lats[closest_indices]))
+        closest_coords = np.column_stack(
+            (lons[closest_indices], lats[closest_indices]))
         orientations[i] = np.mean(orientations[closest_indices], axis=0)
         vec = fit_linear_regression(closest_coords)
         all_vecs.append(vec)
 
-
     all_vecs = np.array(all_vecs)
     for i, vec in enumerate(all_vecs):
-        _, angle, _ = geodesic.inv(lons[i], lats[i], lons[i]+0.001, lats[i]+0.001*vec[0])
+        _, angle, _ = geodesic.inv(
+            lons[i], lats[i], lons[i]+0.001, lats[i]+0.001*vec[0])
         angle = (angle + 360) % 360
         avg_orientation = orientations[i]
         # avg_orientation = mean_angle(orientations[idx1:idx2])
-        #cross_product = vec[0] * avg_orientation[1] - vec[1] * avg_orientation[0] 
-        #angle_right = True if cross_product < 0 else False
-        avg_orientation_angle = (geodesic.inv(lons[i], lats[i], lons[i]+0.001*avg_orientation[0], lats[i]+0.001*avg_orientation[1])[1] + 360) % 360
-        #angle_right = abs((angle-90 - avg_orientation_angle + 180) % 360 - 180) < abs((angle+90 - avg_orientation_angle + 180) % 360 - 180)
-        #angles.append((angle-90) % 360 if angle_right else (angle +90) % 360)
+        # cross_product = vec[0] * avg_orientation[1] - vec[1] * avg_orientation[0]
+        # angle_right = True if cross_product < 0 else False
+        avg_orientation_angle = (geodesic.inv(
+            lons[i], lats[i], lons[i]+0.001*avg_orientation[0], lats[i]+0.001*avg_orientation[1])[1] + 360) % 360
+        # angle_right = abs((angle-90 - avg_orientation_angle + 180) % 360 - 180) < abs((angle+90 - avg_orientation_angle + 180) % 360 - 180)
+        # angles.append((angle-90) % 360 if angle_right else (angle +90) % 360)
         angle = (find_closest_angle(angle, avg_orientation_angle) + 360) % 360
 
         angles.append(angle)
     plt.show()
 
-
-        
     print(len(angles))
     return lons, lats, angles
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def remove_labels_from_size_thresholds(m, label1, label2, size_thr_1, size_thr_2):
@@ -1569,10 +1648,12 @@ def remove_labels_from_size_thresholds(m, label1, label2, size_thr_1, size_thr_2
         m_max = np.max(m)
         binary_map = np.isin(m, [label1])
         labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Loop through each region and check if the region size is below the thr
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+        # Skipping background (label 0)
+        for region_label in range(1, num_features + 1):
             if region_sizes[region_label] < size_thr_1:
                 # Set the pixels of this region to the maximum value of m
                 m[labeled_map == region_label] = m_max
@@ -1580,10 +1661,12 @@ def remove_labels_from_size_thresholds(m, label1, label2, size_thr_1, size_thr_2
         m_max = np.max(m)
         binary_map = np.isin(m, [label2])
         labeled_map, num_features = ndimage.label(binary_map)
-        region_sizes = ndimage.sum(binary_map, labeled_map, range(num_features + 1))
+        region_sizes = ndimage.sum(
+            binary_map, labeled_map, range(num_features + 1))
 
         # Loop through each region and check if the region size is below the thr
-        for region_label in range(1, num_features + 1): # Skipping background (label 0)
+        # Skipping background (label 0)
+        for region_label in range(1, num_features + 1):
             if region_sizes[region_label] < size_thr_2:
                 # Set the pixels of this region to the maximum value of m
                 m[labeled_map == region_label] = m_max
@@ -1596,17 +1679,15 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
     lats = []
     angles = []
 
-    if  size_threshold_1 or size_threshold_2:
-        m = remove_labels_from_size_thresholds(m, label1, label2, size_threshold_1, size_threshold_2)
-        
-
-
+    if size_threshold_1 or size_threshold_2:
+        m = remove_labels_from_size_thresholds(
+            m, label1, label2, size_threshold_1, size_threshold_2)
 
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
             if m[i, j] == label1:
                 neighbors = [
-                      (i-1, j ), (i+1, j + 1), (i, j - 1), (i, j + 1)
+                    (i-1, j), (i+1, j + 1), (i, j - 1), (i, j + 1)
                 ]
                 # neighbors = [
                 #     (i - 1, j), (i + 1, j)
@@ -1626,15 +1707,11 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
                             lats.append(interp_lat)
 
                             # #Calculate the angle
-                            angle,angle2,distance = geodesic.inv(lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
+                            angle, angle2, distance = geodesic.inv(
+                                lon_map[i, j], lat_map[i, j], lon_map[ni, nj], lat_map[ni, nj])
                             angle2 = (angle2 + 360) % 360
 
                             angles.append(angle2)
-
-
-
-
-
 
     if max_distance_to_avg != None:
         for i in range(len(lons)):
@@ -1644,7 +1721,8 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
             lats_filtered = [lats[i]]
             for j in range(len(lons)):
                 if j != i:
-                    _,_,distance = geodesic.inv(lons[i], lats[i], lons[j], lats[j])
+                    _, _, distance = geodesic.inv(
+                        lons[i], lats[i], lons[j], lats[j])
 
                     if distance < max_distance_to_avg:
                         sum += angles[j]
@@ -1652,27 +1730,23 @@ def compute_boundary_coordinates_between_labels_2(m, lon_map, lat_map, label1, l
                         lons_filtered.append(lons[j])
                         lats_filtered.append(lats[j])
 
-
-            slope, intercept, _, _, _ = linregress(lons_filtered, lats_filtered)
+            slope, intercept, _, _, _ = linregress(
+                lons_filtered, lats_filtered)
 
             lon2 = lons_filtered[0] + 0.01
             lat2 = lats_filtered[0] + slope*0.01
-            angle,angle2,distance = geodesic.inv(lons_filtered[0], lats_filtered[0], lon2, lat2)
-            angle2 = (angle2 + 360) % 360 
+            angle, angle2, distance = geodesic.inv(
+                lons_filtered[0], lats_filtered[0], lon2, lat2)
+            angle2 = (angle2 + 360) % 360
             if sum / tot_points >= angle2:
-                angle_normal = (angle2 + 90 +  360) % 360
-            else: 
-                angle_normal = (angle2 - 90 +  360) % 360
+                angle_normal = (angle2 + 90 + 360) % 360
+            else:
+                angle_normal = (angle2 - 90 + 360) % 360
 
             # Calculate the angle 90 degrees normal to the regression line
-            angle_normal = (sum / tot_points) 
-            angles[i] =  (angle_normal + 360) % 360 #sum / tot_points
+            angle_normal = (sum / tot_points)
+            angles[i] = (angle_normal + 360) % 360  # sum / tot_points
     return lons, lats, angles
-    
-
-
-
-
 
 
 # def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, label2):
