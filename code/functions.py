@@ -435,32 +435,45 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
         border_tot_labeled = np.nansum(np.where(masked_l_border > 0, 1, 0))
         border_tot_labeled_list.append(border_tot_labeled)
 
-        max_boundary = np.max(l_border)
-        border_diff = np.abs(m_border - l_border)
-        border_score = 1 - np.nanmean(border_diff)
-        border_scores.append(border_score)
 
-        border_agreement = np.abs(l_border - 0.5)*10
-        weighted_border_scores.append(
-            1 - np.nanmean(border_diff * border_score))
+        """OLD border score calcualation"""
+        # max_boundary = np.max(l_border)
+        # border_diff = np.abs(m_border - l_border)
+        # border_score = 1 - np.nanmean(border_diff)
+        # border_scores.append(border_score)
+
+        # border_agreement = np.abs(l_border - 0.5)*10
+        # weighted_border_scores.append(
+        #     1 - np.nanmean(border_diff * border_score))
+
+        """NEW border score calculation"""
+        m_preds = m_border == 1
+        tot_border_preds = np.where(m_preds)[0].shape[0]
+        l_yes_no_border = np.where(l_border > 0, 1, 0)
+        border_weighted_frac = np.where(m_preds, abs(m_border - l_border) / tot_border_preds, np.nan)
+        border_frac = np.where(m_preds, abs(m_border - l_yes_no_border) / tot_border_preds, np.nan)
+        
+        border_scores.append(1- np.nansum(border_frac))
+        weighted_border_scores.append(1- np.nansum(border_weighted_frac))
+
 
         if plot:
-            fig, axs = plt.subplots(1, 2)
-            axs[0].imshow(m_area)
-            axs[1].imshow(l_area)
-            plt.show()
+            # fig, axs = plt.subplots(1, 2)
+            # axs[0].imshow(m_area)
+            # axs[1].imshow(l_area)
+            # plt.show()
 
             fig, axs = plt.subplots(1, 2)
             axs[0].imshow(m_border)
             axs[1].imshow(l_border)
             plt.show()
 
-            fig, axs = plt.subplots(1, 2)
-            cb1 = axs[0].imshow(np.abs(m_area - l_area))
-            plt.colorbar(cb1, ax=axs[0])
-            cb2 = axs[1].imshow(np.abs(m_border - l_border))
-            plt.colorbar(cb2, ax=axs[1])
-            plt.show()
+            # fig, axs = plt.subplots(1, 2)
+            # cb1 = axs[0].imshow(np.abs(m_area - l_area))
+            # plt.colorbar(cb1, ax=axs[0])
+            # cb2 = axs[1].imshow(np.abs(m_border - l_border))
+            # plt.colorbar(cb2, ax=axs[1])
+            # plt.show()
 
     all_area_scores = {"tot_points": tot_points_list,
                        "area_tot_labeled": area_tot_labeled_list,
@@ -489,8 +502,9 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
     return all_area_scores, all_border_scores
 
 
-def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, plot=False):
-    brush = gaussian_brush(width=5, height=5, sigma=1.2, strength=1)
+def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, indices_cao, label_map, label_1, label_2, brush=True, plot=False):
+    if brush:
+        brush_mask = gaussian_brush(width=5, height=5, sigma=1.2, strength=1)
     model_boundaries = []
     model_areas = []
 
@@ -498,9 +512,11 @@ def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, in
         boundary_mask = np.zeros_like(lon_map[i], dtype=np.float)
         closest_indices = find_closest_indices(
             lon_map[i], lat_map[i], valid_lons[i], valid_lats[i])
-
         for (x, y) in closest_indices:
-            apply_brush(boundary_mask, y, x, brush)
+            if brush:
+                apply_brush(boundary_mask, y, x, brush_mask)
+            else:
+                boundary_mask[x, y] = 1  # Directly mark the position if brush is False
 
         # This should be a flattened list or 1D np.ndarray of valid indices
         valid_pos = indices_cao[i].numpy()
@@ -568,13 +584,13 @@ def find_closest_indices(grid_lons, grid_lats, lons_list, lats_list):
 
         for i in range(grid_lons.shape[0]):
             for j in range(grid_lons.shape[1]):
-                _, _, distance = geodesic.inv(
-                    lon, lat, grid_lons[i, j], grid_lats[i, j])
+                if not np.isnan(grid_lons[i,j]): 
+                    _, _, distance = geodesic.inv(
+                        lon, lat, grid_lons[i, j], grid_lats[i, j])
 
-                if min_distance is None or distance < min_distance:
-                    min_distance = distance
-                    closest_index = (i, j)
-
+                    if min_distance is None or distance < min_distance:
+                        min_distance = distance
+                        closest_index = (i, j)
         index_list.append(closest_index)
 
     return index_list
@@ -644,7 +660,6 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
                             interpolated_area_boundary.astype(float))
                         scaled_boundary_coordinates[:, 0] *= scale_factor_x
                         scaled_boundary_coordinates[:, 1] *= scale_factor_y
-                        print((reduced_height, reduced_width))
                         area_mask = get_area_mask(
                             scaled_boundary_coordinates, (reduced_height, reduced_width))
 
@@ -912,6 +927,7 @@ def generate_hist_map(n_patches_tot,
 
 
 def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
+    merra_loc = "/uio/hume/student-u37/fslippe/MERRA/"
     datetime_obj = datetime.datetime.strptime(
         "%s%s" % (date, time), "%Y%j%H%M")
     formatted_date = datetime_obj.strftime("%Y%m%d")
@@ -920,10 +936,10 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
     wind_dir = None
     try:
         ds = xr.open_dataset(
-            "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, formatted_date))
+            f"{merra_loc}{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
     except Exception as e:
         print(
-            f"An exception occurred while opening the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc: {e}")
+            f"An exception occurred while opening the file {merra_loc}{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc: {e}")
     if ds is not None:
         ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat,
                          lev=p_level, method='nearest')
@@ -931,7 +947,7 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
             wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
         except Exception as e:
             print(
-                f"An exception occurred while extracting U and V for the file /scratch/fslippe/MERRA/{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
+                f"An exception occurred while extracting U and V for the file {merra_loc}{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
 
         if wind_dir:
             wind_dir = (wind_dir + 270) % 360
@@ -1468,7 +1484,6 @@ def compute_boundary_coordinates_between_labels(m, lon_map, lat_map, label1, lab
                               360 if angle_right else (angle + 90) % 360)
     plt.show()
 
-    print(len(angles))
     return lons, lats, angles
 
 
@@ -1638,7 +1653,6 @@ def compute_boundary_coordinates_between_labels_1(m, lon_map, lat_map, label1, l
         angles.append(angle)
     plt.show()
 
-    print(len(angles))
     return lons, lats, angles
 
 

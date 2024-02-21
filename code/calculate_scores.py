@@ -68,10 +68,8 @@ if "mimi" in hostname:
     folder = "/scratch/fslippe/modis/MOD02/daytime_1km/ /scratch/fslippe/modis/MOD02/boundary_1km/ /scratch/fslippe/modis/MOD02/night_1km/ /scratch/fslippe/modis/MOD02/may-nov_2021/ /scratch/fslippe/modis/MOD02/cao_test_data/"
 
 
-
-
-
 def import_label_data(label_data_file_path):
+    folder_loc = "/uio/hume/student-u37/fslippe/labeling_session/npy_files/"
     dates_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_block.npy")
     times_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_block.npy")
     # dates_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_rest.npy")
@@ -90,11 +88,11 @@ def import_label_data(label_data_file_path):
 
     for (d, m) in zip(dates, times):
         s+=1
-        arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A%s.%s.combined.npy" %(d, m))
+        arr = np.load(f"{folder_loc}MOD021KM.A%s.%s.combined.npy" %(d, m))
         x_cao.append(arr)
-        arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A%s.%s.combined.npy" %(d, m))
+        arr = np.load(f"{folder_loc}masks/masks.A%s.%s.combined.npy" %(d, m))
         masks_cao.append(arr)
-        arr = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A%s.%s.combined.npy" %(d, m))
+        arr = np.load(f"{folder_loc}lon_lats/lon_lats.A%s.%s.combined.npy" %(d, m))
         lon_lats_cao.append(arr)
         #print("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A%s.%s_combined" %(d, m))
         #idx = np.where((np.array(dates_cao) == d) & (np.array(mod_min_cao) == m))[0][0]

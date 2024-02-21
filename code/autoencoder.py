@@ -163,7 +163,7 @@ class SimpleAutoencoder:
         x = keras.layers.UpSampling2D((2, 2))(x)
         
         x = keras.layers.Conv2DTranspose(self.filters[2], (3, 3), padding='same')(x)
-        x = keras.layers.LeakyReLU(alpha=0.3)(x)
+        x = keras.layers.LeakyReLU(alpha=0.3)(x)    
         x = keras.layers.UpSampling2D((2, 2))(x)
         
         x = keras.layers.Conv2DTranspose(self.filters[1], (3, 3), padding='same')(x)
