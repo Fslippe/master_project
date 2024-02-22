@@ -1,4 +1,3 @@
-dict_list_year = input("YEAR:  ")
 import os
 os.environ["OPENBLAS_NUM_THREADS"] = "8"
 os.environ["NUM_THREADS"] = "8"
@@ -105,17 +104,18 @@ from extract_training_data import *
 patch_size = 128
 filter = 64
 n_K = 12
-threshold = 10
+threshold = 30
 times_folder = f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{filter}/clustering/cao_date_time_lists/n_K_{n_K}/"
 
 dates_cao = []
 times_cao = []
-
-for yr in [dict_list_year]:
+dict_list_year = [2019, 2020, 2021, 2022, 2023]
+for yr in dict_list_year:
     time_dict = np.load(times_folder + f"times_patch_size{patch_size}_filter{filter}_nK{n_K}_thr{threshold}_{yr}.npy", allow_pickle=True).item()
     dates_cao.extend(time_dict["dates"])
     times_cao.extend(time_dict["times"])
-
+dict_list_year = "2019-2023"
+print(np.unique(dates_cao))
 date_time_zip = zip(np.array(dates_cao).astype(str), np.array(times_cao).astype(int))
 
 # for (date, time) in date_time_zip:
@@ -130,6 +130,8 @@ print(date_time_zip)
 # end = f"{year}1231"
 # dates.extend(generate_date_list(start, end))
 folder = "/scratch/fslippe/modis/MOD02/2019/ /scratch/fslippe/modis/MOD02/2020/ /scratch/fslippe/modis/MOD02/2021/ /scratch/fslippe/modis/MOD02/2022/ /scratch/fslippe/modis/MOD02/2023/"
+folder = "/scratch/fslippe/modis/MOD02_npy_w_cao/2019/ /scratch/fslippe/modis/MOD02_npy_w_cao/2020/ /scratch/fslippe/modis/MOD02_npy_w_cao/2021/ /scratch/fslippe/modis/MOD02_npy_w_cao/2022/ /scratch/fslippe/modis/MOD02_npy_w_cao/2023/"
+
 x, dates, masks, lon_lats, mod_min = extract_1km_data(folder,
                                                     bands=bands,
                                                     date_list=np.unique(dates_cao),

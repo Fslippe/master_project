@@ -1,7 +1,7 @@
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
 from shapely.geometry import LineString
-from skimage import measure
+#from skimage import measure
 import numpy as np
 from scipy import ndimage
 from scipy.stats import linregress
@@ -20,10 +20,10 @@ from concurrent.futures import ProcessPoolExecutor
 geodesic = pyproj.Geod(ellps='WGS84')
 
 
-def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False):
+def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False, return_stepping_distance=False):
     ix_arr_forward_list = []
     iy_arr_forward_list = []
-
+    stepping_distance = []
     for k in range(len(dict_list)):
         datetime_obj = dict_list[k]["datetime"]
         date = dict_list[k]["date"]
@@ -32,25 +32,31 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
         iy_arr_forward = np.zeros((size, tot_steps+1))
 
         ds = xr.open_dataset(
-            "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
+            "/uio/hume/student-u37/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
         ds_time = ds.sel(time=datetime_obj, lev=950,
                          method='nearest')  # .isel(lon=iy, lat=ix)
-        wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
-        wind_dir = (wind_dir + 270) % 360
+        wind_dir = np.degrees(np.arctan2(ds_time['U'], ds_time['V']))
+        wind_dir = (wind_dir + 360) % 360
 
         for i, (ix, iy) in enumerate(np.unique(dict_list[k]["idx_border"], axis=0)):
             wind_direction = wind_dir.isel(lon=iy, lat=ix).values
             new_lon, new_lat = step_with_wind(
                 lon[iy], lat[ix], wind_direction, step_distance=32)
+            step_dist = 32
             new_iy = np.argmin(abs(lon-new_lon))
             new_ix = np.argmin(abs(lat-new_lat))
 
+
             if new_iy == iy and new_ix == ix:
+                step_dist = 40
+
                 new_lon, new_lat = step_with_wind(
                     lon[iy], lat[ix], wind_direction, step_distance=40)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
                 if new_iy == iy and new_ix == ix:
+                    step_dist = 50
+
                     new_lon, new_lat = step_with_wind(
                         lon[iy], lat[ix], wind_direction, step_distance=50)
                     new_iy = np.argmin(abs(lon-new_lon))
@@ -58,6 +64,8 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
                     if new_iy == iy and new_ix == ix:
 
                         print("ERROR")
+            stepping_distance.append(step_dist)
+            
             ix_arr_forward[i, 0] = ix
             iy_arr_forward[i, 0] = iy
 
@@ -80,20 +88,26 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
                     new_lon, new_lat, wind_direction, step_distance=32)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
+                step_dist = 32
+
 
                 if new_iy == iy and new_ix == ix:
                     new_lon, new_lat = step_with_wind(
                         lon_tmp, lat_tmp, wind_direction, step_distance=40)
+                    step_dist = 40
+
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
                     if new_iy == iy and new_ix == ix:
                         new_lon, new_lat = step_with_wind(
                             lon_tmp, lat_tmp, wind_direction, step_distance=50)
+                        step_dist = 50
+
                         new_iy = np.argmin(abs(lon-new_lon))
                         new_ix = np.argmin(abs(lat-new_lat))
                         if new_iy == iy and new_ix == ix:
                             print("ERROR")
-
+                stepping_distance.append(step_dist)
                 if not only_cao_cases:
                     ix_arr_forward[i, j] = new_ix
                     iy_arr_forward[i, j] = new_iy
@@ -107,13 +121,15 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
         ix_arr_forward_list.append(ix_arr_forward)
         iy_arr_forward_list.append(iy_arr_forward)
 
-    return ix_arr_forward_list, iy_arr_forward_list
+    if return_stepping_distance:
+        return ix_arr_forward_list, iy_arr_forward_list, np.mean(stepping_distance)
+    else:    
+        return ix_arr_forward_list, iy_arr_forward_list
 
-
-def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False):
+def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False, return_stepping_distance=False):
     ix_arr_backward_list = []
     iy_arr_backward_list = []
-
+    stepping_distance = []
     for k in range(len(dict_list)):
         datetime_obj = dict_list[k]["datetime"]
         date = dict_list[k]["date"]
@@ -122,11 +138,11 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
         iy_arr_backward = np.zeros((size, tot_steps))
 
         ds = xr.open_dataset(
-            "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
+            "/uio/hume/student-u37/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
         ds_time = ds.sel(time=datetime_obj, lev=950,
                          method='nearest')  # .isel(lon=iy, lat=ix)
-        wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
-        wind_dir = (wind_dir + 270) % 360
+        wind_dir = np.degrees(np.arctan2(ds_time['U'], ds_time['V']))
+        wind_dir = (wind_dir + 360) % 360
 
         for i, (ix, iy) in enumerate(np.unique(dict_list[k]["idx_border"], axis=0)):
             wind_direction = wind_dir.isel(lon=iy, lat=ix).values
@@ -134,20 +150,23 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
                 lon[iy], lat[ix], wind_direction, step_distance=32)
             new_iy = np.argmin(abs(lon-new_lon))
             new_ix = np.argmin(abs(lat-new_lat))
-
+            step_dist = 32
             if new_iy == iy and new_ix == ix:
                 new_lon, new_lat = step_against_wind(
                     lon[iy], lat[ix], wind_direction, step_distance=40)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
+                step_dist = 40
                 if new_iy == iy and new_ix == ix:
                     new_lon, new_lat = step_against_wind(
                         lon[iy], lat[ix], wind_direction, step_distance=50)
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
+                    step_dist = 50
                     if new_iy == iy and new_ix == ix:
 
                         print("ERROR")
+            stepping_distance.append(step_dist)
             if not only_cao_cases:
                 ix_arr_backward[i, -1] = new_ix
                 iy_arr_backward[i, -1] = new_iy
@@ -167,25 +186,29 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
                     new_lon, new_lat, wind_direction, step_distance=32)
                 new_iy = np.argmin(abs(lon-new_lon))
                 new_ix = np.argmin(abs(lat-new_lat))
-
+                step_dist = 32
                 if new_iy == iy and new_ix == ix:
                     new_lon, new_lat = step_against_wind(
                         lon_tmp, lat_tmp, wind_direction, step_distance=40)
                     new_iy = np.argmin(abs(lon-new_lon))
                     new_ix = np.argmin(abs(lat-new_lat))
+                    step_dist = 40
                     if new_iy == iy and new_ix == ix:
                         new_lon, new_lat = step_against_wind(
                             lon_tmp, lat_tmp, wind_direction, step_distance=50)
                         new_iy = np.argmin(abs(lon-new_lon))
                         new_ix = np.argmin(abs(lat-new_lat))
+                        step_dist = 50
                         if new_iy == iy and new_ix == ix:
+                            step_dist = 60
                             new_lon, new_lat = step_against_wind(
                                 lon_tmp, lat_tmp, wind_direction, step_distance=60)
                             new_iy = np.argmin(abs(lon-new_lon))
                             new_ix = np.argmin(abs(lat-new_lat))
                             if new_iy == iy and new_ix == ix:
                                 print("ERROR")
-
+                stepping_distance.append(step_dist)
+                
                 if not only_cao_cases:
                     ix_arr_backward[i, j] = new_ix
                     iy_arr_backward[i, j] = new_iy
@@ -199,8 +222,10 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
 
         ix_arr_backward_list.append(ix_arr_backward)
         iy_arr_backward_list.append(iy_arr_backward)
-
-    return ix_arr_backward_list, iy_arr_backward_list
+    if return_stepping_distance:
+        return ix_arr_backward_list, iy_arr_backward_list, np.mean(stepping_distance)
+    else:    
+        return ix_arr_backward_list, iy_arr_backward_list
 
 
 def process_lon_lat_wind_check(args):
@@ -241,13 +266,17 @@ def process_lon_lat_wind_check(args):
     idx_border = find_closest_indices_merra(
         lon_border, lat_border, lon_mesh, lat_mesh)
 
+    idx_border_full = find_closest_indices_merra(
+            lons, lats, lon_mesh, lat_mesh)
+
     return {
         "date": convert_to_date(date_cao),
         "date_day": date_cao,
         "datetime": formatted_datetime_str,
         "idx_closed": idx_closed,
         "idx_open": idx_open,
-        "idx_border": idx_border
+        "idx_border": idx_border,
+        "idx_border_full": idx_border_full
     }
 
 
@@ -944,13 +973,13 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
         ds_time = ds.sel(time=datetime_obj, lon=lon, lat=lat,
                          lev=p_level, method='nearest')
         try:
-            wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
+            wind_dir = np.degrees(np.arctan2(ds_time['U'], ds_time['V']))
         except Exception as e:
             print(
                 f"An exception occurred while extracting U and V for the file {merra_loc}{year}/MERRA2.wind_at_950hpa.{formatted_date}.SUB.nc")
 
         if wind_dir:
-            wind_dir = (wind_dir + 270) % 360
+            wind_dir = (wind_dir + 360) % 360
             return np.float32(wind_dir)
         else:
             return None
@@ -961,12 +990,12 @@ def find_wind_dir_at_ll_time(lon, lat, p_level, date, time):
 def find_wind_dir_at_idx_time(ix, iy, p_level, date, datetime_obj):
     year = str(date)[:4]
     ds = xr.open_dataset(
-        "/scratch/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, date))
+        "/uio/hume/student-u37/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (year, date))
     ds_time = ds.sel(time=datetime_obj, lev=p_level,
                      method='nearest').isel(lon=iy, lat=ix)
-    wind_dir = np.degrees(np.arctan2(ds_time['V'], ds_time['U']))
+    wind_dir = np.degrees(np.arctan2(ds_time['U'], ds_time['V']))
 
-    wind_dir = (wind_dir + 270) % 360
+    wind_dir = (wind_dir + 360) % 360
     return np.float32(wind_dir)
 
 
@@ -1018,11 +1047,18 @@ def step_against_wind(lon, lat, wind_direction, step_distance=32):
 
 
 def step_with_wind(lon, lat, wind_direction, step_distance=32):
-    step_lon = step_distance / (111.111 * np.cos(np.radians(lat)))
+    delta_lon = step_distance * np.sin(np.radians(wind_direction)) / (111.111 * np.cos(np.radians(lat)))
+    delta_lat = step_distance * np.cos(np.radians(wind_direction)) / 111.111
 
-    new_lon = lon + step_lon * np.sin(np.radians(wind_direction))
-    new_lat = lat + step_distance / 111.111 * \
-        np.cos(np.radians(wind_direction))
+    # Update the current longitude and latitude
+    new_lon = lon + delta_lon
+    new_lat = lat + delta_lat
+
+    # step_lon = step_distance / (111.111 * np.cos(np.radians(lat)))
+
+    # new_lon = lon + step_lon * np.sin(np.radians(wind_direction))
+    # new_lat = lat + step_distance / 111.111 * \
+    #     np.cos(np.radians(wind_direction))
     return new_lon, new_lat
 
 

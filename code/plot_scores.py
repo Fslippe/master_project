@@ -76,16 +76,16 @@ def bar_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=False):
             plt.savefig(f"/uio/hume/student-u37/fslippe/master_project/figures/score_plots/bar_plot_{area_key}.jpg", dpi=200)
         plt.show()
 
-def heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=False):
+def heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=False, scoretype="w_experts"):
     for area_key, border_key in zip(area_keys, border_keys):
         area_scores_matrix = np.zeros((len(last_filters), len(n_Ks)))
         border_scores_matrix = np.zeros((len(last_filters), len(n_Ks)))
         mult = 100/np.array(area_score["tot_points"]) if area_key != "area_scores" else 100
         for i, last_filter in enumerate(last_filters):
             for j, n_K in enumerate(n_Ks):
-                area_score = np.load(f"{folder}filter{last_filter}/clustering/scores/area_scores_cluster_dnb_l95_z50_ps128_band29_filter{last_filter}_K{n_K}_res32_thr0.npy",
+                area_score = np.load(f"{folder}filter{last_filter}/clustering/scores/area_scores_cluster_dnb_l95_z50_ps128_band29_filter{last_filter}_K{n_K}_res32_thr0_{scoretype}.npy",
                                     allow_pickle=True).item()
-                border_score = np.load(f"{folder}filter{last_filter}/clustering/scores/border_scores_cluster_dnb_l95_z50_ps128_band29_filter{last_filter}_K{n_K}_res32_thr0.npy", 
+                border_score = np.load(f"{folder}filter{last_filter}/clustering/scores/border_scores_cluster_dnb_l95_z50_ps128_band29_filter{last_filter}_K{n_K}_res32_thr0_{scoretype}.npy", 
                                     allow_pickle=True).item()
                 area_scores_matrix[i][j] = np.mean(np.array(area_score[area_key])*mult)
                 border_scores_matrix[i][j] = np.mean(np.array(border_score[border_key])*mult)
@@ -103,12 +103,12 @@ def heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=False)
         axes[1].set_title("Border Heatmap")
         axes[1].set_xlabel("$n_K$")
         axes[1].set_ylabel("Last Filter")
-        fig.suptitle(' '.join(area_key.split("_")[1:]), fontsize=30)
+        fig.suptitle(' '.join(area_key.split("_")[1:]) +  " " +' '.join(scoretype.split("_")[1:]), fontsize=30)
 
 
         fig.tight_layout()  # Adjust layout to minimize overlaps.
         if save:
-            plt.savefig(f"/uio/hume/student-u37/fslippe/master_project/figures/score_plots/heatmap_plot_{area_key}.jpg", dpi=200)
+            plt.savefig(f"/uio/hume/student-u37/fslippe/master_project/figures/score_plots/heatmap_plot_{area_key}_{scoretype}.jpg", dpi=200)
         plt.show()
 
 
@@ -119,7 +119,7 @@ def main():
     area_keys = ["area_scores",'area_true_positive_scores', 'area_false_positive_scores', 'area_true_negative_scores', 'area_false_negative_scores', 'area_true_prediction_scores', 'area_false_prediction_scores']
     border_keys = ["border_scores", 'border_true_positive_scores', 'border_false_positive_scores', 'border_true_negative_scores', 'border_false_negative_scores', 'border_true_prediction_scores', 'border_false_prediction_scores']
     #bar_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=True)
-    heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=True)
+    heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=True, scoretype="only_experts")
 
 if __name__ == "__main__":
     main()
