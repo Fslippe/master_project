@@ -200,10 +200,10 @@ with tf.device('/CPU:0'):
 import functions 
 importlib.reload(functions)
 from functions import * 
-lon = xr.open_dataset("/scratch/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").lon.values
-lat = xr.open_dataset("/scratch/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").lat.values
-time_3h = xr.open_dataset("/scratch/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").time.values
-time_1h = xr.open_dataset("/scratch/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").time.values
+lon = xr.open_dataset("/uio/hume/student-u37/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").lon.values
+lat = xr.open_dataset("/uio/hume/student-u37/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").lat.values
+time_3h = xr.open_dataset("/uio/hume/student-u37/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").time.values
+time_1h = xr.open_dataset("/uio/hume/student-u37/fslippe/MERRA/2020/MERRA2_400.tavg1_2d_slv_Nx.20200312.SUB.nc").time.values
 lon_mesh, lat_mesh = np.meshgrid(lon, lat)
 
 import functions 
