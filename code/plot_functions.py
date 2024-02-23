@@ -415,7 +415,7 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, 
     cb = ax.pcolormesh(lon_map, lat_map, original_map, transform=ccrs.PlateCarree(), cmap='gray_r')
     plt.colorbar(cb, label="Wm-2-µm-sr")
 
-    ax.scatter(lons, lats, color='red', s=2, alpha=1, transform=ccrs.PlateCarree())
+    ax.scatter(lons, lats, color='red', s=8, alpha=1, transform=ccrs.PlateCarree(), label="Border points", zorder=2)
 
     # Select data for the given time and level
 

@@ -73,7 +73,7 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
                 ix_arr_forward[i, 1] = new_ix
                 iy_arr_forward[i, 1] = new_iy
             else:
-                if (new_ix, new_iy) in dict_list[k]["idx_open"]:
+                if (new_ix, new_iy) in zip(np.array(dict_list[k]["idx_open"][:,0]), np.array(dict_list[k]["idx_open"][:,1])):
                     ix_arr_forward[i, 1] = new_ix
                     iy_arr_forward[i, 1] = new_iy
                 else:
@@ -112,7 +112,7 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
                     ix_arr_forward[i, j] = new_ix
                     iy_arr_forward[i, j] = new_iy
                 else:
-                    if (new_ix, new_iy) in dict_list[k]["idx_open"]:
+                    if (new_ix, new_iy) in zip(np.array(dict_list[k]["idx_open"][:,0]), np.array(dict_list[k]["idx_open"][:,1])):
                         ix_arr_forward[i, j] = new_ix
                         iy_arr_forward[i, j] = new_iy
                     else:
@@ -171,7 +171,7 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
                 ix_arr_backward[i, -1] = new_ix
                 iy_arr_backward[i, -1] = new_iy
             else:
-                if (new_ix, new_iy) in dict_list[k]["idx_closed"]:
+                if (new_ix, new_iy) in zip(np.array(dict_list[k]["idx_closed"][:,0]), np.array(dict_list[k]["idx_closed"][:,1])):
                     ix_arr_backward[i, -1] = new_ix
                     iy_arr_backward[i, -1] = new_iy
                 else:
@@ -213,7 +213,7 @@ def step_backward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fal
                     ix_arr_backward[i, j] = new_ix
                     iy_arr_backward[i, j] = new_iy
                 else:
-                    if (new_ix, new_iy) in dict_list[k]["idx_closed"]:
+                    if (new_ix, new_iy) in zip(np.array(dict_list[k]["idx_closed"][:,0]), np.array(dict_list[k]["idx_closed"][:,1])):
                         ix_arr_backward[i, j] = new_ix
                         iy_arr_backward[i, j] = new_iy
                     else:
@@ -1283,7 +1283,7 @@ def generate_patches_parallel(x, masks, lon_lats, max_vals, min_vals, autoencode
     return patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, indices
 
 
-def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides=[None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
+def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, strides=[None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82], mask_threshold=0.95):
     all_patches = []
     all_lon_patches = []
     all_lat_patches = []
@@ -1305,7 +1305,7 @@ def generate_patches(x, masks, lon_lats, max_vals, min_vals, autoencoder, stride
         shapes.append(image.shape[0:2])
         patches, idx, n_patches, lon, lat = autoencoder.extract_patches(image,
                                                                         mask,
-                                                                        mask_threshold=0.9,
+                                                                        mask_threshold=mask_threshold,
                                                                         lon_lat=lon_lat,
                                                                         extract_lon_lat=True,
                                                                         strides=strides,

@@ -56,7 +56,7 @@ class SimpleAutoencoder:
 
 
     
-    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False, strides=[None, None, None, None], lon_lat_min_max=[-35, 35, 60, 82]):
+    def extract_patches(self, image, mask=None, lon_lat=None, mask_threshold=None, extract_lon_lat=False, strides=[None, None, None, None], lon_lat_min_max=[-35, 45, 60, 82]):
         # Expand dimensions if the image is 3D
         if image.ndim == 3:
             image = np.expand_dims(image, axis=0)
