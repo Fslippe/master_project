@@ -305,7 +305,7 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
         for dic in dict_list:
             date = dic["date"]
             
-            ds = xr.open_dataset(f"/scratch/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
+            ds = xr.open_dataset(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
             time_sel = ds[var].sel(time=dic["datetime"], method="nearest")
 
             
@@ -379,3 +379,138 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
     
 
     return var_closed_ds, var_open_ds, var_border_ds
+
+
+def extract_var_at_indices(ix, iy, date, datetime_t, var, lev_idx=None):
+    lookup_table = {"U": "MERRA2.wind_at_950hpa", 
+                    "V": "MERRA2.wind_at_950hpa",
+                    "AIRDENS": "MERRA2_400.inst3_3d_aer_Nv",
+                    "SO4": "MERRA2_400.inst3_3d_aer_Nv",
+                    "SS001": "MERRA2_400.inst3_3d_aer_Nv",
+                    "SS002": "MERRA2_400.inst3_3d_aer_Nv",
+                    "SS003": "MERRA2_400.inst3_3d_aer_Nv",
+                    "SS004": "MERRA2_400.inst3_3d_aer_Nv",
+                    "SS005": "MERRA2_400.inst3_3d_aer_Nv",
+                    "CLDTMP": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "CLDPRS": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "PS": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "T2M": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "TS": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "T850": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "U10M": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "V10M": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "ZLCL": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "TQL": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "TQV": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "TQI": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "TS": "MERRA2_400.tavg1_2d_slv_Nx",
+                    "QL":"MERRA2_400.inst3_3d_asm_Np",
+                    "QI":"MERRA2_400.inst3_3d_asm_Np",
+                    "T":"MERRA2_400.inst3_3d_asm_Np",
+                    "H":"MERRA2_400.inst3_3d_asm_Np",
+                    "PBLH": "MERRA2_400.tavg1_2d_flx_Nx",
+                    "PRECTOT": "MERRA2_400.tavg1_2d_flx_Nx",
+                    "PRECTOTCORR": "MERRA2_400.tavg1_2d_flx_Nx"
+                    }
+    
+    var_list = []
+    
+    times = []
+    
+    if var == "WIND10M":
+        U10M = extract_var_at_indices(ix, iy, date, datetime_t, "U10M")
+        V10M = extract_var_at_indices(ix, iy, date, datetime_t, "V10M")
+        var_arr = np.sqrt(U10M.values**2 + V10M.values**2)
+        var_da = xr.DataArray(var_arr) 
+
+        var_da.attrs["standard_name"] = "10-meter_wind"
+        var_da.attrs["long_name"] = "10-meter_wind"
+        var_da.attrs["units"] = "m s-1"
+        
+    elif var == "SSTOT":
+        ss001 = extract_var_at_indices(ix, iy, date, datetime_t, "SS001", lev_idx)
+        ss002 = extract_var_at_indices(ix, iy, date, datetime_t, "SS002", lev_idx)
+        ss003 = extract_var_at_indices(ix, iy, date, datetime_t, "SS003", lev_idx)
+        ss004 = extract_var_at_indices(ix, iy, date, datetime_t, "SS004", lev_idx)
+        ss005 = extract_var_at_indices(ix, iy, date, datetime_t, "SS005", lev_idx)
+
+        # compute sttot
+        var_arr = ss001 + ss002 + ss003 + ss004 + ss005
+        var_da = xr.DataArray(var_arr) 
+
+        var_da.attrs["standard_name"] = "sea_salt_mixing_ratio"
+        var_da.attrs["long_name"] = "sea_salt_mixing_ratio"
+        var_da.attrs["units"] = "kg kg-1"
+
+     
+
+    elif var == "M":
+        Tskn = extract_var_at_indices(ix, iy, date, datetime_t, "TS")
+        T850 = extract_var_at_indices(ix, iy, date, datetime_t, "T850")
+        Ps = extract_var_at_indices(ix, iy, date, datetime_t, "PS")
+
+        var_arr = get_MCAOidx(Tskn, T850, Ps/100)
+        var_da = xr.DataArray(var_arr) 
+
+        var_da.attrs["standard_name"] = "MCAO_index"
+        var_da.attrs["long_name"] = "marine_cold_air_outbreak_index"
+        var_da.attrs["units"] = "K"
+
+
+    elif var == "EIS":
+        T0 = extract_var_at_indices(ix, iy, date, datetime_t, "T2M")
+        T850 = extract_var_at_indices(ix, iy, date, datetime_t, "T850")
+        Ps = extract_var_at_indices(ix, iy, date, datetime_t, "PS")
+        T700 = extract_var_at_indices(ix, iy, date, datetime_t, "T", lev_idx=700)
+        LCL = extract_var_at_indices(ix, iy, date, datetime_t, "ZLCL")
+
+
+        var_arr = get_EIS(T0, Ps/100, T700, T850, LCL)
+        var_da = xr.DataArray(var_arr) 
+
+        var_da.attrs["standard_name"] = "EIS_index"
+        var_da.attrs["long_name"] = "estimated_inversion_strength"
+        var_da.attrs["units"] = "K"
+
+    else:
+        if lev_idx:
+            try:
+                ds = xr.open_dataset(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc").sel(lev=lev_idx)
+            except:
+                ds = xr.open_dataset(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
+
+            var_arr = ds[var].sel(time=datetime_t, method="nearest").values
+
+        else:
+            ds = xr.open_dataset(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
+            var_arr = ds[var].sel(time=datetime_t, method="nearest").values
+
+      # Creates a boolean array indicating True where ix is valid and False where it is -9999
+        mask_ix = ix != -9999
+        # Initialize an array of the same length as ix filled with np.nan
+        result = np.full(ix.shape, np.nan)
+
+        if var_arr.ndim == 3 and lev_idx == None:
+            print(ds)
+            # Only apply the valid indices to the result where ix has valid values
+            print(var_arr.shape)
+            result[mask_ix] = var_arr[:, ix[mask_ix], iy[mask_ix]]
+
+            var_list.append(result)
+            var_arr = np.concatenate(var_list, axis=1)
+
+        elif var_arr.shape[0] != 45:
+            return var_arr
+
+        else:
+            # Same process for the case without "lev"
+            result[mask_ix] = var_arr[ix[mask_ix], iy[mask_ix]]
+
+            var_list.append(result)
+
+            var_arr = np.concatenate(var_list, axis=1)
+        
+        var_da = xr.DataArray(var_arr) 
+        var_da.attrs = ds[var].attrs
+
+    return var_da
