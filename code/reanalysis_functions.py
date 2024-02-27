@@ -6,6 +6,55 @@ from sklearn.metrics import accuracy_score
 from itertools import product
 from sklearn.ensemble import RandomForestClassifier  # or RandomForestRegressor for regression tasks
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt 
+
+def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_backward_list, iy_forward_list, step_index, dict_list, dict_list_indices, ax):
+    m_vals = []
+
+
+    for k in dict_list_indices: 
+        datetime_obj = dict_list[k]["datetime"]
+        date = dict_list[k]["date"]
+        ix_tot = (np.append(ix_backward_list[k], ix_forward_list[k], axis=1))
+        iy_tot = (np.append(iy_backward_list[k], iy_forward_list[k], axis=1))
+
+        if len(ix_tot) > 0:
+            da = extract_var_at_indices(ix_tot.astype(int), iy_tot.astype(int), date, datetime_obj, var, lev_idx=67)
+            m_vals.append(np.nanmean(da.values, axis=0))
+
+    tot_mean = np.nanmean(m_vals, axis=0)
+    m_vals_arr = np.array(m_vals)
+    mask = ~np.isnan(m_vals_arr)
+    m_vals_masked = np.where(np.isnan(m_vals_arr), 0, m_vals_arr)#m_vals_arr[~np.isnan(m_vals_arr)]
+    x = np.tile(step_index, (67, 1))[mask].ravel()
+    y = np.array(m_vals_masked)[mask].ravel()
+
+    bins_x = 41
+    bins_y = 20
+
+    # Calculate the 2D histogram
+    H, xedges, yedges = np.histogram2d(x, y, bins=[bins_x, bins_y])
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    H_masked = np.where(H <= 0, np.nan, H)
+    cb = ax.imshow(H_masked.T, extent=extent, origin='lower', aspect='auto', cmap="GnBu")
+    plt.colorbar(cb, label="counts")
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim([ymin- (ymax-ymin)*0.15, ymax + (ymax-ymin)*0.15])
+    ymin, ymax = ax.get_ylim()
+    xmin, xmax = ax.get_xlim()
+    ax.text(xmin + (xmax-xmin)*0.1, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
+    ax.text(xmin + (xmax-xmin)*0.75, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
+
+    ax.set_title(da.attrs["long_name"].replace("_", " "))
+    ax.set_xlabel("step with wind [km]")
+    ax.set_ylabel("[%s]" %da.attrs["units"])
+    
+    # Plotting data
+    # Mark the line where step_index is 0
+    ax.axvline(x=0, color='k', linestyle='--', label="transition")
+
+    ax.legend(loc="lower right")
+    return H, xedges, yedges
 
 def get_potential_temperature(T, P, P0=1000):
     theta = T.values * (P0 / P[:, np.newaxis]) ** (0.286)
