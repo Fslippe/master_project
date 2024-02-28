@@ -7,10 +7,10 @@ from itertools import product
 from sklearn.ensemble import RandomForestClassifier  # or RandomForestRegressor for regression tasks
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt 
+import string 
 
 def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_backward_list, iy_forward_list, step_index, dict_list, dict_list_indices, ax):
     m_vals = []
-
 
     for k in dict_list_indices: 
         datetime_obj = dict_list[k]["datetime"]
@@ -45,7 +45,7 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
     ax.text(xmin + (xmax-xmin)*0.1, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
     ax.text(xmin + (xmax-xmin)*0.75, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
 
-    ax.set_title(da.attrs["long_name"].replace("_", " "))
+    ax.set_title(string.capwords(da.attrs["long_name"].replace("_", " ")))
     ax.set_xlabel("step with wind [km]")
     ax.set_ylabel("[%s]" %da.attrs["units"])
     
