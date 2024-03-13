@@ -573,19 +573,19 @@ def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, in
 
 
 def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent=[-15, 25, 58, 84]):
-    print(date, time)
     lons, lats, angles = compute_boundary_coordinates_between_labels_2(
         label_map, lon_map, lat_map, open_label, closed_label, size_threshold_1=size_threshold_1, size_threshold_2=size_threshold_2)
     lons_full = lons
     lats_full = lats
-
+    
     valid_lons = []
     valid_lats = []
     threshold = 90
-
+    wind_dir_avg =[]
     for lon, lat, angle in zip(lons, lats, angles):
         wind_dir = find_wind_dir_at_ll_time(lon, lat, p_level, date, time)
-
+        
+        wind_dir_avg.append(wind_dir)
         check = check_angle_threshold(
             wind_dir, lons, lats, lon, lat, angle_thr, min_distance=0)
         # lons, lats = check_angle_threshold_downwind(wind_dir, lons, lats, lon, lat, 5, min_distance=100000)
@@ -600,7 +600,8 @@ def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, ti
             x_i, valid_lons, valid_lats, lon_lats_cao[0], lon_lats_cao[1], extent, figsize=(14, 10))
         # plt.quiver(valid_lons, valid_lats, valid_angles, 300)
         plt.show()
-
+    print(np.mean(wind_dir_avg))
+    print(np.mean(angles))
     return valid_lons, valid_lats
 
 
@@ -728,8 +729,8 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
             downscaled_areas.append(interpolated_sum_i)
 
             # Generate the Gaussian brush (adjust width, height, and sigma as needed)
-            brush = gaussian_brush(width=65, height=65,
-                                   sigma=16, strength=1/len(extracted_rows))
+            brush = gaussian_brush(width=200, height=200,
+                                   sigma=64, strength=1/len(extracted_rows))
 
             tot_border = np.zeros(x_cao[idx].shape[:2])
             tot_border_reduced = np.zeros((reduced_height, reduced_width))

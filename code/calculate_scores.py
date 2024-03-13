@@ -68,16 +68,18 @@ if "mimi" in hostname:
     folder = "/scratch/fslippe/modis/MOD02/daytime_1km/ /scratch/fslippe/modis/MOD02/boundary_1km/ /scratch/fslippe/modis/MOD02/night_1km/ /scratch/fslippe/modis/MOD02/may-nov_2021/ /scratch/fslippe/modis/MOD02/cao_test_data/"
 
 
-def import_label_data(label_data_file_path):
+def import_label_data(label_data_file_path, all_dates=False):
     folder_loc = "/uio/hume/student-u37/fslippe/labeling_session/npy_files/"
     dates_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_block.npy")
     times_block = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_block.npy")
-    # dates_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_rest.npy")
-    # times_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_rest.npy")
-    # dates = np.append(dates_block, dates_rest)
-    # times = np.append(times_block, times_rest)
-    dates = dates_block
-    times = times_block
+    if all_dates:
+        dates_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/dates_rest.npy")
+        times_rest = np.load("/uio/hume/student-u37/fslippe/data/dates_for_labeling/day_filtered/times_rest.npy")
+        dates = np.append(dates_block, dates_rest)
+        times = np.append(times_block, times_rest)
+    else:
+        dates = dates_block
+        times = times_block
 
     x_cao = []
     masks_cao = []
