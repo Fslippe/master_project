@@ -119,7 +119,7 @@ def main():
     area_keys = ["area_scores",'area_true_positive_scores', 'area_false_positive_scores', 'area_true_negative_scores', 'area_false_negative_scores', 'area_true_prediction_scores', 'area_false_prediction_scores']
     border_keys = ["border_scores", 'border_true_positive_scores', 'border_false_positive_scores', 'border_true_negative_scores', 'border_false_negative_scores', 'border_true_prediction_scores', 'border_false_prediction_scores']
     #bar_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=True)
-    heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=True, scoretype="only_experts")
-
+    heatmap_plot(folder, area_keys, border_keys, last_filters, n_Ks, save=True, scoretype="only_lavterskel")
+    
 if __name__ == "__main__":
     main()

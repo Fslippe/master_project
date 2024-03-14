@@ -425,9 +425,13 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
         data = hdf.select(key)[:][idx]
         mod06 = False
     else:
-        key = file_layers 
-        data = hdf.select(key)[:]
+        key = list(file_layers[bands[0]-1].keys())[0]
+        idx = list(file_layers[bands[0]-1].values())[0]
+        #key = file_layers 
+        data = hdf.select(key)[:][idx]
         mod06 = True
+        mod06 = False
+
     
     lat = hdf.select("Latitude")[:]
     lon = hdf.select("Longitude")[:]
@@ -448,7 +452,6 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     lat_highres = zoom(lat, zoom_factors, order=1)  # bilinear interpolation
     lon_highres = zoom(lon, zoom_factors, order=1) 
     valid_rows_ll = np.any(mask_highres , axis=1)
-
     valid_cols_ll = zenith_mask
     valid_cols_lon = np.any(mask_highres[valid_rows_ll][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
     data = data[valid_rows_ll][:, valid_cols_ll]
@@ -702,6 +705,59 @@ def normalize_data(data):
     #normalized_data = (data - np.nanmin(data, axis=(1,2), keepdims=True)) / (np.nanmax(data, axis=(1,2), keepdims=True) - np.nanmin(data, axis=(1,2), keepdims=True))
     return normalized_data
     
+
+
+def create_nc_from_extracted_data(x, dates, masks, lon_lats, times, save_folder):
+    from datetime import datetime, timedelta
+
+    def parse_date(date_str, time_str):
+        # Parse the date string 'YYYYddd'
+        year = int(date_str[:4])
+        day_of_year = int(date_str[4:])
+        
+        # Convert the day of the year to month and day
+        date = datetime(year, 1, 1) + timedelta(days=day_of_year - 1)
+        
+        # Parse the time string 'HHMM' and create a time delta
+        hours = int(time_str[:-2])
+        minutes = int(time_str[-2:])
+        
+        # Add the time delta to the date
+        date_time = date + timedelta(hours=hours, minutes=minutes)
+        
+        return date_time
+
+    # Create an empty list to hold your datasets
+    datasets = []
+    lon = [lon_lats[0][0, :, :], lon_lats[1][0, :, :]]
+    lat = [lon_lats[0][1, :, :], lon_lats[1][1, :, :]]
+    for i, (x_array, date, time) in enumerate(zip(x, dates, times)):
+        # Parse the date and time using the `parse_date` function
+        date_time = parse_date(str(date), str(time).zfill(4))  # Assuming date & time are integers
+
+        # Create a DataArray for 'x' and add 'time' dimension and coordinate
+        x_da = xr.DataArray(
+            data=x_array[None, ...], 
+            dims=('time', 'x', 'y', 'band'),  
+            coords={'time': [date_time]}      
+        )
+
+        # Create the Dataset for the current time step
+        ds = xr.Dataset(
+            data_vars={'radiance': x_da},
+            coords={'time': [date_time]}  
+        )
+        
+        # Add 'masks', 'lon', and 'lat' to the Dataset for the current time step
+        ds['masks'] = xr.DataArray(masks[i][None, ...], dims=('time', 'x', 'y'), coords={'time': [date_time]})
+        ds['lon'] = xr.DataArray(lon[i][None, ...], dims=('time', 'x', 'y'), coords={'time': [date_time]})
+        ds['lat'] = xr.DataArray(lat[i][None, ...], dims=('time', 'x', 'y'), coords={'time': [date_time]})
+        
+        # And do the same for any other variables, such as 'mod_min'
+        
+        # Append the dataset to the list of datasets
+        ds.to_netcdf(save_folder + f"MOD021KM.A{date}.{str(time).zfill(4)}.nc")
+
 # import time 
 # start = time.time()
 # print(os.cpu_count())
