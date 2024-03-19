@@ -668,14 +668,11 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
                 interpolated_area_mask = []
                 di = extracted_rows.iloc[i]
                 date_img = str(di["image_id"].split("/")[1].split(".")[1][1:])
-                time_img = int(di["image_id"].split(
-                    "/")[1].split(".")[2].split("_")[0])
+                time_img = int(di["image_id"].split("/")[1].split(".")[2].split("_")[0])
                 area_lines = np.array(di["data.areaLines"])
                 border_lines = np.array(di["data.borderLines"], dtype=object)
-                reduced_height = (x_cao[idx].shape[0] -
-                                  patch_size) // reduction + 1
-                reduced_width = (x_cao[idx].shape[1] -
-                                 patch_size) // reduction + 1
+                reduced_height = (x_cao[idx].shape[0] - patch_size) // reduction + 1
+                reduced_width = (x_cao[idx].shape[1] - patch_size) // reduction + 1
                 scale_factor_y = reduced_height / x_cao[idx].shape[0]
                 scale_factor_x = reduced_width / x_cao[idx].shape[1]
 
@@ -686,22 +683,18 @@ def get_area_and_border_mask(x_cao, dates, times, masks_cao, df, reduction, patc
                         area = np.array(area_lines[j])
                         interpolated_area_boundary = interpolate_coords(
                             area, connect_first_last=True)
-                        scaled_boundary_coordinates = np.copy(
-                            interpolated_area_boundary.astype(float))
+                        scaled_boundary_coordinates = np.copy(interpolated_area_boundary.astype(float))
                         scaled_boundary_coordinates[:, 0] *= scale_factor_x
                         scaled_boundary_coordinates[:, 1] *= scale_factor_y
-                        area_mask = get_area_mask(
-                            scaled_boundary_coordinates, (reduced_height, reduced_width))
+                        area_mask = get_area_mask(scaled_boundary_coordinates, (reduced_height, reduced_width))
 
                         interpolated_area.append(interpolated_area_boundary)
                         interpolated_area_mask.append(area_mask)
 
                     interpolated_sum = np.sum(interpolated_area_mask, axis=0)
-                    interpolated_area_i.append(
-                        np.where(interpolated_sum > 1, 1, interpolated_sum))
+                    interpolated_area_i.append(np.where(interpolated_sum > 1, 1, interpolated_sum))
                 else:
-                    interpolated_area_i.append(
-                        np.zeros((reduced_height, reduced_width)))
+                    interpolated_area_i.append(np.zeros((reduced_height, reduced_width)))
                 if plot:
                     axs[0].imshow(x_cao[idx], cmap="gray_r")
                     for k in range(len(interpolated_area)):
