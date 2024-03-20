@@ -128,7 +128,7 @@ def load_and_predict_encoder(patch_size, last_filter, patches_cao):
 
 
 def get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K):
-    print("cluster load loc:", "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_dnb_l95_z50_ps128_band29_filter%s_K%s.pkl"  %(patch_size, last_filter, last_filter, n_K))
+    #print("cluster load loc:", "/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_dnb_l95_z50_ps128_band29_filter%s_K%s.pkl"  %(patch_size, last_filter, last_filter, n_K))
     cluster = joblib.load("/uio/hume/student-u37/fslippe/data/models/patch_size%s/filter%s/clustering/cluster_dnb_l95_z50_ps128_band29_filter%s_K%s.pkl" %(patch_size, last_filter, last_filter, n_K))
     labels = cluster.predict(encoded_patches_flat_cao)
 

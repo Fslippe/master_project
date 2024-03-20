@@ -571,7 +571,7 @@ def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, in
 
     return model_boundaries, model_areas
 
-    
+
 def get_valid_lons_lats_2(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent=[-15, 25, 58, 84]):
     lons, lats, angles = compute_boundary_coordinates_between_labels_2(
         label_map, lon_map, lat_map, open_label, closed_label, size_threshold_1=None, size_threshold_2=size_threshold_2)
@@ -623,8 +623,6 @@ def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, ti
             x_i, valid_lons, valid_lats, lon_lats_cao[0], lon_lats_cao[1], extent, figsize=(14, 10))
         # plt.quiver(valid_lons, valid_lats, valid_angles, 300)
         plt.show()
-    print(np.mean(wind_dir_avg))
-    print(np.mean(angles))
     return valid_lons, valid_lats
 
 

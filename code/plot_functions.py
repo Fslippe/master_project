@@ -284,7 +284,7 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
     plt.title(title)
     ax.set_extent(extent, ccrs.PlateCarree())  # Set extent to focus on the Arctic
     #new_cmap = ListedColormap(['white'] + [plt.get_cmap(cmap)(i) for i in range(plt.get_cmap(cmap).N)])
-    turbo = plt.cm.turbo(np.linspace(0, 1, len(levels) -1))
+    turbo = plt.cm.turbo(np.linspace(0, 1, levels -1))
     white = np.array([1, 1, 1, 1])  # RGBA values for white
     turbo_with_white = ListedColormap(np.vstack([white, turbo]))
 
