@@ -571,6 +571,29 @@ def process_model_masks(index_list, lon_map, lat_map, valid_lons, valid_lats, in
 
     return model_boundaries, model_areas
 
+    
+def get_valid_lons_lats_2(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent=[-15, 25, 58, 84]):
+    lons, lats, angles = compute_boundary_coordinates_between_labels_2(
+        label_map, lon_map, lat_map, open_label, closed_label, size_threshold_1=None, size_threshold_2=size_threshold_2)
+    lons_full = lons
+    lats_full = lats
+    
+    valid_lons = []
+    valid_lats = []
+    threshold = 90
+    wind_dir_avg =[]
+    for lon, lat, angle in zip(lons, lats, angles):
+        wind_dir = find_wind_dir_at_ll_time(lon, lat, p_level, date, time)
+        
+        wind_dir_avg.append(wind_dir)
+        check = check_angle_threshold(
+            wind_dir, lons, lats, lon, lat, angle_thr, min_distance=0)
+        # lons, lats = check_angle_threshold_downwind(wind_dir, lons, lats, lon, lat, 5, min_distance=100000)
+        if not check:
+            if np.min([abs(angle - wind_dir), abs(angle - wind_dir - 360), abs(angle - wind_dir + 360)]) < threshold:
+                valid_lons.append(lon)  # if angle==237.43814048068378 else 0)
+                valid_lats.append(lat)  # if angle==237.43814048068378 else 70)
+    return valid_lons, valid_lats, lons, lats
 
 def get_valid_lons_lats(x_i, lon_lats_cao, label_map, lon_map, lat_map, date, time, open_label, closed_label, p_level=950, angle_thr=5, size_threshold_1=None, size_threshold_2=None, plot=False, extent=[-15, 25, 58, 84]):
     lons, lats, angles = compute_boundary_coordinates_between_labels_2(

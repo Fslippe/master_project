@@ -20,13 +20,12 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
 
         if len(ix_tot) > 0:
             da = extract_var_at_indices(ix_tot.astype(int), iy_tot.astype(int), date, datetime_obj, var, lev_idx=67)
-            m_vals.append(np.nanmean(da.values, axis=0))
+            m_vals.extend(da.values)
 
-    tot_mean = np.nanmean(m_vals, axis=0)
     m_vals_arr = np.array(m_vals)
     mask = ~np.isnan(m_vals_arr)
-    m_vals_masked = np.where(np.isnan(m_vals_arr), 0, m_vals_arr)#m_vals_arr[~np.isnan(m_vals_arr)]
-    x = np.tile(step_index, (67, 1))[mask].ravel()
+    m_vals_masked = np.where(np.isnan(m_vals_arr), 0, m_vals_arr) # m_vals_arr[~np.isnan(m_vals_arr)]
+    x = np.tile(step_index, (len(m_vals), 1))[mask].ravel()
     y = np.array(m_vals_masked)[mask].ravel()
 
     bins_x = 41
