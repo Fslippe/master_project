@@ -45,7 +45,6 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
     
     folders = folder.split(" ")
-    print(folders)
 
     for f in folders:
         all_files.extend([os.path.join(f, file) for file in os.listdir(f) if file.endswith(data_type if data_type != "mod06" else "hdf")])
@@ -85,11 +84,11 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     for file in all_files:
         minute = int(file.split(".")[2])
         date = str(file.split('.')[1][1:])  # This will give e.g., '2021120' for 'MOD02QKM.A2021120'
-        print(date," ",  minute)
+        #print(date," ",  minute)
         
         # Extract date from the filename (assuming the pattern is consistent)
         if specified_date_min_zip:
-            print(date)
+            # print(date)
             if (date, minute) in specified_date_min_zip:
                 file_groups[date].append(file)
                 mod_mins[date].append(minute)
@@ -103,9 +102,9 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
     # Extract the keys between start and end dates
     
     if start_date == None and end_date == None:
-        print(sorted_keys)
+        # print(sorted_keys)
         selected_keys = [key for key in date_list if key in sorted_keys]
-        print(selected_keys)
+        # print(selected_keys)
     else:
         selected_keys = [key for key in sorted_keys if int(start_date) <= int(key) <= int(end_date)]
     #all_files = os.listdir(folder)[16:18]
@@ -638,7 +637,6 @@ def append_data(file, file_layers, bands, min_mean=0, full_water_mask=None, tree
 
     valid_cols_ll = zenith_mask
     valid_cols_lon = np.any(mask_highres[:][:,valid_cols_ll] , axis=0)  ### remove last for matching x-axis
-    print(valid_cols_lon.shape)
     data = data[valid_rows_ll][:, valid_cols_ll]
     lat_highres = lat_highres[valid_rows_ll][:, valid_cols_ll] 
     lon_highres = lon_highres[valid_rows_ll][:, valid_cols_ll] 

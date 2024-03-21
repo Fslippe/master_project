@@ -133,6 +133,8 @@ def plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, date
 
     ax.coastlines()
     ax.gridlines()
+    gl.ylabels_right = False
+    gl.xlabels_bottom = False
 
     print(dates)
 
@@ -294,7 +296,9 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
     ax.add_feature(cfeature.OCEAN)
     ax.add_feature(cfeature.COASTLINE)
     plt.colorbar(c, ax=ax, orientation='vertical', label='[%]')
-    ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+    gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
+    gl.ylabels_right = False
+    gl.xlabels_bottom = False
     fig.tight_layout()
 
     return fig, ax
@@ -433,7 +437,9 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, 
     #     ax.plot([lons[i], lons[ni]], [lats[i], lats[ni]], color='red', linewidth=0.5, transform=ccrs.PlateCarree())
 
     ax.coastlines()
-    ax.gridlines()
+    gl = ax.gridlines()
+    gl.ylabels_right = False
+    gl.xlabels_bottom = False
     return ax
 
 # def plot_map_with_boundaries_in_projection(original_map, lons, lats, lon_map, lat_map):

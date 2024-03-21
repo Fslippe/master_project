@@ -18,6 +18,23 @@ import os
 import joblib
 from concurrent.futures import ProcessPoolExecutor
 geodesic = pyproj.Geod(ellps='WGS84')
+from calculate_scores import * 
+
+
+
+
+def load_and_predict_encoder(patch_size, last_filter, patches_cao):
+    if last_filter == 128:
+        encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter128/encoder_dnb_l95_z50_ps128_f128_1e3_201812-202312.h5")
+    elif last_filter == 64:
+        encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter64/encoder_dnb_l95_z50_ps128_f64_1e3_201812-202312_epoch_500.h5")
+    elif last_filter == 32:
+        encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter32/encoder_dnb_l95_z50_ps128_f32_1e3_201812-202312.h5")
+
+    encoded_patches_cao = encoder.predict(patches_cao)
+    encoded_patches_flat_cao = encoded_patches_cao.reshape(encoded_patches_cao.shape[0], -1)
+
+    return encoded_patches_flat_cao
 
 
 def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=False, return_stepping_distance=False):
