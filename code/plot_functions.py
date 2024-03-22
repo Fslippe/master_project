@@ -18,9 +18,12 @@ importlib.reload(functions)
 from functions import * 
 from matplotlib.colors import ListedColormap, to_rgba, to_hex
 import seaborn as sns
+import matplotlib.path as mpath
+import matplotlib.patches as patches
+from matplotlib.collections import PatchCollection
 sns.set_style("darkgrid")
 plt.style.use("bmh")
-
+import matplotlib
 # Define the grid in projected coordinates
 
 
@@ -281,24 +284,112 @@ def save_img_with_labels(x,
 
 def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentage of time with predicted CAO", extent=[-50, 50, 55, 84], levels=10, cmap="turbo"):
     
-    
+    lon_min, lon_max = -35, 45
+    lat_min, lat_max = 60, 82
     fig, ax = plt.subplots(subplot_kw={'projection': projection}, figsize=(12, 8), dpi=200)
+    
     plt.title(title)
     ax.set_extent(extent, ccrs.PlateCarree())  # Set extent to focus on the Arctic
     #new_cmap = ListedColormap(['white'] + [plt.get_cmap(cmap)(i) for i in range(plt.get_cmap(cmap).N)])
-    turbo = plt.cm.turbo(np.linspace(0, 1, levels -1))
+    try:
+        turbo = plt.cm.turbo(np.linspace(0, 1, levels -1))
+    except:
+        turbo = plt.cm.turbo(levels)
+
     white = np.array([1, 1, 1, 1])  # RGBA values for white
     turbo_with_white = ListedColormap(np.vstack([white, turbo]))
+    transform_to_geodetic = ccrs.PlateCarree()
+
+    # Transform each point on the grid to geographic coordinates
+    # Transform function from Polar Stereographic to geographic coordinates (PlateCarree)
+    transform_to_geodetic = ccrs.PlateCarree()
+
+    # Reshape your grids to 1D arrays for the transformation
+    x_grid_1d = x_grid.ravel()
+    y_grid_1d = y_grid.ravel()
+
+    # Transform each point on the grid to geographic coordinates (longitude and latitude)
+    xy_grid_geodetic = transform_to_geodetic.transform_points(projection, x_grid_1d, y_grid_1d)
+
+    # Separate the longitude and latitude after transformation
+    lon_grid_geodetic = xy_grid_geodetic[:, 0]
+    lat_grid_geodetic = xy_grid_geodetic[:, 1]
+
+    # Reshape back to the original 2D array shape
+    lon_grid_2d = lon_grid_geodetic.reshape(x_grid.shape)
+    lat_grid_2d = lat_grid_geodetic.reshape(y_grid.shape)
+
+    # Check if the points fall within the geographic bounds
+    inside_bounds_mask = (lon_grid_2d >= lon_min) & (lon_grid_2d <= lon_max) & \
+                        (lat_grid_2d >= lat_min) & (lat_grid_2d <= lat_max)
+
+    # Create a 2D mask from the 1D mask, matching the original grid shape
+    inside_bounds_mask_2d = inside_bounds_mask.reshape(x_grid.shape)
+
+    # Mask the data array, setting points outside the region to np.nan
+    masked_data = np.where(~inside_bounds_mask_2d, np.nan, counts / tot_days * 100)
+    masked_x = np.where(~inside_bounds_mask_2d, np.nan, x_grid)
+    masked_y = np.where(~inside_bounds_mask_2d, np.nan, y_grid)
 
 
-    c = ax.contourf(x_grid, y_grid, counts / tot_days * 100, transform=projection, levels=levels, cmap=cmap,set_under='white', extend="max")
-    ax.add_feature(cfeature.LAND, edgecolor='black')
-    ax.add_feature(cfeature.OCEAN)
-    ax.add_feature(cfeature.COASTLINE)
+    
+    c = ax.contourf(masked_x, masked_y, np.where(masked_data == 0 , np.nan, masked_data), transform=projection, levels=levels, cmap=cmap)#,set_under='white', extend="max")
+
+    # ax.add_feature(cfeature.LAND, edgecolor='black')
+    # ax.add_feature(cfeature.OCEAN)
+    # ax.add_feature(cfeature.COASTLINE)
+    ax.coastlines()
+
     plt.colorbar(c, ax=ax, orientation='vertical', label='[%]')
     gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
     gl.ylabels_right = False
     gl.xlabels_bottom = False
+
+    # Define the limits of the "rectangle"
+   
+
+    # Define the number of points for smoothness
+    num_pts = 100
+
+    # Create arrays of latitudes and longitudes
+    lon_min, lon_max = -34.5, 46
+    lat_min, lat_max = 60.3, 82
+    vertex_coords = [
+        [lon_min, lat_min],  # Bottom left corner
+        [16.5, lat_min],  # Bottom right corner before the turn upward
+        [16.5, 67.5],  # Top right corner after the turn upward
+        [lon_max, 67.5],  # Top right corner after the turn rightward
+        [lon_max, lat_max],  # Top right corner
+        [lon_min, lat_max]  # Top left corner
+    ]
+
+    # Convert coordinate lists into numpy arrays
+    vertices = np.array(vertex_coords)
+
+    # Interpolate points along the edges of the polygon for smooth transition
+    num_pts = 100
+    lons = np.concatenate([
+        np.linspace(vertices[i, 0], vertices[i+1, 0], num_pts)
+        for i in range(vertices.shape[0] - 1)
+    ])
+    lats = np.concatenate([
+        np.linspace(vertices[i, 1], vertices[i+1, 1], num_pts)
+        for i in range(vertices.shape[0] - 1)
+    ])
+
+    # Close the polygon loop by appending the first vertex at the end
+    lons = np.append(lons, vertices[0, 0])
+    lats = np.append(lats, vertices[0, 1])
+
+    # Create a path of the "rectangle"
+    path = mpath.Path(np.vstack((lons, lats)).T)
+
+    # Create a patch from the path
+    patch = matplotlib.patches.PathPatch(path, facecolor='none',
+                                        edgecolor='black', linewidth=10, transform=ccrs.PlateCarree())
+
+    # Add the patch to the Axes
+    ax.add_patch(patch)
     fig.tight_layout()
 
     return fig, ax

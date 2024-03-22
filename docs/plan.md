@@ -221,6 +221,35 @@ so4 = sulfate
 
 -
 
+
+
+
+### THESIS STRUCTURE
+- background and theory 
+  - including machine learning techniques 
+  - 
+- Method
+  - Only to include how I used machine learning and how I calculated scores +++ 
+
+  - Explanation of chossing NN model 
+  - Citizen science 
+    - Generating dataset
+    - Lavterskel session
+    - Expert panel 
+  - Scores 
+    - including wind stepping algorithm
+  - Removal of smaller areas 
+  - Meteorology 
+    - Open and closed cell following established research 
+      - Climatology histograms (+ ex Fram strait / seasonal histograms)
+      - Reanalysis histograms (open - closed cell distibution differences) 
+    - Wind stepping histograms
+      - Using LWP/IWP histograms to show the need
+      - How wind stepping is preformed
+- Results and discussion
+    
+
+
 ### COMMANDS
 
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I https://filip-master.vercel.app/results
@@ -238,3 +267,7 @@ nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &
 nohup python3 read_tf_old.py > log_outs/output_ps128_f128_old.log 2>&1 &
 
 rsync -av --progress /scratch/fslippe/modis/MOD02/training_data/tf_data/dnb_l95_z50_ps128_band29 fslippe@login.nird.sigma2.no:/nird/projects/NS9600K/fslippe/mimi_backup/
+
+
+
+
