@@ -222,6 +222,13 @@ so4 = sulfate
 -
 
 
+### TODAYS PLAN
+- Use dict list to generate new histogram climatologies 
+- Use dict list to generate timeline of CAO in FRAM strait 
+- Use dict list to generate monthly climatology of example year
+- Extract dict_list for filter 128 
+- Writing....
+- need to further explain the 6 images used for finding open/closed cell labels
 
 
 ### THESIS STRUCTURE
@@ -250,6 +257,9 @@ so4 = sulfate
     
 
 
+
+
+
 ### COMMANDS
 
 wget --http-user=filip --http-password=yBPxPYhWcUeZZgKzkVyMthWAT5+3sUImcsK+dMJWb0I https://filip-master.vercel.app/results
@@ -271,3 +281,4 @@ rsync -av --progress /scratch/fslippe/modis/MOD02/training_data/tf_data/dnb_l95_
 
 
 
+nohup wget wget -e robots=off -m -np -R .html,.tmp -nH --cut-dirs=3 "https://ladsweb.modaps.eosdis.nasa.gov/archive/orders/502158532/" --header "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbF9hZGRyZXNzIjoiZnZvbmRlcmxpcHBlQGdtYWlsLmNvbSIsImlzcyI6IkFQUyBPQXV0aDIgQXV0aGVudGljYXRvciIsImlhdCI6MTcxMTcyMDk1NSwibmJmIjoxNzExNzIwOTU1LCJleHAiOjE4Njk0MDA5NTUsInVpZCI6ImZpbGlwc2V2ZXJpbiIsInRva2VuQ3JlYXRvciI6ImZpbGlwc2V2ZXJpbiJ9.TCfvDNyNPiqdNzWIViiXmyhseF1ZsiOMwoHYreVQQk8" -P . &
