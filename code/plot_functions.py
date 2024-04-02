@@ -68,31 +68,35 @@ def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name,
         # Generate linearly spaced bins as before.
         bins = np.arange(min_bin, max_bin, bin_size)
     
-    plt.figure(figsize=(10, 7),dpi=250)
+    fig, ax = plt.subplots(1, figsize=(10, 7),dpi=250)
 
-    plt.title("Histogram of " + long_name)
+    ax.set_title("Histogram of " + long_name)
     
     # Plot Histogram for var_closed
-    plt.hist(var_closed, bins=bins, edgecolor='black', alpha=0.7, 
-             weights=np.ones(len(var_closed)) / len(var_closed), label="closed")
+    ax.hist(var_closed, bins=bins, edgecolor='black', alpha=0.8, 
+             weights=np.ones(len(var_closed)) / len(var_closed), label=f"closed cells\nsamples: {len(var_closed)}", color="tab:red")
     
+
     # Plot Histogram for var_open
-    plt.hist(var_open, bins=bins, edgecolor='black', alpha=0.7, 
-             weights=np.ones(len(var_open)) / len(var_open), label="open")
+    ax.hist(var_open, bins=bins, edgecolor='black', alpha=0.8, 
+             weights=np.ones(len(var_open)) / len(var_open),  label=f"open cells\nsamples: {len(var_open)}", color="tab:blue")
+
 
     # Plot Histogram for var_border
     if var_border_ds:
-        plt.hist(var_border, bins=bins, edgecolor='black', alpha=0.7, 
+        ax.hist(var_border, bins=bins, edgecolor='black', alpha=0.8, 
                 weights=np.ones(len(var_border)) / len(var_border), label="border")
 
     # Set the y-axis label to be a percentage
-    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
     if scale:
-        plt.xscale(scale)
-    plt.xlabel(long_name + f" [{unit}]")
-    plt.ylabel('Percentage')
-    plt.legend()
-    plt.show()
+        ax.set_xscale(scale)
+    ax.set_xlabel(long_name + f" [{unit}]")
+    ax.set_ylabel('Percentage')
+    ax.legend()
+    return fig, ax
+    #plt.show()
+
 
 def plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, dates):
     """
@@ -528,7 +532,13 @@ def plot_map_with_nearest_neighbors(original_map, lons, lats, lon_map, lat_map, 
     #     ax.plot([lons[i], lons[ni]], [lats[i], lats[ni]], color='red', linewidth=0.5, transform=ccrs.PlateCarree())
 
     ax.coastlines()
-    gl = ax.gridlines()
+    desired_lon = [-30, -15, 0, 15, 30]  # Example longitudes
+    desired_lat = [60, 65, 70, 75, 80, 85, 90]  # Example latitudes
+
+    # Use the desired longitude and latitude in gridlines()
+    gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False,
+                    xlocs=desired_lon, ylocs=desired_lat)
+    # gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
     gl.ylabels_right = False
     gl.xlabels_bottom = False
     return ax
