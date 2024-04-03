@@ -102,9 +102,9 @@ import extract_training_data
 importlib.reload(extract_training_data)
 from extract_training_data import *
 patch_size = 128
-filter = 64
-n_K = 12
-threshold = 30
+filter = 128
+n_K = 13
+threshold = 10
 times_folder = f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter{filter}/clustering/cao_date_time_lists/n_K_{n_K}/"
 
 dates_cao = []

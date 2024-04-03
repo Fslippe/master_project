@@ -76,6 +76,8 @@ def extract_1km_data(folder="/uio/hume/student-u37/fslippe/data/nird_mount/winte
 
     elif data_type == "npy":
         file_layers = None
+    elif data_type == "npz":
+        file_layers = None
     file_groups = defaultdict(list)
     mod_mins = defaultdict(list)
 
@@ -300,11 +302,13 @@ def combine_images_based_on_time(ds_all, dates, masks, lon_lats, mod_min, valid_
 
         # Use the mask to extract the overlapping columns
         combined_mod_min.append(mod_min_start)
-        combined_ds.append(np.vstack([img[:, full_final_valid_cols_mask] for img in imgs_to_combine]))
-        combined_dates.append(date)  # Taking the first date
-        combined_masks.append(np.vstack([mask[:, full_final_valid_cols_mask] for mask in masks_to_combine]))
-        combined_lon_lats.append(np.concatenate([ll[:,:, full_final_valid_cols_mask] for ll in lon_lats_to_combine], axis=1))
-        
+        try:
+            combined_ds.append(np.vstack([img[:, full_final_valid_cols_mask] for img in imgs_to_combine]))
+            combined_dates.append(date)  # Taking the first date
+            combined_masks.append(np.vstack([mask[:, full_final_valid_cols_mask] for mask in masks_to_combine]))
+            combined_lon_lats.append(np.concatenate([ll[:,:, full_final_valid_cols_mask] for ll in lon_lats_to_combine], axis=1))
+        except:
+            print(f"failed on image date {date} min {min_time}")
         i += 1
 
     print(len(combined_mod_min))
@@ -402,6 +406,8 @@ def process_file(file, file_layers, bands, full_water_mask=None, tree=None, retu
         return process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat)
     elif file.endswith(".npy"):
         return process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat)
+    elif file.endswith(".npz"):
+        return process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat, npz_compressed=True)
     else:
         raise ValueError(f"Unsupported file format: {file}")
 
@@ -522,11 +528,15 @@ def process_hdf_file(file, file_layers, bands, max_zenith, data_loc, full_water_
     else:
         return x_bands, mask, valid_cols_lon 
 
-def process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat):
+def process_npy_file(file, file_layers, bands, max_zenith, data_loc, full_water_mask, tree, return_lon_lat, npz_compressed=False):
     zenith = np.load("%sland_sea_ice_mask/sensor_zenith_bilinear_1km.npy" %data_loc)
     zenith_mask = zenith < max_zenith
     current_data_list = []
-    ds = np.load(file, allow_pickle=True).item()
+    if npz_compressed:
+        ds = np.load(file)
+    else:
+        ds = np.load(file, allow_pickle=True).item()
+
     data = ds["data"]
     lon = ds["lon"]
     lat = ds["lat"]

@@ -88,8 +88,15 @@ importlib.reload(extract_training_data)
 from extract_training_data import *
 patch_size = 128
 
+filters = [128]
+thresholds = [5, 10, 15, 30 ]#[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+n_Ks = [13]#[10, 11, 12, 13, 14, 15, 16]
 
-year = 2021
+year = 2023
+# start = f"{year}0601"
+# end = f"{year}0731"
+# dates = generate_date_list(start, end)
+off_season = False
 start = f"{year}0101"
 end = f"{year}0430"
 dates = generate_date_list(start, end)
@@ -99,13 +106,13 @@ end = f"{year}1231"
 dates.extend(generate_date_list(start, end))
 
 
-folder = "/scratch/fslippe/modis/MOD02/2019/ /scratch/fslippe/modis/MOD02/2020/ /scratch/fslippe/modis/MOD02/2021/ /scratch/fslippe/modis/MOD02/2022/ /scratch/fslippe/modis/MOD02/2023/"
+folder = "/scratch/fslippe/modis/MOD02_npz/2019/ /scratch/fslippe/modis/MOD02_npz/2020/ /scratch/fslippe/modis/MOD02_npz/2021/ /scratch/fslippe/modis/MOD02_npz/2022/ /scratch/fslippe/modis/MOD02_npz/2023/"
 x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao = extract_1km_data(folder,
                                                          bands=bands,
                                                          date_list=dates,
                                                          return_lon_lat=True,
                                                          data_loc=data_loc,
-                                                         data_type="npy",
+                                                         data_type="npz",
                                                          combine_pics=True)
 
 x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao = zip(*[(xi, date, mask, lon_lat, mod_min) for xi, date, mask, lon_lat, mod_min in zip(x_cao, dates_cao, masks_cao, lon_lats_cao, mod_min_cao) if (xi.shape[0] > patch_size) and (xi.shape[1] > patch_size)])
@@ -125,9 +132,8 @@ patches, all_lon_patches, all_lat_patches, starts, ends, shapes, n_patches_tot, 
                                                                                                     strides=[1, patch_size, patch_size,1])
 
                                                                                                     
-filters = [64]
-thresholds = [10,30]#[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
-n_Ks = [11, 12, 13]#[10, 11, 12, 13, 14, 15, 16]
+del lon_lats_cao,
+gc.collect()
 
 for filter in filters:
 
@@ -138,8 +144,7 @@ for filter in filters:
     elif filter == 128:
         encoder = load_model("/uio/hume/student-u37/fslippe/data/models/patch_size128/filter128/encoder_dnb_l95_z50_ps128_f128_1e3_201812-202312.h5")
 
-
-    n_chunks = 40
+    n_chunks = 10
     n_patches = len(patches)
     chunk_size = n_patches // n_chunks
 
@@ -154,7 +159,6 @@ for filter in filters:
 
     encoded_patches_flat = encoded_patches.reshape(encoded_patches.shape[0], -1)
     gc.collect()
-
 
     import plot_functions
     importlib.reload(plot_functions)
@@ -173,7 +177,6 @@ for filter in filters:
 
         for threshold in thresholds:
             dates, times = save_img_with_labels(x_cao,
-                                lon_lats_cao,
                                 n_patches_tot,
                                 indices,
                                 labels,
@@ -191,7 +194,29 @@ for filter in filters:
                                 global_max=n_K)
             print(len(dates))
             time_dict = {"dates": dates, "times": times}
-            np.save(folder + f"times_patch_size{patch_size}_filter{filter}_nK{n_K}_thr{threshold}_{year}", time_dict)
+            if off_season:
+                import os
+
+                file_name = f"times_patch_size{patch_size}_filter{filter}_nK{n_K}_thr{threshold}_{year}"
+                if off_season:
+                    file_name += "_off_season"
+                file_name += ".npz"
+
+                # Generate a unique file name by appending a number if the file already exists
+                count = 1
+                while True:
+                    new_file_name = file_name if count == 1 else f"{file_name}_{count}"
+                    new_file_path = os.path.join(folder, new_file_name)
+                    
+                    if not os.path.exists(new_file_path):
+                        break
+                    count += 1
+
+                # Save the data to the new file
+                np.save(new_file_path, time_dict)
+            else:
+                np.save(folder + f"times_patch_size{patch_size}_filter{filter}_nK{n_K}thr{threshold}{year}%s" %("_off_season" if off_season else ""), time_dict)
+
 
     gc.collect()
         

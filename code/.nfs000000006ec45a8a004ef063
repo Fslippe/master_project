@@ -1,0 +1,9 @@
+2024-04-03 17:19:49.304711: I tensorflow/core/common_runtime/gpu/gpu_process_state.cc:214] Using CUDA malloc Async allocator for GPU: 0
+2024-04-03 17:19:49.305011: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1525] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 20415 MB memory:  -> device: 0, name: Quadro RTX 6000, pci bus id: 0000:25:00.0, compute capability: 7.5
+1 Physical GPUs, 1 Logical GPUs
+total cores: 256
+1 Physical GPUs, 1 Logical GPUs
+1 Physical GPUs, 1 Logical GPUs
+1
+total cores: 256
+  0%|          | 0/41 [00:00<?, ?it/s]

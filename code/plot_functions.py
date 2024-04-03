@@ -148,7 +148,6 @@ def plot_filtered_map(label_map, lon_map, lat_map, idx, extent, global_max, date
     plt.show()
 
 def save_img_with_labels(x, 
-                        lon_lats, 
                         n_patches_tot,
                         indices,
                         labels,
