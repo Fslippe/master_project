@@ -1,41 +1,0 @@
-2024-04-03 16:36:03.197854: I tensorflow/core/common_runtime/gpu/gpu_process_state.cc:214] Using CUDA malloc Async allocator for GPU: 0
-2024-04-03 16:36:03.198116: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1525] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 20717 MB memory:  -> device: 0, name: Quadro RTX 6000, pci bus id: 0000:25:00.0, compute capability: 7.5
-1 Physical GPUs, 1 Logical GPUs
-total cores: 256
-1 Physical GPUs, 1 Logical GPUs
-1 Physical GPUs, 1 Logical GPUs
-1
-total cores: 256
-  0%|          | 0/76 [00:00<?, ?it/s]  1%|▏         | 1/76 [01:04<1:20:21, 64.28s/it]  5%|▌         | 4/76 [01:05<14:50, 12.36s/it]    8%|▊         | 6/76 [01:20<11:57, 10.26s/it] 47%|████▋     | 36/76 [01:21<00:41,  1.05s/it] 50%|█████     | 38/76 [01:25<00:41,  1.09s/it] 54%|█████▍    | 41/76 [01:30<00:41,  1.19s/it] 58%|█████▊    | 44/76 [01:35<00:40,  1.26s/it] 61%|██████    | 46/76 [01:38<00:40,  1.34s/it] 84%|████████▍ | 64/76 [01:41<00:06,  1.76it/s] 87%|████████▋ | 66/76 [01:42<00:05,  1.82it/s]100%|██████████| 76/76 [01:42<00:00,  1.34s/it]
-WARNING:tensorflow:No training configuration found in the save file, so the model was *not* compiled. Compile it manually.
-2024-04-03 17:01:00.497682: W tensorflow/core/framework/cpu_allocator_impl.cc:82] Allocation of 38271778816 exceeds 10% of free system memory.
-/uio/hume/student-u37/fslippe/master_project/code/extract_dict_list.py:205: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
-  pat_lon = np.concatenate(np.array(pat_lon), axis=0)
-/uio/hume/student-u37/fslippe/master_project/code/extract_dict_list.py:206: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
-  pat_lat = np.concatenate(np.array(pat_lat), axis=0)
-/uio/hume/student-u37/fslippe/master_project/code/functions.py:365: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
-  pat_lon = np.concatenate(np.array(pat_lon), axis=0)
-/uio/hume/student-u37/fslippe/master_project/code/functions.py:366: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
-  pat_lat = np.concatenate(np.array(pat_lat), axis=0)
-908
-908
-unique dates 76
-Total images 209
-GENERATING PATCHES
-0/1041/1042/1043/1044/1045/1046/1047/1048/1049/10410/10411/10412/10413/10414/10415/10416/10417/10418/10419/10420/10421/10422/10423/10424/10425/10426/10427/10428/10429/10430/10431/10432/10433/10434/10435/10436/10437/10438/10439/10440/10441/10442/10443/10444/10445/10446/10447/10448/10449/10450/10451/10452/10453/10454/10455/10456/10457/10458/10459/10460/10461/10462/10463/10464/10465/10466/10467/10468/10469/10470/10471/10472/10473/10474/10475/10476/10477/10478/10479/10480/10481/10482/10483/10484/10485/10486/10487/10488/10489/10490/10491/10492/10493/10494/10495/10496/10497/10498/10499/104100/104101/104102/104103/104ENCODING
-FINISHED ENCODING
-Traceback (most recent call last):
-  File "/uio/hume/student-u37/fslippe/master_project/code/extract_dict_list.py", line 360, in <module>
-    extract_for_nKs([year], n_Ks, size_thresholds, threshold)
-  File "/uio/hume/student-u37/fslippe/master_project/code/extract_dict_list.py", line 234, in extract_for_nKs
-    args.append((i, dates_cao[i], mod_min_cao[i], lon_map[i], lat_map[i], label_map[i], closed_label, open_label, lon_mesh, lat_mesh))
-IndexError: index 104 is out of bounds for axis 0 with size 104
-2024-04-03 17:18:44.434754: I tensorflow/core/common_runtime/gpu/gpu_process_state.cc:214] Using CUDA malloc Async allocator for GPU: 0
-2024-04-03 17:18:44.435053: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1525] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 20717 MB memory:  -> device: 0, name: Quadro RTX 6000, pci bus id: 0000:25:00.0, compute capability: 7.5
-1 Physical GPUs, 1 Logical GPUs
-total cores: 256
-1 Physical GPUs, 1 Logical GPUs
-1 Physical GPUs, 1 Logical GPUs
-1
-total cores: 256
-  0%|          | 0/41 [00:00<?, ?it/s]

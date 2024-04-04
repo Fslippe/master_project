@@ -113,7 +113,7 @@ patch_size = 128
 last_filter = 128
 threshold = 10
 n_Ks = [13]
-years = [ 2020, 2021, 2022, 2023]#, 2021, 2022, 2023]
+years = [2023]#, 2021, 2022, 2023]
 size_thresholds = [0, 50, 100, 300] #[300, 0, 100]#, 100, 300]
 folder = "/scratch/fslippe/modis/MOD02_npz/2019/ /scratch/fslippe/modis/MOD02_npz/2020/ /scratch/fslippe/modis/MOD02_npz/2021/ /scratch/fslippe/modis/MOD02_npz/2022/ /scratch/fslippe/modis/MOD02_npz/2023/"
 
@@ -130,8 +130,8 @@ def extract_for_nKs(years, n_Ks, size_thresholds, threshold):
             time_dict = np.load(times_folder + f"times_patch_size{patch_size}_filter{last_filter}_nK{n_K}_thr{threshold}_{yr}.npy", allow_pickle=True).item()
             half_step = len(time_dict["dates"]) // 2
 
-            dates_cao.extend(time_dict["dates"][:half_step])
-            times_cao.extend(time_dict["times"][:half_step])
+            dates_cao.extend(time_dict["dates"][:])
+            times_cao.extend(time_dict["times"][:])
 
         x, dates, masks, lon_lats, mod_min = extract_1km_data(folder,
                                                             bands=bands,
@@ -176,6 +176,7 @@ def extract_for_nKs(years, n_Ks, size_thresholds, threshold):
                                                                                                             autoencoder_predict,
                                                                                                             strides=[1, stride, stride,1])                                                                                                   
         gc.collect()
+        
         with tf.device('/CPU:0'):   
             encoded_patches_flat_cao = load_and_predict_encoder(patch_size, last_filter, patches)
 
@@ -245,7 +246,7 @@ def extract_for_nKs(years, n_Ks, size_thresholds, threshold):
                 new_file_path = file_path
 
                 # Check if the file already exists, and if it does, modify the file name
-                while os.path.exists(new_file_path + ".npz"):
+                while os.path.exists(new_file_path + ".npy"):
                     new_file_path = file_path + f"_{count}"
                     count += 1
 

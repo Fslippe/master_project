@@ -215,7 +215,7 @@ for filter in filters:
                 # Save the data to the new file
                 np.save(new_file_path, time_dict)
             else:
-                np.save(folder + f"times_patch_size{patch_size}_filter{filter}_nK{n_K}thr{threshold}{year}%s" %("_off_season" if off_season else ""), time_dict)
+                np.save(folder + f"times_patch_size{patch_size}_filter{filter}_nK{n_K}_thr{threshold}_{year}%s" %("_off_season" if off_season else ""), time_dict)
 
 
     gc.collect()
