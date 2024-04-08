@@ -338,13 +338,15 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
 
     
     c = ax.contourf(masked_x, masked_y, np.where(masked_data == 0 , np.nan, masked_data), transform=projection, levels=levels, cmap=cmap)#,set_under='white', extend="max")
+    
 
     # ax.add_feature(cfeature.LAND, edgecolor='black')
     # ax.add_feature(cfeature.OCEAN)
     # ax.add_feature(cfeature.COASTLINE)
     ax.coastlines()
 
-    plt.colorbar(c, ax=ax, orientation='vertical', label='[%]')
+    cbar = plt.colorbar(c, ax=ax, orientation='vertical', label='[%]')
+    cbar.set_ticks([int(i) for i in cbar.get_ticks()])
     gl = ax.gridlines(draw_labels=True, dms=True, x_inline=False, y_inline=False)
     gl.ylabels_right = False
     gl.xlabels_bottom = False
