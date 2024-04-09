@@ -291,7 +291,7 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
     lon_min, lon_max = -35, 45
     lat_min, lat_max = 60, 82
     fig, ax = plt.subplots(subplot_kw={'projection': projection}, figsize=(12, 8), dpi=200)
-    
+
     plt.title(title)
     ax.set_extent(extent, ccrs.PlateCarree())  # Set extent to focus on the Arctic
     #new_cmap = ListedColormap(['white'] + [plt.get_cmap(cmap)(i) for i in range(plt.get_cmap(cmap).N)])
@@ -302,27 +302,9 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
 
     white = np.array([1, 1, 1, 1])  # RGBA values for white
     turbo_with_white = ListedColormap(np.vstack([white, turbo]))
-    transform_to_geodetic = ccrs.PlateCarree()
 
-    # Transform each point on the grid to geographic coordinates
-    # Transform function from Polar Stereographic to geographic coordinates (PlateCarree)
-    transform_to_geodetic = ccrs.PlateCarree()
-
-    # Reshape your grids to 1D arrays for the transformation
-    x_grid_1d = x_grid.ravel()
-    y_grid_1d = y_grid.ravel()
-
-    # Transform each point on the grid to geographic coordinates (longitude and latitude)
-    xy_grid_geodetic = transform_to_geodetic.transform_points(projection, x_grid_1d, y_grid_1d)
-
-    # Separate the longitude and latitude after transformation
-    lon_grid_geodetic = xy_grid_geodetic[:, 0]
-    lat_grid_geodetic = xy_grid_geodetic[:, 1]
-
-    # Reshape back to the original 2D array shape
-    lon_grid_2d = lon_grid_geodetic.reshape(x_grid.shape)
-    lat_grid_2d = lat_grid_geodetic.reshape(y_grid.shape)
-
+    lon_grid_2d = x_grid
+    lat_grid_2d = y_grid
     # Check if the points fall within the geographic bounds
     inside_bounds_mask = (lon_grid_2d >= lon_min) & (lon_grid_2d <= lon_max) & \
                         (lat_grid_2d >= lat_min) & (lat_grid_2d <= lat_max)
@@ -336,9 +318,9 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
     masked_y = np.where(~inside_bounds_mask_2d, np.nan, y_grid)
 
 
-    
-    c = ax.contourf(masked_x, masked_y, np.where(masked_data == 0 , np.nan, masked_data), transform=projection, levels=levels, cmap=cmap)#,set_under='white', extend="max")
-    
+
+    c = ax.contourf(masked_x, masked_y, np.where(masked_data == 0 , np.nan, masked_data), transform=ccrs.PlateCarree(), levels=levels, cmap=cmap)#,set_under='white', extend="max")
+
 
     # ax.add_feature(cfeature.LAND, edgecolor='black')
     # ax.add_feature(cfeature.OCEAN)
@@ -352,7 +334,7 @@ def plot_hist_map(x_grid, y_grid, counts, tot_days, projection, title="Percentag
     gl.xlabels_bottom = False
 
     # Define the limits of the "rectangle"
-   
+
 
     # Define the number of points for smoothness
     num_pts = 100

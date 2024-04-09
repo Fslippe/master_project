@@ -130,8 +130,8 @@ def extract_for_nKs(years, n_Ks, size_thresholds, threshold):
             time_dict = np.load(times_folder + f"times_patch_size{patch_size}_filter{last_filter}_nK{n_K}_thr{threshold}_{yr}.npy", allow_pickle=True).item()
             half_step = len(time_dict["dates"]) // 2
 
-            dates_cao.extend(time_dict["dates"][:half_step])
-            times_cao.extend(time_dict["times"][:half_step])
+            dates_cao.extend(time_dict["dates"][half_step:])
+            times_cao.extend(time_dict["times"][half_step:])
 
         x, dates, masks, lon_lats, mod_min = extract_1km_data(folder,
                                                             bands=bands,
@@ -252,7 +252,7 @@ def extract_for_nKs(years, n_Ks, size_thresholds, threshold):
 
                 # Save the data to the new file name
                 np.save(new_file_path, dict_list)
-        
+            
         
         del x_cao 
         del dates_cao 

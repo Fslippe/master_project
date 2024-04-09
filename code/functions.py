@@ -23,6 +23,8 @@ from calculate_scores import *
 
 
 
+
+
 def load_and_predict_encoder(patch_size, last_filter, patches_cao):
     if last_filter == 128:
         encoder = load_model(f"/uio/hume/student-u37/fslippe/data/models/patch_size{patch_size}/filter128/encoder_dnb_l95_z50_ps128_f128_1e3_201812-202312.h5")
