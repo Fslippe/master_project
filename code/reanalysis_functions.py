@@ -187,7 +187,14 @@ def get_rf_dataframe(dict_list, vars, lev_h=67, lev_p=910, closed_lab=0, open_la
     df_combined.columns = vars
 
     return df_combined.reset_index(drop=True), y
+def align_time_coordinates(*data_arrays):
+    # Align the data arrays along the time coordinate
+    aligned = xr.align(*data_arrays, join='inner', copy=False)
+    
+    # Each element in 'aligned' tuple will be a data array with matching time coordinates
+    return aligned
 
+# Example usage:
 def extract_var_at_idx(dict_list, var, lev_idx=None):
     lookup_table = {"U": "MERRA2.wind_at_950hpa", 
                     "V": "MERRA2.wind_at_950hpa",
@@ -344,6 +351,9 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
         Ps_c, Ps_o, Ps_b = extract_var_at_idx(dict_list, "PS")
         T700_c, T700_o, T700_b = extract_var_at_idx(dict_list, "T", lev_idx=700)
         LCL_c, LCL_o, LCL_b = extract_var_at_idx(dict_list, "ZLCL", lev_idx=700)
+        T0_c, T850_c, Ps_c, T700_c, LCL_c = align_time_coordinates(T0_c, T850_c, Ps_c, T700_c, LCL_c)
+        T0_o, T850_o, Ps_o, T700_o, LCL_o = align_time_coordinates(T0_o, T850_o, Ps_o, T700_o, LCL_o)
+        T0_b, T850_b, Ps_b, T700_b, LCL_b = align_time_coordinates(T0_b, T850_b, Ps_b, T700_b, LCL_b)
 
         var_closed_ds = T0_c.copy()
         var_open_ds = T0_o.copy()
@@ -379,11 +389,17 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
     else:
         for dic in dict_list:
             date = dic["date"]
-            
-            ds = xr.open_dataset(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
-            time_sel = ds[var].sel(time=dic["datetime"], method="nearest")
+            try:
+                ds = xr.open_dataset(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
+            except:
+                print(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
+                continue 
+            try:
+                time_sel = ds[var].sel(time=dic["datetime"], method="nearest")
+            except:
+                print(f"/uio/hume/student-u37/fslippe/MERRA/{date[:4]}/{lookup_table[var]}.{date}.SUB.nc")
 
-            
+                continue
 
             for condition, var_list, times_list in zip(
                     ["idx_closed", "idx_open", "idx_border"], 
@@ -417,11 +433,11 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
             var_border_ds = xr.Dataset({var: (('lev', 'time'), var_border)},
                                     coords={'time': times_border,
                                             'lev': ds.lev.values})
+
         elif "lev" in ds and lev_idx:       
             var_closed = np.concatenate(var_closed_list, axis=1)
             var_open = np.concatenate(var_open_list, axis=1)
             var_border = np.concatenate(var_border_list, axis=1)
-            
             
             # Create the dataset with the 'lev' coordinate
             var_closed_ds = xr.Dataset({var: (('lev', 'time'), var_closed)},
@@ -452,7 +468,6 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
         var_open_ds[var].attrs.update(ds[var].attrs)
         var_border_ds[var].attrs.update(ds[var].attrs)
     
-
     return var_closed_ds, var_open_ds, var_border_ds
 
 

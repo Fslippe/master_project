@@ -69,7 +69,7 @@ def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name,
         # Generate linearly spaced bins as before.
         bins = np.arange(min_bin, max_bin, bin_size)
     
-    fig, ax = plt.subplots(1, figsize=(10, 7),dpi=250)
+    fig, ax = plt.subplots(1, figsize=(10, 7), dpi=200)
 
     ax.set_title("Histogram of " + long_name)
     
@@ -95,6 +95,7 @@ def make_variable_histogram(var_closed_ds, var_open_ds, var_border_ds, var_name,
     ax.set_xlabel(long_name + f" [{unit}]")
     ax.set_ylabel('Percentage')
     ax.legend()
+    fig.tight_layout()
     return fig, ax
     #plt.show()
 
