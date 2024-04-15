@@ -270,7 +270,9 @@ wget --load-cookies ~/.urs*cookies --save-cookies ~/.urs_cookies --keep-session-
 
 rsync -av --progress /source/directory user@remote:/destination/directory
 
-rsync -av --progress /nird/projects/NS9600K/data/MERRA/ fslippe@mimi.uio.no:/scratch/fslippe/MERRA/
+rsync -av --progress slippe@login.nird.sigma2.no:/nird/projects/NS9600K/data/MERRA/202301_new/  /uio/hume/student-u37/fslippe/MERRA/202301_new/        
+
+  #fslippe@mimi.uio.no:/scratch/fslippe/MERRA/
 
 nohup python3 read_tf.py 128 256 > log_outs/output_ps128_f256.log 2>&1 &
 

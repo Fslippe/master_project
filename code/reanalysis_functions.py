@@ -271,11 +271,11 @@ def extract_var_at_idx(dict_list, var, lev_idx=None):
         
 
     elif var == "SSTOT":
-        ss001_closed, ss001_open, ss001_border  = extract_var_at_idx(dict_list, "SS001")
-        ss002_closed, ss002_open, ss002_border  = extract_var_at_idx(dict_list, "SS002")
-        ss003_closed, ss003_open, ss003_border  = extract_var_at_idx(dict_list, "SS003")
-        ss004_closed, ss004_open, ss004_border  = extract_var_at_idx(dict_list, "SS004")
-        ss005_closed, ss005_open, ss005_border  = extract_var_at_idx(dict_list, "SS005")
+        ss001_closed, ss001_open, ss001_border  = extract_var_at_idx(dict_list, "SS001", lev_idx)
+        ss002_closed, ss002_open, ss002_border  = extract_var_at_idx(dict_list, "SS002", lev_idx)
+        ss003_closed, ss003_open, ss003_border  = extract_var_at_idx(dict_list, "SS003", lev_idx)
+        ss004_closed, ss004_open, ss004_border  = extract_var_at_idx(dict_list, "SS004", lev_idx)
+        ss005_closed, ss005_open, ss005_border  = extract_var_at_idx(dict_list, "SS005", lev_idx)
 
         # compute sttot
         var_closed_ds = ss001_closed.copy()

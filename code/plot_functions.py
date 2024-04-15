@@ -24,7 +24,6 @@ from matplotlib.collections import PatchCollection
 sns.set_style("darkgrid")
 plt.style.use("bmh")
 import matplotlib
-plt.rcParams.update({'font.size': 14})
 # Define the grid in projected coordinates
 
 
