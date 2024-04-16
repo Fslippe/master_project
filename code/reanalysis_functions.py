@@ -35,8 +35,12 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
         var_mean = np.nanmean(m_vals)
         m_vals = np.where((m_vals >= var_mean - min_max_stds*var_std) & (m_vals <= var_mean + min_max_stds*var_std), m_vals, np.nan)
         m_vals_arr_masked = np.array(m_vals)
+        ymin = np.nanmin(m_vals_arr_masked)
+        ymax = np.nanmax(m_vals_arr_masked)
     else:
         m_vals_arr = np.array(m_vals)
+        ymin = np.nanmin(m_vals_arr)
+        ymax = np.nanmax(m_vals_arr)
 
     ax.plot(step_index, tot_mean, color="k", lw=3, alpha=0.5, label="mean")
 
@@ -47,8 +51,7 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
 
     bins_x = len(step_index)
     bins_y = 20
-    ymin = np.nanmin(m_vals_arr_masked)
-    ymax = np.nanmax(m_vals_arr_masked)
+
     binsize_y = (ymax-ymin) / bins_y  # Desired binsize for y-axis
 
     # Calculate the number of bins based on the binsize
@@ -68,7 +71,7 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
     ax.set_ylim([ymin- (ymax-ymin)*0.05, ymax + (ymax-ymin)*0.15])
     ymin, ymax = ax.get_ylim()
     xmin, xmax = ax.get_xlim()
-    ax.text(xmin + (xmax-xmin)*0.07, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
+    ax.text(xmin + (xmax-xmin)*0.05, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
     ax.text(xmin + (xmax-xmin)*0.77, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
 
     ax.set_title(string.capwords(da.attrs["long_name"].replace("_", " ")))
