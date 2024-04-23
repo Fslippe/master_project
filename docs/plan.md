@@ -254,7 +254,7 @@ so4 = sulfate
       - Using LWP/IWP histograms to show the need
       - How wind stepping is preformed
 - Results and discussion
-    
+  - Still need to include sample image comparison between the three last filter combinations 
 
 
 
