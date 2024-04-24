@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt 
 import string 
 
-def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_backward_list, iy_forward_list, step_index, dict_list, dict_list_indices, ax, min_max_stds=None, limit_backward=None, limit_forward=None, v_max=None):
+def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_backward_list, iy_forward_list, step_index, dict_list, dict_list_indices, ax, min_max_stds=None, limit_backward=None, limit_forward=None, v_max=None, discard_sea_ice=False):
     m_vals = []
     if limit_backward and limit_forward:
         step_index = step_index[len(step_index) // 2- limit_backward: len(step_index) - (len(step_index) // 2 - limit_forward)]
@@ -17,15 +17,22 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
         datetime_obj = dict_list[k]["datetime"]
         date = dict_list[k]["date"]
         if limit_backward and limit_forward:
-            ix_tot = (np.append(ix_backward_list[k][:, -limit_backward:], ix_forward_list[k][:, :limit_forward+1], axis=1))
-            iy_tot = (np.append(iy_backward_list[k][:, -limit_backward:], iy_forward_list[k][:, :limit_forward+1], axis=1))
+            ix_tot = (np.append(ix_backward_list[k][:, -limit_backward:], ix_forward_list[k][:, :limit_forward], axis=1))
+            iy_tot = (np.append(iy_backward_list[k][:, -limit_backward:], iy_forward_list[k][:, :limit_forward], axis=1))
         else:
             ix_tot = (np.append(ix_backward_list[k], ix_forward_list[k], axis=1))
             iy_tot = (np.append(iy_backward_list[k], iy_forward_list[k], axis=1))
         if len(ix_tot) > 0:
             da = extract_var_at_indices(ix_tot.astype(int), iy_tot.astype(int), date, datetime_obj, var, lev_idx=67)
-            m_vals.extend(da.values)
+            if discard_sea_ice:
+                da_ts = extract_var_at_indices(ix_backward_list[k][:, -limit_backward:].astype(int), iy_backward_list[k][:, -limit_backward:].astype(int), date, datetime_obj, "TS", lev_idx=67)
+                mask = np.all(da_ts.values > 273.15, axis=1)
+                m_vals.extend(da.values[mask])
+            else:
+                m_vals.extend((da.values))
 
+
+    
     tot_mean = np.nanmean(m_vals, axis=0)
 
     if min_max_stds:
@@ -60,12 +67,14 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
 
     # Calculate the 2D histogram
     H, xedges, yedges = np.histogram2d(x, y, bins=[bins_x, bins_y])
+    H_sum = H.sum(axis=1)  
+    H = H / H_sum[:, np.newaxis] * 100 
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
     H_masked = np.where(H <= 0, np.nan, H)
     if v_max == None:
         v_max = np.nanmax(H_masked)
     cb = ax.imshow(H_masked.T, extent=extent, origin='lower', aspect='auto', cmap="GnBu", vmax=v_max)
-    plt.colorbar(cb, label="counts")
+    plt.colorbar(cb, label="%")
 
 
     ax.set_ylim([ymin- (ymax-ymin)*0.05, ymax + (ymax-ymin)*0.15])
@@ -83,7 +92,7 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
     ax.axvline(x=0, color='k', linestyle='--', label="border")
 
     ax.legend(loc="lower right")
-    return H, xedges, yedges
+    return H, xedges, yedges, H_sum
 
 def get_potential_temperature(T, P, P0=1000):
     theta = T.values * (P0 / P[:, np.newaxis]) ** (0.286)

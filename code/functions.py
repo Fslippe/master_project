@@ -47,8 +47,8 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
         datetime_obj = dict_list[k]["datetime"]
         date = dict_list[k]["date"]
         size = len(np.unique(dict_list[k]["idx_border"], axis=0))
-        ix_arr_forward = np.zeros((size, tot_steps+1))
-        iy_arr_forward = np.zeros((size, tot_steps+1))
+        ix_arr_forward = np.zeros((size, tot_steps))
+        iy_arr_forward = np.zeros((size, tot_steps))
 
         ds = xr.open_dataset(
             "/uio/hume/student-u37/fslippe/MERRA/%s/MERRA2.wind_at_950hpa.%s.SUB.nc" % (date[:4], date))
@@ -85,21 +85,20 @@ def step_forward_from_border(dict_list, tot_steps, lon, lat, only_cao_cases=Fals
                         print("ERROR")
             stepping_distance.append(step_dist)
             
-            ix_arr_forward[i, 0] = ix
-            iy_arr_forward[i, 0] = iy
+
 
             if not only_cao_cases:
-                ix_arr_forward[i, 1] = new_ix
-                iy_arr_forward[i, 1] = new_iy
+                ix_arr_forward[i, 0] = new_ix
+                iy_arr_forward[i, 0] = new_iy
             else:
                 if (new_ix, new_iy) in zip(np.array(dict_list[k]["idx_open"][:,0]), np.array(dict_list[k]["idx_open"][:,1])):
-                    ix_arr_forward[i, 1] = new_ix
-                    iy_arr_forward[i, 1] = new_iy
+                    ix_arr_forward[i, 0] = new_ix
+                    iy_arr_forward[i, 0] = new_iy
                 else:
-                    ix_arr_forward[i, 1] = -9999
-                    iy_arr_forward[i, 1] = -9999
+                    ix_arr_forward[i, 0] = -9999
+                    iy_arr_forward[i, 0] = -9999
 
-            for j in range(2, tot_steps+1):
+            for j in range(1, tot_steps):
                 wind_direction = wind_dir.isel(lon=new_iy, lat=new_ix).values
                 lon_tmp = new_lon
                 lat_tmp = new_lat
