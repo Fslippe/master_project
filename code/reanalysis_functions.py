@@ -7,33 +7,20 @@ from itertools import product
 from sklearn.ensemble import RandomForestClassifier  # or RandomForestRegressor for regression tasks
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt 
+import matplotlib.colors as colors
 import string 
 
-def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_backward_list, iy_forward_list, step_index, dict_list, dict_list_indices, ax, min_max_stds=None, limit_backward=None, limit_forward=None, v_max=None, discard_sea_ice=False):
+def get_histogram_from_var_and_index(var, ix_tot, iy_tot, step_index, datetime_obj_list, date_list, ax, min_max_stds=None, v_max=None, y_bin_size=None, leg_loc="best"):
     m_vals = []
-    if limit_backward and limit_forward:
-        step_index = step_index[len(step_index) // 2- limit_backward: len(step_index) - (len(step_index) // 2 - limit_forward)]
-    for k in dict_list_indices: 
-        datetime_obj = dict_list[k]["datetime"]
-        date = dict_list[k]["date"]
-        if limit_backward and limit_forward:
-            ix_tot = (np.append(ix_backward_list[k][:, -limit_backward:], ix_forward_list[k][:, :limit_forward], axis=1))
-            iy_tot = (np.append(iy_backward_list[k][:, -limit_backward:], iy_forward_list[k][:, :limit_forward], axis=1))
-        else:
-            ix_tot = (np.append(ix_backward_list[k], ix_forward_list[k], axis=1))
-            iy_tot = (np.append(iy_backward_list[k], iy_forward_list[k], axis=1))
-        if len(ix_tot) > 0:
-            da = extract_var_at_indices(ix_tot.astype(int), iy_tot.astype(int), date, datetime_obj, var, lev_idx=67)
-            if discard_sea_ice:
-                da_ts = extract_var_at_indices(ix_backward_list[k][:, -limit_backward:].astype(int), iy_backward_list[k][:, -limit_backward:].astype(int), date, datetime_obj, "TS", lev_idx=67)
-                mask = np.all(da_ts.values > 273.15, axis=1)
-                m_vals.extend(da.values[mask])
-            else:
-                m_vals.extend((da.values))
-
-
-    
+    for k in range(len(ix_tot)): 
+        datetime_obj = datetime_obj_list[k]
+        date = date_list[k]
+        if len(ix_tot[k]) > 0:
+            da = extract_var_at_indices(ix_tot[k].astype(int), iy_tot[k].astype(int), date, datetime_obj, var, lev_idx=67)
+            m_vals.extend((da.values))
     tot_mean = np.nanmean(m_vals, axis=0)
+    tot_median = np.nanmedian(m_vals, axis=0)
+
 
     if min_max_stds:
         m_vals = np.array(m_vals)
@@ -50,38 +37,56 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
         ymax = np.nanmax(m_vals_arr)
 
     ax.plot(step_index, tot_mean, color="k", lw=3, alpha=0.5, label="mean")
+    ax.plot(step_index, tot_median, color="b", lw=3, alpha=0.5, label="median")
+    idx = np.argmin(step_index[:-1]-step_index[1:])
+    step_index = np.insert(step_index, idx+1, 0)
+    m_vals_arr = np.insert(m_vals_arr, idx+1, np.nan , axis=1)
+    #step_index_xax = np.where(step_index < 0, step_index-16,step_index-16)
+
 
     mask = ~np.isnan(m_vals_arr)
     m_vals_masked = np.where(np.isnan(m_vals_arr), 0, m_vals_arr) # m_vals_arr[~np.isnan(m_vals_arr)]
     x = np.tile(step_index, (len(m_vals), 1))[mask].ravel()
+
     y = np.array(m_vals_masked)[mask].ravel()
 
     bins_x = len(step_index)
-    bins_y = 20
 
-    binsize_y = (ymax-ymin) / bins_y  # Desired binsize for y-axis
+    try:
+        y_bin_size.shape
+        bins_y = y_bin_size
+    except:   
+        bins_y = 13
+        binsize_y = (ymax-ymin) / bins_y  # Desired binsize for y-axis
 
-    # Calculate the number of bins based on the binsize
-    bins_y = int((np.max(y) - np.min(y)) / binsize_y)
+        # Calculate the number of bins based on the binsize
+        bins_y = int((np.max(y) - np.min(y)) / binsize_y)
 
 
     # Calculate the 2D histogram
     H, xedges, yedges = np.histogram2d(x, y, bins=[bins_x, bins_y])
+    xedges = np.append(step_index-16, step_index[-1]+ 16)
     H_sum = H.sum(axis=1)  
     H = H / H_sum[:, np.newaxis] * 100 
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
     H_masked = np.where(H <= 0, np.nan, H)
     if v_max == None:
         v_max = np.nanmax(H_masked)
-    cb = ax.imshow(H_masked.T, extent=extent, origin='lower', aspect='auto', cmap="GnBu", vmax=v_max)
+
+    num_colors = 12
+
+    cmap = colors.ListedColormap(plt.cm.GnBu(np.linspace(0, 1, num_colors)))
+    cb = ax.imshow(H_masked.T, extent=extent, origin='lower', aspect='auto', cmap=cmap, vmax=v_max)
     plt.colorbar(cb, label="%")
 
-
+    ax.set_xlim([step_index[0]-16, step_index[-1]+16])
     ax.set_ylim([ymin- (ymax-ymin)*0.05, ymax + (ymax-ymin)*0.15])
     ymin, ymax = ax.get_ylim()
     xmin, xmax = ax.get_xlim()
-    ax.text(xmin + (xmax-xmin)*0.05, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
-    ax.text(xmin + (xmax-xmin)*0.77, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
+    
+    ax.text(xmin + (xmax-xmin)*0.03, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
+    #ax.text(xmin + (xmax-xmin)*0.77, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
+    ax.text(xmin + (xmax-xmin)*0.35, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
 
     ax.set_title(string.capwords(da.attrs["long_name"].replace("_", " ")))
     ax.set_xlabel("step with wind [km]")
@@ -90,8 +95,8 @@ def get_histogram_from_var_and_index(var, ix_backward_list, ix_forward_list, iy_
     # Plotting data
     # Mark the line where step_index is 0
     ax.axvline(x=0, color='k', linestyle='--', label="border")
+    ax.legend(loc=leg_loc)
 
-    ax.legend(loc="lower right")
     return H, xedges, yedges, H_sum
 
 def get_potential_temperature(T, P, P0=1000):
