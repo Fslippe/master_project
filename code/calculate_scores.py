@@ -127,9 +127,9 @@ def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_si
     x_test2 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/radiance_2023062_1100_combined.npy")
     x_test3 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/radiance_2023065_1125_combined.npy")
 
-    x_test4 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A2019060.1030.combined.npy")
-    x_test5 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A2022347.1150.combined.npy")
-    x_test6 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/MOD021KM.A2022120.955.combined.npy")
+    x_test4 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/MOD021KM.A2019060.1030.combined.npy")
+    x_test5 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/MOD021KM.A2022347.1150.combined.npy")
+    x_test6 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/MOD021KM.A2022120.955.combined.npy")
     x_test = ([x_test1, x_test2, x_test3, x_test4, x_test5, x_test6])
 
 
@@ -137,9 +137,9 @@ def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_si
     masks_test2 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/mask_2023062_1100_combined.npy")
     masks_test3 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/mask_2023065_1125_combined.npy")
 
-    masks_test4 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A2019060.1030.combined.npy")
-    masks_test5 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A2022347.1150.combined.npy")
-    masks_test6 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/masks/masks.A2022120.955.combined.npy")
+    masks_test4 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/masks.A2019060.1030.combined.npy")
+    masks_test5 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/masks.A2022347.1150.combined.npy")
+    masks_test6 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/masks.A2022120.955.combined.npy")
     masks_test = ([masks_test1, masks_test2, masks_test3, masks_test4, masks_test5, masks_test6])
     
 
@@ -147,9 +147,9 @@ def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_si
     lon_lats_test2 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lonlat_2023062_1100_combined.npy")
     lon_lats_test3 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lonlat_2023065_1125_combined.npy")
 
-    lon_lats_test4 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A2019060.1030.combined.npy")
-    lon_lats_test5 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A2022347.1150.combined.npy")
-    lon_lats_test6 = np.load("/scratch/fslippe/modis/MOD02/labeling_session/npy_files/lon_lats/lon_lats.A2022120.955.combined.npy")
+    lon_lats_test4 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lon_lats.A2019060.1030.combined.npy")
+    lon_lats_test5 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lon_lats.A2022347.1150.combined.npy")
+    lon_lats_test6 = np.load("/uio/hume/student-u37/fslippe/data/cao_examples/lon_lats.A2022120.955.combined.npy")
     lon_lats_test = ([lon_lats_test1, lon_lats_test2, lon_lats_test3, lon_lats_test4, lon_lats_test5, lon_lats_test6])
 
     patches_test, all_lon_patches_test, all_lat_patches_test, starts_test, ends_test, shapes_test, n_patches_tot_test, indices_test = generate_patches([x[:,:,0] for x in x_test],
@@ -159,8 +159,10 @@ def manually_find_cloud_labels(min_vals, max_vals, autoencoder_predict, patch_si
                                                                                                                                             min_vals,
                                                                                                                                             autoencoder_predict,
                                                                                                                                             strides=[1, patch_size, patch_size,1])
-    encoded_patches_flat_cao = load_and_predict_encoder(patch_size, last_filter, patches_test)
-    labels, global_min, global_max = get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K)
+    with tf.device('/CPU:0'):   
+        
+        encoded_patches_flat_cao = load_and_predict_encoder(patch_size, last_filter, patches_test)
+        labels, global_min, global_max = get_cluster_results(encoded_patches_flat_cao, patch_size, last_filter, n_K)
     plot_img_cluster_mask(x_test,
                       labels,#, labels_64],
                       masks_test,

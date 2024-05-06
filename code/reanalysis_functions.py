@@ -73,7 +73,7 @@ def get_histogram_from_var_and_index(var, ix_tot, iy_tot, step_index, datetime_o
     if v_max == None:
         v_max = np.nanmax(H_masked)
 
-    num_colors = 12
+    num_colors = v_max // 5 *2 #12
 
     cmap = colors.ListedColormap(plt.cm.GnBu(np.linspace(0, 1, num_colors)))
     cb = ax.imshow(H_masked.T, extent=extent, origin='lower', aspect='auto', cmap=cmap, vmax=v_max)
@@ -84,9 +84,10 @@ def get_histogram_from_var_and_index(var, ix_tot, iy_tot, step_index, datetime_o
     ymin, ymax = ax.get_ylim()
     xmin, xmax = ax.get_xlim()
     
-    ax.text(xmin + (xmax-xmin)*0.03, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
-    #ax.text(xmin + (xmax-xmin)*0.77, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
-    ax.text(xmin + (xmax-xmin)*0.35, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
+    # ax.text(xmin + (xmax-xmin)*0.03, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
+    # ax.text(xmin + (xmax-xmin)*0.35, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
+    ax.text(xmin + (xmax-xmin)*0.275, ymin + (ymax-ymin)*0.90, 'Closed Cell', bbox=dict(facecolor='tab:red', alpha=0.5), fontsize=14)
+    ax.text(xmin + (xmax-xmin)*0.515, ymin + (ymax-ymin)*0.90, 'Open Cell', bbox=dict(facecolor='tab:blue', alpha=0.5), fontsize=14)
 
     ax.set_title(string.capwords(da.attrs["long_name"].replace("_", " ")))
     ax.set_xlabel("step with wind [km]")
@@ -98,6 +99,9 @@ def get_histogram_from_var_and_index(var, ix_tot, iy_tot, step_index, datetime_o
     ax.legend(loc=leg_loc)
 
     return H, xedges, yedges, H_sum
+
+
+
 
 def get_potential_temperature(T, P, P0=1000):
     theta = T.values * (P0 / P[:, np.newaxis]) ** (0.286)
