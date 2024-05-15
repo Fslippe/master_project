@@ -28,10 +28,10 @@ from sklearn.cluster import DBSCAN
 from pyhdf.SD import SD, SDC
 import matplotlib as mpl
 #tf.config.threading.set_inter_op_parallelism_threads(1)
-from extract_training_data import *
 from sklearn.feature_extraction.image import extract_patches_2d, reconstruct_from_patches_2d
 from pyhdf.error import HDF4Error
 from functions import *
+from extract_training_data import *
 from tensorflow.keras.models import load_model
 from sklearn.cluster import KMeans, MiniBatchKMeans
 import joblib
