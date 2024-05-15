@@ -409,6 +409,7 @@ def calculate_scores_and_plot(model_boundaries, model_areas, labeled_boundaries,
     border_true_prediction_scores = []
     border_false_prediction_scores = []
     border_tot_labeled_list = []
+    
     for (m_border, m_area, l_border, l_area) in zip(model_boundaries, model_areas, labeled_boundaries, labeled_areas):
         tot_labeled_area_points = np.where(l_area > 0, 1, 0)
         tot_nonlabeled_area_points = np.where(l_area == 0, 1, 0)
